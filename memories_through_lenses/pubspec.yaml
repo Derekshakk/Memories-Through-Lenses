@@ -1,5 +1,5 @@
 name: memories_through_lenses
-description: "A new Flutter project."
+description: "Memories Through Lenses is a club dedicated to capturing and preserving the memorable moments of school events through photography, making them easily accessible to the community via a dedicated app."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
