@@ -7,9 +7,19 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
         body: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.center,
-      children: [Text("Login")],
+      children: [
+        Text(
+          "LOGIN",
+          style: TextStyle(fontSize: 50),
+        ),
+        TextField(),
+        TextField(),
+        ElevatedButton(onPressed: () {}, child: Text("LOGIN")),
+        TextButton(onPressed: () {}, child: Text("Forgot Password?")),
+        TextButton(onPressed: () {}, child: Text("Need an account? SIGN UP")),
+      ],
     ));
   }
 }
