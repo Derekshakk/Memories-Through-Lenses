@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
       title: 'Memories through Lenses',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
       routes: routes,
