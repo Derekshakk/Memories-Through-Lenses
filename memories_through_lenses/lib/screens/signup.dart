@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SignupPage extends StatefulWidget {
   SignupPage({super.key});
@@ -12,6 +13,13 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw "Could not launch $url";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,7 +98,9 @@ class _SignupPageState extends State<SignupPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      _launchURL("https://www.google.com/");
+                    },
                     child: const Text("Privacy Policy",
                         style: TextStyle(
                             color: Colors.black,
@@ -98,7 +108,9 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   const Text(" & "),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      _launchURL("https://www.youtube.com/");
+                    },
                     child: const Text("Terms of Service",
                         style: TextStyle(
                             color: Colors.black,
