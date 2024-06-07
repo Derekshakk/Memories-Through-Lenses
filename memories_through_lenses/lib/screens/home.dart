@@ -1,13 +1,56 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
+import 'package:memories_through_lenses/components/post.dart';
 
 enum ContentType { recent, popular }
+
+class PostData {
+  final String mediaURL;
+  final String mediaType;
+  final int likes;
+  final int dislikes;
+
+  PostData(
+      {required this.mediaURL,
+      required this.mediaType,
+      required this.likes,
+      required this.dislikes});
+}
 
 class HomePage extends StatefulWidget {
   HomePage({super.key});
 
   List<String> dropdownItems = ["Item 1", "Item 2", "Item 3"];
+
+  // list of posts (mediaURL, likes, dislikes)
+  List<PostData> posts = [
+    PostData(
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        mediaURL: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        mediaType: "video",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        likes: 0,
+        dislikes: 0),
+  ];
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -67,13 +110,15 @@ class _HomePageState extends State<HomePage> {
               Container(
                   height: SizeConfig.blockSizeVertical! * 70,
                   width: SizeConfig.blockSizeHorizontal! * 100,
-                  color: Colors.red,
+                  // color: Colors.red,
                   child: ListView.builder(
-                    itemCount: 10,
+                    itemCount: widget.posts.length,
                     itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text("Item $index"),
-                      );
+                      return PostCard(
+                          mediaURL: widget.posts[index].mediaURL,
+                          mediaType: widget.posts[index].mediaType,
+                          likes: widget.posts[index].likes,
+                          dislikes: widget.posts[index].dislikes);
                     },
                   ))
             ],
