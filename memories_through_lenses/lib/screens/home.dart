@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/post.dart';
+import 'package:memories_through_lenses/components/buttons.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 enum ContentType { recent, popular }
 
@@ -64,7 +66,59 @@ class _HomePageState extends State<HomePage> {
         appBar: AppBar(
           backgroundColor: Colors.blue,
         ),
-        drawer: Drawer(),
+        drawer: Drawer(
+          backgroundColor: Color.fromARGB(255, 44, 44, 44),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ListView(
+              children: [
+                SizedBox(
+                    height: SizeConfig.blockSizeHorizontal! * 25,
+                    width: SizeConfig.blockSizeHorizontal! * 25,
+                    child: Image.asset("assets/generic_profile.png")),
+                Text(
+                  "Username",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20),
+                ),
+                Padding(
+                    padding: const EdgeInsets.fromLTRB(85, 0, 85, 30),
+                    child:
+                        ElevatedButton(onPressed: () {}, child: Text("Edit"))),
+                MenuButton(
+                  text: "Create Post",
+                  onPressed: () {},
+                ),
+                MenuButton(
+                  text: "Add/Delete Friends",
+                  onPressed: () {},
+                ),
+                MenuButton(
+                  text: "Manage Groups",
+                  onPressed: () {},
+                ),
+                MenuButton(
+                  text: "Settings",
+                  onPressed: () {},
+                ),
+                MenuButton(
+                  text: "Log Out",
+                  onPressed: () {
+                    Auth().logout().then(
+                      (value) {
+                        Navigator.pushNamedAndRemoveUntil(
+                            context, '/', (route) => false);
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
         endDrawer: Drawer(),
         body: Padding(
           padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),

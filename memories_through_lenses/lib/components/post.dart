@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
 
+// ignore: must_be_immutable
 class PostCard extends StatefulWidget {
   PostCard(
       {super.key,
@@ -21,6 +22,12 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   @override
   Widget build(BuildContext context) {
+    late VideoPlayerController _controller;
+    if (widget.mediaType == "video") {
+      _controller =
+          VideoPlayerController.networkUrl(Uri.parse(widget.mediaURL));
+    }
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: SizedBox(
@@ -30,10 +37,29 @@ class _PostCardState extends State<PostCard> {
           color: Colors.blue,
           child: Stack(
             children: [
-              Image.network(
-                widget.mediaURL,
-                width: SizeConfig.blockSizeHorizontal! * 100,
-                height: SizeConfig.blockSizeHorizontal! * 100,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10.0),
+                // ternary expression:
+                // (condition) ? (if true) : (if false)
+                child: (widget.mediaType == "image")
+                    ? Image.network(
+                        widget.mediaURL,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : FutureBuilder(
+                        future: _controller.initialize(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.done) {
+                            return VideoPlayer(_controller);
+                          } else {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+                        },
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
