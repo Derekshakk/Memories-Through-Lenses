@@ -77,9 +77,9 @@ class _HomePageState extends State<HomePage> {
                     width: SizeConfig.blockSizeHorizontal! * 25,
                     child: Image.asset("assets/generic_profile.png")),
                 Text(
-                  "Username",
+                  "${Auth().user!.displayName}",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 20),
@@ -94,7 +94,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 MenuButton(
                   text: "Add/Delete Friends",
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/received');
+                  },
                 ),
                 MenuButton(
                   text: "Manage Groups",
