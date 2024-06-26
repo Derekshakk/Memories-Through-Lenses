@@ -11,4 +11,5 @@ var routes = {
   "/signup": (context) => SignupPage(),
   "/home": (context) => HomePage(),
   "/received": (context) => ReceivedScreen(),
+  "/send": (context) => SentScreen(),
 };

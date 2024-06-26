@@ -25,4 +25,12 @@ class Auth {
   Future<void> logout() async {
     await _auth.signOut();
   }
+
+  Future<void> updateUsername(String displayName) async {
+    await user!.updateDisplayName(displayName);
+  }
+
+  Future<void> forgotPassword(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
+  }
 }

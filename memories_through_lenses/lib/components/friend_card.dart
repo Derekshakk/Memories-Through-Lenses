@@ -1,18 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:memories_through_lenses/size_config.dart';
+
+enum FriendCardType {
+  request,
+  currentFriend,
+  addFriend,
+}
 
 class FriendCard extends StatelessWidget {
-  const FriendCard({super.key});
+  const FriendCard({super.key, required this.type});
+  final FriendCardType type;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-        child: Row(
-      children: [
-        IconButton(onPressed: () {}, icon: Icon(Icons.person)),
-        Text("Friend Name"),
-        IconButton(onPressed: () {}, icon: Icon(Icons.person)),
-        IconButton(onPressed: () {}, icon: Icon(Icons.person)),
-      ],
+        child: Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          SizedBox(
+            width: SizeConfig.blockSizeHorizontal! * 10,
+            height: SizeConfig.blockSizeHorizontal! * 10,
+            child: ElevatedButton(
+                onPressed: () {},
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(EdgeInsets.zero),
+                  backgroundColor: MaterialStateProperty.all(Colors.grey),
+                  shape: MaterialStateProperty.all(const CircleBorder()),
+                ),
+                child: const Icon(Icons.person, color: Colors.white)),
+          ),
+          SizedBox(width: SizeConfig.blockSizeHorizontal! * 2),
+          Expanded(child: Text("Friend Name")),
+
+          // ternary expression
+          // (expression) ? (if true) : (if false)
+          (type != FriendCardType.addFriend)
+              ? SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 10,
+                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  child: ElevatedButton(
+                      onPressed: () {},
+                      style: ButtonStyle(
+                        padding: MaterialStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: MaterialStateProperty.all(Colors.red),
+                        shape: MaterialStateProperty.all(const CircleBorder()),
+                      ),
+                      child: const Icon(Icons.cancel, color: Colors.white)),
+                )
+              : Container(),
+          (type != FriendCardType.currentFriend)
+              ? SizedBox(width: SizeConfig.blockSizeHorizontal! * 2)
+              : Container(),
+          (type != FriendCardType.currentFriend)
+              ? SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 10,
+                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  child: ElevatedButton(
+                      onPressed: () {},
+                      style: ButtonStyle(
+                        padding: MaterialStateProperty.all(EdgeInsets.zero),
+                        backgroundColor:
+                            MaterialStateProperty.all(Colors.green),
+                        shape: MaterialStateProperty.all(const CircleBorder()),
+                      ),
+                      child:
+                          const Icon(Icons.check_circle, color: Colors.white)),
+                )
+              : Container(),
+        ],
+      ),
     ));
   }
 }

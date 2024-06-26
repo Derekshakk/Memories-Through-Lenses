@@ -26,11 +26,25 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                   height: SizeConfig.blockSizeVertical! * 65,
                   child: Card(
                       color: Colors.blue,
-                      child: ListView(children: [FriendCard()]))),
+                      child: ListView(children: [
+                        FriendCard(
+                          type: FriendCardType.request,
+                        ),
+                        FriendCard(
+                          type: FriendCardType.addFriend,
+                        ),
+                        FriendCard(
+                          type: FriendCardType.currentFriend,
+                        )
+                      ]))),
               SizedBox(
                 height: SizeConfig.blockSizeVertical! * 2,
               ),
-              ElevatedButton(onPressed: () {}, child: Text("Outgoing Requests"))
+              ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/send');
+                  },
+                  child: Text("Outgoing Requests"))
             ],
           ),
         ));
