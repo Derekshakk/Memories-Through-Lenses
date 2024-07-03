@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/friend_card.dart';
+import 'package:memories_through_lenses/shared/singleton.dart';
 
 class ReceivedScreen extends StatefulWidget {
   const ReceivedScreen({super.key});
@@ -12,6 +13,16 @@ class ReceivedScreen extends StatefulWidget {
 class _ReceivedScreenState extends State<ReceivedScreen> {
   @override
   Widget build(BuildContext context) {
+    Singleton singleton = Singleton();
+    List<String> names = [];
+
+    // singleton.userData['friend_requests'].forEach((element) {
+    //   print("Element: $element");
+    //   names.add(element['name']);
+    // });
+
+    print(names);
+
     return Scaffold(
         appBar: AppBar(
           title: Text("Pending Requests"),
@@ -27,15 +38,15 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                   child: Card(
                       color: Colors.blue,
                       child: ListView(children: [
-                        FriendCard(
-                          type: FriendCardType.request,
-                        ),
-                        FriendCard(
-                          type: FriendCardType.addFriend,
-                        ),
-                        FriendCard(
-                          type: FriendCardType.currentFriend,
-                        )
+                        // FriendCard(
+                        //   type: FriendCardType.request,
+                        // ),
+                        // FriendCard(
+                        //   type: FriendCardType.addFriend,
+                        // ),
+                        // FriendCard(
+                        //   type: FriendCardType.currentFriend,
+                        // )
                       ]))),
               SizedBox(
                 height: SizeConfig.blockSizeVertical! * 2,

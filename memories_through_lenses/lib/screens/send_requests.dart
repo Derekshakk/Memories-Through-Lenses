@@ -27,15 +27,15 @@ class _SentScreenState extends State<SentScreen> {
                   child: Card(
                       color: Colors.blue,
                       child: ListView(children: [
-                        FriendCard(
-                          type: FriendCardType.request,
-                        ),
-                        FriendCard(
-                          type: FriendCardType.addFriend,
-                        ),
-                        FriendCard(
-                          type: FriendCardType.currentFriend,
-                        )
+                        // FriendCard(
+                        //   type: FriendCardType.request,
+                        // ),
+                        // FriendCard(
+                        //   type: FriendCardType.addFriend,
+                        // ),
+                        // FriendCard(
+                        //   type: FriendCardType.currentFriend,
+                        // )
                       ]))),
               SizedBox(
                 height: SizeConfig.blockSizeVertical! * 2,
@@ -46,15 +46,15 @@ class _SentScreenState extends State<SentScreen> {
                   child: Card(
                       color: Colors.blue,
                       child: ListView(children: [
-                        FriendCard(
-                          type: FriendCardType.request,
-                        ),
-                        FriendCard(
-                          type: FriendCardType.addFriend,
-                        ),
-                        FriendCard(
-                          type: FriendCardType.currentFriend,
-                        )
+                        // FriendCard(
+                        //   type: FriendCardType.request,
+                        // ),
+                        // FriendCard(
+                        //   type: FriendCardType.addFriend,
+                        // ),
+                        // FriendCard(
+                        //   type: FriendCardType.currentFriend,
+                        // )
                       ]))),
               SizedBox(
                 height: SizeConfig.blockSizeVertical! * 2,
