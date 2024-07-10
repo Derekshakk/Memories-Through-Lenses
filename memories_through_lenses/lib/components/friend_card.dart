@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 enum FriendCardType {
   request,
@@ -8,9 +10,11 @@ enum FriendCardType {
 }
 
 class FriendCard extends StatelessWidget {
-  const FriendCard({super.key, required this.type, required this.name});
+  const FriendCard(
+      {super.key, required this.type, required this.name, required this.uid});
   final FriendCardType type;
   final String name;
+  final String uid;
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +46,26 @@ class FriendCard extends StatelessWidget {
                   width: SizeConfig.blockSizeHorizontal! * 10,
                   height: SizeConfig.blockSizeHorizontal! * 10,
                   child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // determine database path depending on type
+                        String path = (type == FriendCardType.request)
+                            ? 'friend_requests'
+                            : 'friends';
+
+                        // remove friend request or friend at users/{uid}/friend_requests/uid or users/{uid}/friends/uid
+                        FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(Auth().user!.uid)
+                            .update({
+                          '$path.$uid': FieldValue.delete(),
+                        }).catchError((error) {
+                          print('Failed to delete friend request: $error');
+                        });
+                      },
                       style: ButtonStyle(
-                        padding: MaterialStateProperty.all(EdgeInsets.zero),
-                        backgroundColor: MaterialStateProperty.all(Colors.red),
-                        shape: MaterialStateProperty.all(const CircleBorder()),
+                        padding: WidgetStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: WidgetStateProperty.all(Colors.red),
+                        shape: WidgetStateProperty.all(const CircleBorder()),
                       ),
                       child: const Icon(Icons.cancel, color: Colors.white)),
                 )
@@ -59,12 +78,22 @@ class FriendCard extends StatelessWidget {
                   width: SizeConfig.blockSizeHorizontal! * 10,
                   height: SizeConfig.blockSizeHorizontal! * 10,
                   child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // add friend of value uid at users/{uid}/friends/$uid and delete request at users/{uid}/friend_requests/$uid
+                        FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(Auth().user!.uid)
+                            .update({
+                          'friends.$uid': {'name': name},
+                          'friend_requests.$uid': FieldValue.delete(),
+                        }).catchError((error) {
+                          print('Failed to add friend: $error');
+                        });
+                      },
                       style: ButtonStyle(
-                        padding: MaterialStateProperty.all(EdgeInsets.zero),
-                        backgroundColor:
-                            MaterialStateProperty.all(Colors.green),
-                        shape: MaterialStateProperty.all(const CircleBorder()),
+                        padding: WidgetStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: WidgetStateProperty.all(Colors.green),
+                        shape: WidgetStateProperty.all(const CircleBorder()),
                       ),
                       child:
                           const Icon(Icons.check_circle, color: Colors.white)),

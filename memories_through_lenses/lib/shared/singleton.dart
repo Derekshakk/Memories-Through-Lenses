@@ -20,8 +20,14 @@ class Singleton extends ChangeNotifier {
 
   Map<String, dynamic> get userData => _userData;
 
+  void notifyListenersSafe() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
+  }
+
   void setUserData(Map<String, dynamic> data) {
     _userData = data;
-    notifyListeners();
+    notifyListenersSafe();
   }
 }

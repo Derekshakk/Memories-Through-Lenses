@@ -3,6 +3,8 @@ import 'package:memories_through_lenses/routes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:memories_through_lenses/firebase_options.dart';
+import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/shared/singleton.dart';
 
 late final FirebaseApp app;
 late final FirebaseAuth auth;
@@ -15,7 +17,8 @@ void main() async {
   );
   auth = FirebaseAuth.instanceFor(app: app);
 
-  runApp(const MyApp());
+  runApp(ChangeNotifierProvider(
+      create: (context) => Singleton(), child: const MyApp()));
 }
 
 class MyApp extends StatelessWidget {

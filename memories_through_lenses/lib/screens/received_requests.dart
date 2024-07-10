@@ -14,14 +14,19 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
   @override
   Widget build(BuildContext context) {
     Singleton singleton = Singleton();
-    List<String> names = [];
+    List<Widget> requestCards = [];
 
-    // singleton.userData['friend_requests'].forEach((element) {
-    //   print("Element: $element");
-    //   names.add(element['name']);
-    // });
+    Map<String, dynamic> requests = singleton.userData['friend_requests'];
 
-    print(names);
+    for (var key in requests.keys) {
+      requestCards.add(FriendCard(
+        type: FriendCardType.request,
+        name: requests[key]['name'],
+        uid: key,
+      ));
+    }
+
+    print("names: $requestCards");
 
     return Scaffold(
         appBar: AppBar(
@@ -37,17 +42,12 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                   height: SizeConfig.blockSizeVertical! * 65,
                   child: Card(
                       color: Colors.blue,
-                      child: ListView(children: [
-                        // FriendCard(
-                        //   type: FriendCardType.request,
-                        // ),
-                        // FriendCard(
-                        //   type: FriendCardType.addFriend,
-                        // ),
-                        // FriendCard(
-                        //   type: FriendCardType.currentFriend,
-                        // )
-                      ]))),
+                      child: ListView.builder(
+                        itemCount: requestCards.length,
+                        itemBuilder: (context, index) {
+                          return requestCards[index];
+                        },
+                      ))),
               SizedBox(
                 height: SizeConfig.blockSizeVertical! * 2,
               ),
