@@ -90,7 +90,9 @@ class _HomePageState extends State<HomePage> {
                         ElevatedButton(onPressed: () {}, child: Text("Edit"))),
                 MenuButton(
                   text: "Create Post",
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/create');
+                  },
                 ),
                 MenuButton(
                   text: "Add/Delete Friends",
@@ -100,11 +102,15 @@ class _HomePageState extends State<HomePage> {
                 ),
                 MenuButton(
                   text: "Manage Groups",
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/group');
+                  },
                 ),
                 MenuButton(
                   text: "Settings",
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/settings');
+                  },
                 ),
                 MenuButton(
                   text: "Log Out",
