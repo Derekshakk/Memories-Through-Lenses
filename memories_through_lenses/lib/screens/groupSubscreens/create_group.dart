@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/toggle_row.dart';
+import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/components/group_card.dart';
+
+class User {
+  final String name;
+  final String uid;
+
+  User({required this.name, required this.uid});
+}
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -10,8 +19,21 @@ class CreateGroupScreen extends StatefulWidget {
 }
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
+  List<User> users = [];
+  Singleton singleton = Singleton();
+
+  void setUsers() {
+    users.clear();
+    Map<String, dynamic> friends = singleton.userData['friends'];
+
+    for (var key in friends.keys) {
+      users.add(User(name: friends[key]['name'], uid: key));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    setUsers();
     return Scaffold(
         body: SafeArea(
       child: Center(
@@ -30,10 +52,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               height: SizeConfig.blockSizeVertical! * 60,
               width: SizeConfig.blockSizeHorizontal! * 90,
               child: ListView.builder(
-                itemCount: 5,
+                itemCount: users.length,
                 itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text('User $index'),
+                  return GroupFriendCard(
+                    name: users[index].name,
+                    uid: users[index].uid,
                   );
                 },
               ),
