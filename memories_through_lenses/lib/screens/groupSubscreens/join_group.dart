@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/components/group_card.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   const JoinGroupScreen({super.key});
@@ -13,6 +14,21 @@ class JoinGroupScreen extends StatefulWidget {
 class _JoinGroupScreenState extends State<JoinGroupScreen> {
   final Singleton singleton = Singleton();
 
+  List<GroupCard> searchedGroups = [
+    GroupCard(name: 'Group 1', groupID: '1', type: GroupCardType.request),
+    GroupCard(name: 'Group 2', groupID: '2', type: GroupCardType.request),
+    GroupCard(name: 'Group 3', groupID: '3', type: GroupCardType.request),
+    GroupCard(name: 'Group 4', groupID: '4', type: GroupCardType.request),
+    GroupCard(name: 'Group 5', groupID: '5', type: GroupCardType.request),
+  ];
+  List<GroupCard> pendingGroups = [
+    GroupCard(name: 'Group 6', groupID: '6', type: GroupCardType.invite),
+    GroupCard(name: 'Group 7', groupID: '7', type: GroupCardType.invite),
+    GroupCard(name: 'Group 8', groupID: '8', type: GroupCardType.invite),
+    GroupCard(name: 'Group 9', groupID: '9', type: GroupCardType.invite),
+    GroupCard(name: 'Group 10', groupID: '10', type: GroupCardType.invite),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,8 +38,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         body: Center(
           child: Consumer<Singleton>(
             builder: (context, _singleton, child) {
-              List<Widget> searchedGroups = [];
-              List<Widget> pendingGroups = [];
+              // List<Widget> searchedGroups = [];
+              // List<Widget> pendingGroups = [];
 
               // Map<String, dynamic> requests =
               //     singleton.userData['outgoing_requests'];

@@ -3,6 +3,7 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/toggle_row.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
+import 'package:memories_through_lenses/services/database.dart';
 
 class User {
   final String name;
@@ -21,6 +22,9 @@ class CreateGroupScreen extends StatefulWidget {
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   List<User> users = [];
   Singleton singleton = Singleton();
+  TextEditingController groupNameController = TextEditingController();
+  TextEditingController groupDescriptionController = TextEditingController();
+  bool isPrivate = false;
 
   void setUsers() {
     users.clear();
@@ -43,8 +47,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextField(
-              decoration: InputDecoration(
+              controller: groupNameController,
+              decoration: const InputDecoration(
                 labelText: 'Group Name',
+              ),
+            ),
+            TextField(
+              controller: groupDescriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Group Description',
               ),
             ),
             Container(
@@ -63,9 +74,18 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             ),
             ToggleRow(
               title: 'Private',
+              onToggled: (value) {
+                setState(() {
+                  isPrivate = value;
+                });
+              },
             ),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Database().createGroup(groupNameController.text,
+                    groupDescriptionController.text, isPrivate);
+                Navigator.pop(context);
+              },
               child: Text('Create Group'),
             ),
           ],

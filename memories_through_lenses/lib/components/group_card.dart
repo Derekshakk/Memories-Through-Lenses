@@ -3,10 +3,21 @@ import 'package:memories_through_lenses/size_config.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:memories_through_lenses/services/auth.dart';
 
+enum GroupCardType {
+  request, // request to join group (red only)
+  invite, // invite to join group (green only)
+  notification // show both accept and reject buttons
+}
+
 class GroupCard extends StatelessWidget {
-  const GroupCard({super.key, required this.name, required this.groupID});
+  const GroupCard(
+      {super.key,
+      required this.name,
+      required this.groupID,
+      required this.type});
   final String name;
   final String groupID;
+  final GroupCardType type;
 
   @override
   Widget build(BuildContext context) {
@@ -17,33 +28,72 @@ class GroupCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           Expanded(child: Text(name)),
-          SizedBox(
-            width: SizeConfig.blockSizeHorizontal! * 10,
-            height: SizeConfig.blockSizeHorizontal! * 10,
-            child: ElevatedButton(
-                onPressed: () {
-                  // determine database path depending on type
-                  // String path = (type == FriendCardType.request)
-                  //     ? 'friend_requests'
-                  //     : 'friends';
+          // ternary expression
+          // (type == GroupCardType.invite) ? (if true) : (if false)
+          (type != GroupCardType.invite)
+              ? SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 10,
+                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  child: ElevatedButton(
+                      onPressed: () {
+                        // determine database path depending on type
+                        // String path = (type == FriendCardType.request)
+                        //     ? 'friend_requests'
+                        //     : 'friends';
 
-                  // // remove friend request or friend at users/{uid}/friend_requests/uid or users/{uid}/friends/uid
-                  // FirebaseFirestore.instance
-                  //     .collection('users')
-                  //     .doc(Auth().user!.uid)
-                  //     .update({
-                  //   '$path.$uid': FieldValue.delete(),
-                  // }).catchError((error) {
-                  //   print('Failed to delete friend request: $error');
-                  // });
-                },
-                style: ButtonStyle(
-                  padding: WidgetStateProperty.all(EdgeInsets.zero),
-                  backgroundColor: WidgetStateProperty.all(Colors.red),
-                  shape: WidgetStateProperty.all(const CircleBorder()),
-                ),
-                child: const Icon(Icons.cancel, color: Colors.white)),
-          )
+                        // // remove friend request or friend at users/{uid}/friend_requests/uid or users/{uid}/friends/uid
+                        // FirebaseFirestore.instance
+                        //     .collection('users')
+                        //     .doc(Auth().user!.uid)
+                        //     .update({
+                        //   '$path.$uid': FieldValue.delete(),
+                        // }).catchError((error) {
+                        //   print('Failed to delete friend request: $error');
+                        // });
+                      },
+                      style: ButtonStyle(
+                        padding: WidgetStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: WidgetStateProperty.all(Colors.red),
+                        shape: WidgetStateProperty.all(const CircleBorder()),
+                      ),
+                      child: const Icon(Icons.cancel, color: Colors.white)),
+                )
+              : Container(),
+          (type != GroupCardType.request)
+              ? SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 2,
+                )
+              : Container(),
+          (type != GroupCardType.request)
+              ? SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 10,
+                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  child: ElevatedButton(
+                      onPressed: () {
+                        // determine database path depending on type
+                        // String path = (type == FriendCardType.request)
+                        //     ? 'friend_requests'
+                        //     : 'friends';
+
+                        // // remove friend request or friend at users/{uid}/friend_requests/uid or users/{uid}/friends/uid
+                        // FirebaseFirestore.instance
+                        //     .collection('users')
+                        //     .doc(Auth().user!.uid)
+                        //     .update({
+                        //   '$path.$uid': FieldValue.delete(),
+                        // }).catchError((error) {
+                        //   print('Failed to delete friend request: $error');
+                        // });
+                      },
+                      style: ButtonStyle(
+                        padding: WidgetStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: WidgetStateProperty.all(Colors.green),
+                        shape: WidgetStateProperty.all(const CircleBorder()),
+                      ),
+                      child:
+                          const Icon(Icons.check_circle, color: Colors.white)),
+                )
+              : Container()
         ],
       ),
     ));
