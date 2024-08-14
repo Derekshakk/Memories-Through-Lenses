@@ -39,6 +39,13 @@ class Initializer extends StatelessWidget {
 
             print(singleton.userData);
 
+            List<dynamic> groups = singleton.userData["groups"];
+
+            for (int i = 0; i < groups.length; i++) {
+              String groupID = groups[i].toString();
+              print(groupID);
+            }
+
             return HomePage();
           });
     }

@@ -31,6 +31,11 @@ class _GroupScreenState extends State<GroupScreen> {
               Navigator.pushNamed(context, '/join_group');
             },
             child: Text('Join Group')),
+        ElevatedButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/edit_group');
+            },
+            child: Text('Edit Existing Group')),
         SizedBox(
           width: SizeConfig.blockSizeHorizontal! * 90,
           height: SizeConfig.blockSizeVertical! * 40,

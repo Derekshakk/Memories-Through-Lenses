@@ -101,9 +101,11 @@ class GroupCard extends StatelessWidget {
 }
 
 class GroupFriendCard extends StatefulWidget {
-  const GroupFriendCard({super.key, required this.name, required this.uid});
+  const GroupFriendCard(
+      {super.key, required this.name, required this.uid, this.mode = 'create'});
   final String name;
   final String uid;
+  final String mode;
 
   @override
   State<GroupFriendCard> createState() => _GroupFriendCardState();
@@ -113,66 +115,132 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
   bool _selected = false;
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selected = !_selected;
-          // print(_selected);
-        });
-      },
-      child: Card(
-          child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            SizedBox(
-              width: SizeConfig.blockSizeHorizontal! * 10,
-              height: SizeConfig.blockSizeHorizontal! * 10,
-              child: ElevatedButton(
-                  onPressed: () {},
-                  style: ButtonStyle(
-                    padding: WidgetStateProperty.all(EdgeInsets.zero),
-                    backgroundColor: WidgetStateProperty.all(Colors.grey),
-                    shape: WidgetStateProperty.all(const CircleBorder()),
-                  ),
-                  child: const Icon(Icons.person, color: Colors.white)),
-            ),
-            SizedBox(width: SizeConfig.blockSizeHorizontal! * 2),
-            Expanded(child: Text(widget.name)),
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            setState(() {
+              _selected = !_selected;
+              // print(_selected);
+            });
+          },
+          child: Card(
+              child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 10,
+                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  child: ElevatedButton(
+                      onPressed: () {},
+                      style: ButtonStyle(
+                        padding: WidgetStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: WidgetStateProperty.all(Colors.grey),
+                        shape: WidgetStateProperty.all(const CircleBorder()),
+                      ),
+                      child: const Icon(Icons.person, color: Colors.white)),
+                ),
+                SizedBox(width: SizeConfig.blockSizeHorizontal! * 2),
+                Expanded(child: Text(widget.name)),
 
-            // ternary expression
-            // (expression) ? (if true) : (if false)
-            (_selected)
-                ? SizedBox(
-                    width: SizeConfig.blockSizeHorizontal! * 10,
-                    height: SizeConfig.blockSizeHorizontal! * 10,
-                    child: ElevatedButton(
-                        onPressed: () {},
-                        style: ButtonStyle(
-                          padding: WidgetStateProperty.all(EdgeInsets.zero),
-                          backgroundColor: WidgetStateProperty.all(Colors.grey),
-                          shape: WidgetStateProperty.all(const CircleBorder()),
-                        ),
-                        child: const Icon(Icons.check_circle,
-                            color: Colors.white)),
-                  )
-                : SizedBox(
-                    width: SizeConfig.blockSizeHorizontal! * 10,
-                    height: SizeConfig.blockSizeHorizontal! * 10,
-                    child: ElevatedButton(
-                        onPressed: () {},
-                        style: ButtonStyle(
-                          padding: WidgetStateProperty.all(EdgeInsets.zero),
-                          backgroundColor: WidgetStateProperty.all(
-                              const Color.fromARGB(132, 158, 158, 158)),
-                          shape: WidgetStateProperty.all(const CircleBorder()),
-                        ),
-                        child: Container()),
-                  )
-          ],
+                // ternary expression
+                // (expression) ? (if true) : (if false)
+                (_selected)
+                    ? SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 10,
+                        height: SizeConfig.blockSizeHorizontal! * 10,
+                        child: (widget.mode == 'create')
+                            ? ElevatedButton(
+                                onPressed: () {},
+                                style: ButtonStyle(
+                                  padding:
+                                      WidgetStateProperty.all(EdgeInsets.zero),
+                                  backgroundColor:
+                                      WidgetStateProperty.all(Colors.grey),
+                                  shape: WidgetStateProperty.all(
+                                      const CircleBorder()),
+                                ),
+                                child: const Icon(Icons.check_circle,
+                                    color: Colors.white))
+                            : Container(),
+                      )
+                    : (widget.mode == 'create')
+                        ? SizedBox(
+                            width: SizeConfig.blockSizeHorizontal! * 10,
+                            height: SizeConfig.blockSizeHorizontal! * 10,
+                            child: ElevatedButton(
+                                onPressed: () {},
+                                style: ButtonStyle(
+                                  padding:
+                                      WidgetStateProperty.all(EdgeInsets.zero),
+                                  backgroundColor: WidgetStateProperty.all(
+                                      const Color.fromARGB(132, 158, 158, 158)),
+                                  shape: WidgetStateProperty.all(
+                                      const CircleBorder()),
+                                ),
+                                child: Container()),
+                          )
+                        : Container()
+              ],
+            ),
+          )),
         ),
-      )),
+        (widget.mode == 'edit')
+            ? AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeInOut,
+                color: Colors.yellow,
+                height: _selected ? SizeConfig.blockSizeVertical! * 20 : 0,
+                width: SizeConfig.blockSizeHorizontal! * 90,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: SizeConfig.blockSizeHorizontal! * 90,
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor:
+                              WidgetStateProperty.all(Colors.yellow),
+                          shape: WidgetStateProperty.all(RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(0))),
+                        ),
+                        onPressed: () {},
+                        child: const Text('Transfer Ownership'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: SizeConfig.blockSizeHorizontal! * 90,
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor:
+                              WidgetStateProperty.all(Colors.yellow),
+                          shape: WidgetStateProperty.all(RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(0))),
+                        ),
+                        onPressed: () {},
+                        child: const Text('Kick'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: SizeConfig.blockSizeHorizontal! * 90,
+                      child: ElevatedButton(
+                        style: ButtonStyle(
+                          backgroundColor:
+                              WidgetStateProperty.all(Colors.yellow),
+                          shape: WidgetStateProperty.all(RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(0))),
+                        ),
+                        onPressed: () {},
+                        child: const Text('Add Friend'),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Container()
+      ],
     );
   }
 }
