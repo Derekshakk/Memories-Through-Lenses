@@ -46,6 +46,31 @@ class Initializer extends StatelessWidget {
               print(groupID);
             }
 
+            // get the groups collection
+            var groupsCollection =
+                FirebaseFirestore.instance.collection('groups');
+            // get the groups that the user is a part of in the members list
+            var userGroups = groupsCollection
+                .where('members', arrayContains: user.uid)
+                .snapshots();
+
+            // convert the userGroups to a list
+            // print("User groups: ");
+            userGroups.forEach((element) {
+              // convert json query snapshot to list
+              List<DocumentSnapshot> userGroupsList = element.docs;
+              for (var element in userGroupsList) {
+                // print(element.data());
+                Map<String, dynamic> groupData =
+                    element.data() as Map<String, dynamic>;
+
+                // add groupID to groupData, it's the key of the document
+                groupData["groupID"] = element.id;
+
+                singleton.groupData.add(groupData);
+              }
+            });
+
             return HomePage();
           });
     }

@@ -4,6 +4,7 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/post.dart';
 import 'package:memories_through_lenses/components/buttons.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/shared/singleton.dart';
 
 enum ContentType { recent, popular }
 
@@ -59,6 +60,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  Singleton singleton = Singleton();
   ContentType selected = ContentType.popular;
   @override
   Widget build(BuildContext context) {
@@ -70,12 +72,26 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Color.fromARGB(255, 44, 44, 44),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: ListView(
+            child: Column(
               children: [
                 SizedBox(
-                    height: SizeConfig.blockSizeHorizontal! * 25,
-                    width: SizeConfig.blockSizeHorizontal! * 25,
-                    child: Image.asset("assets/generic_profile.png")),
+                  height: SizeConfig.blockSizeVertical! * 10,
+                ),
+                (singleton.userData.containsKey("profile_image"))
+                    ? SizedBox(
+                        height: SizeConfig.blockSizeHorizontal! * 25,
+                        width: SizeConfig.blockSizeHorizontal! * 25,
+                        child: ClipRRect(
+                            borderRadius: BorderRadius.circular(100),
+                            child: Image.network(
+                              singleton.userData["profile_image"],
+                              fit: BoxFit.cover,
+                            )),
+                      )
+                    : SizedBox(
+                        height: SizeConfig.blockSizeHorizontal! * 25,
+                        width: SizeConfig.blockSizeHorizontal! * 25,
+                        child: Image.asset("assets/generic_profile.png")),
                 Text(
                   "${Auth().user!.displayName}",
                   textAlign: TextAlign.center,
@@ -85,43 +101,53 @@ class _HomePageState extends State<HomePage> {
                       fontSize: 20),
                 ),
                 Padding(
-                    padding: const EdgeInsets.fromLTRB(85, 0, 85, 30),
-                    child:
-                        ElevatedButton(onPressed: () {}, child: Text("Edit"))),
-                MenuButton(
-                  text: "Create Post",
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/create');
-                  },
-                ),
-                MenuButton(
-                  text: "Add/Delete Friends",
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/received');
-                  },
-                ),
-                MenuButton(
-                  text: "Manage Groups",
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/group');
-                  },
-                ),
-                MenuButton(
-                  text: "Settings",
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/settings');
-                  },
-                ),
-                MenuButton(
-                  text: "Log Out",
-                  onPressed: () {
-                    Auth().logout().then(
-                      (value) {
-                        Navigator.pushNamedAndRemoveUntil(
-                            context, '/', (route) => false);
-                      },
-                    );
-                  },
+                    padding: const EdgeInsets.fromLTRB(85, 0, 85, 0),
+                    child: ElevatedButton(
+                        onPressed: () {
+                          print("Edit profile");
+                          Navigator.pushNamed(context, '/profile_edit');
+                        },
+                        child: const Text("Edit"))),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      MenuButton(
+                        text: "Create Post",
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/create');
+                        },
+                      ),
+                      MenuButton(
+                        text: "Add/Delete Friends",
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/received');
+                        },
+                      ),
+                      MenuButton(
+                        text: "Manage Groups",
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/group');
+                        },
+                      ),
+                      MenuButton(
+                        text: "Settings",
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/settings');
+                        },
+                      ),
+                      MenuButton(
+                        text: "Log Out",
+                        onPressed: () {
+                          Auth().logout().then(
+                            (value) {
+                              Navigator.pushNamedAndRemoveUntil(
+                                  context, '/', (route) => false);
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

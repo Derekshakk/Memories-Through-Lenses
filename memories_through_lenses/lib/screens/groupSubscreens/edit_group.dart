@@ -4,6 +4,7 @@ import 'package:memories_through_lenses/components/toggle_row.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 class User {
   final String name;
@@ -17,7 +18,7 @@ class Group {
   final String description;
   final String groupID;
   final bool isPrivate;
-  final List<String> members;
+  final List<dynamic> members;
   final String owner;
 
   Group(
@@ -51,6 +52,7 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
   TextEditingController groupNameController = TextEditingController();
   TextEditingController groupDescriptionController = TextEditingController();
   bool isPrivate = false;
+  String? currentGroup;
 
   void setUsers() {
     users.clear();
@@ -61,9 +63,28 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
     }
   }
 
+  void setGroups() {
+    groups.clear();
+    for (Map<String, dynamic> group in singleton.groupData) {
+      final String uid = Auth().user!.uid;
+      if (group['owner'] != uid) {
+        continue;
+      }
+
+      groups.add(Group(
+          name: group['name'],
+          description: group['description'],
+          groupID: group['groupID'],
+          isPrivate: group['private'],
+          members: group['members'],
+          owner: group['owner']));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     setUsers();
+    setGroups();
     return Scaffold(
         body: SafeArea(
       child: SingleChildScrollView(
@@ -75,13 +96,31 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
             children: [
               DropdownButton(
                   hint: Text('Select Group'),
+                  value: currentGroup,
                   items: groups.map((group) {
                     return DropdownMenuItem(
                       child: Text(group.name),
                       value: group.groupID,
                     );
                   }).toList(),
-                  onChanged: (value) {}),
+                  onChanged: (value) {
+                    setState(() {
+                      print("Setting current group to $value");
+                      // set current group to whichever group has the same name as value
+                      currentGroup = value.toString();
+
+                      // set the group name and description to the current group's name and description
+                      for (Group group in groups) {
+                        print("Comparing ${group.groupID} to $value");
+                        if (group.groupID == value) {
+                          groupNameController.text = group.name;
+                          groupDescriptionController.text = group.description;
+                          isPrivate = group.isPrivate;
+                          break;
+                        }
+                      }
+                    });
+                  }),
               TextField(
                 controller: groupNameController,
                 decoration: const InputDecoration(
@@ -111,16 +150,17 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
               ),
               ToggleRow(
                 title: 'Private',
+                initialValue: isPrivate,
                 onToggled: (value) {
                   setState(() {
+                    print("Setting isPrivate to $value");
                     isPrivate = value;
                   });
                 },
               ),
               ElevatedButton(
                 onPressed: () {
-                  Database().createGroup(groupNameController.text,
-                      groupDescriptionController.text, isPrivate);
+                  // Database().updateGroup(, name, description, isPrivate)
                   Navigator.pop(context);
                 },
                 child: Text('Edit Group'),

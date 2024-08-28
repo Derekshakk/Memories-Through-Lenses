@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
 class ToggleRow extends StatefulWidget {
-  const ToggleRow({super.key, required this.title, this.onToggled});
+  const ToggleRow(
+      {super.key,
+      required this.title,
+      this.onToggled,
+      this.initialValue = false});
 
   final String title;
   final ValueChanged<bool>? onToggled;
+  final bool initialValue;
 
   @override
   State<ToggleRow> createState() => _ToggleRowState();
@@ -15,6 +20,7 @@ class _ToggleRowState extends State<ToggleRow> {
 
   @override
   Widget build(BuildContext context) {
+    isSwitched = widget.initialValue;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

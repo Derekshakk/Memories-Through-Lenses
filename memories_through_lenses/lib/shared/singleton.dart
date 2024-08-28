@@ -19,7 +19,8 @@ class Singleton extends ChangeNotifier {
     'groups': []
   };
 
-  Map<String, dynamic> groupData = {};
+  // Map<String, dynamic> groupData = {};
+  List<Map<String, dynamic>> groupData = [];
 
   Map<String, dynamic> get userData => _userData;
 

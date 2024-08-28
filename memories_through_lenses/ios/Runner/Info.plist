@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Memories Through Lenses needs access to your photo library to save photos.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Memories Through Lenses needs access to your camera to take photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Memories Through Lenses needs access to your microphone to record audio.</string>
 </dict>
 </plist>
