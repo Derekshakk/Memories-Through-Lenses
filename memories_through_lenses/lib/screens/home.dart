@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
@@ -5,55 +7,38 @@ import 'package:memories_through_lenses/components/post.dart';
 import 'package:memories_through_lenses/components/buttons.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/components/friend_card.dart';
+import 'package:memories_through_lenses/services/database.dart';
+import 'package:provider/provider.dart';
 
 enum ContentType { recent, popular }
 
 class PostData {
+  final String id;
   final String mediaURL;
   final String mediaType;
   final int likes;
   final int dislikes;
+  final String caption;
 
   PostData(
-      {required this.mediaURL,
+      {required this.id,
+      required this.mediaURL,
       required this.mediaType,
+      required this.caption,
       required this.likes,
       required this.dislikes});
 }
 
+class Pair {
+  final String key;
+  final String value;
+
+  Pair(this.key, this.value);
+}
+
 class HomePage extends StatefulWidget {
   HomePage({super.key});
-
-  List<String> dropdownItems = ["Item 1", "Item 2", "Item 3"];
-
-  // list of posts (mediaURL, likes, dislikes)
-  List<PostData> posts = [
-    PostData(
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        mediaURL: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-        mediaType: "video",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        likes: 0,
-        dislikes: 0),
-  ];
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -62,8 +47,118 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Singleton singleton = Singleton();
   ContentType selected = ContentType.popular;
+  bool timelineLoaded = false;
+
+  List<String> dropdownItems = ["Item 1", "Item 2", "Item 3"];
+  List<Pair> dropdownPairs = [
+    Pair("Item 1", "1"),
+    Pair("Item 2", "2"),
+    Pair("Item 3", "3")
+  ];
+  String dropdownValue = "";
+
+  // list of posts (mediaURL, likes, dislikes)
+  List<PostData> posts = [
+    PostData(
+        id: "1",
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        caption: "This is a caption",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        id: "2",
+        mediaURL: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        mediaType: "video",
+        caption: "This is a caption",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        id: "3",
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        caption: "This is a caption",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        id: "4",
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        caption: "This is a caption",
+        likes: 0,
+        dislikes: 0),
+    PostData(
+        id: "5",
+        mediaURL: "https://picsum.photos/200",
+        mediaType: "image",
+        caption: "This is a caption",
+        likes: 0,
+        dislikes: 0),
+  ];
+
+  void getGroups() {
+    dropdownItems.clear();
+    dropdownPairs.clear();
+    print("SINGLETON: ${singleton.groupData}");
+    List<Map<String, dynamic>> groups = singleton.groupData;
+    for (var element in groups) {
+      print("ADDING: ${element['name']}");
+      dropdownItems.add(element['name']);
+      dropdownPairs.add(Pair(element['name'], element['groupID']));
+    }
+
+    print("dropdownItems: $dropdownItems");
+
+    if (dropdownItems.isNotEmpty) dropdownValue = dropdownItems[0];
+  }
+
+  void getPosts(String groupID) {
+    Database()
+        .getPosts(
+            groupID, (selected == ContentType.popular) ? 'popular' : 'newest')
+        .then((value) {
+      List<PostData> temp = [];
+      print("VALUE: $value");
+      for (var element in value) {
+        temp.add(PostData(
+            id: element['id'],
+            mediaURL: element['image_url'],
+            mediaType: 'image',
+            caption: element['caption'],
+            likes: element['likes'].length,
+            dislikes: element['dislikes'].length));
+      }
+      setState(() {
+        posts = temp;
+      });
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getGroups();
+
+    // set a timer to run after 3 seconds
+    Timer(const Duration(seconds: 1), () {
+      setState(() {
+        selected = ContentType.popular;
+        print("${singleton.groupData}");
+        timelineLoaded = true;
+        getGroups();
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (dropdownPairs.isNotEmpty) {
+      String groupID = dropdownPairs
+          .firstWhere((element) => element.key == dropdownValue)
+          .value;
+      getPosts(groupID);
+    }
+
     return Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.blue,
@@ -153,7 +248,35 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        endDrawer: Drawer(),
+        endDrawer: Drawer(child: Consumer(
+          builder: (context, _singleton, child) {
+            List<Widget> currentFriends = [];
+            Map<String, dynamic> friends = singleton.userData['friends'];
+
+            print("populating current friends list");
+            friends.forEach((key, value) {
+              print("key: $key, value: $value");
+              currentFriends.add(FriendCard(
+                type: FriendCardType.currentFriend,
+                name: value['name'],
+                uid: key,
+                onPressed: () {
+                  setState(() {
+                    print("removing friend: $key");
+                  });
+                },
+              ));
+            });
+            print("current friends list: $currentFriends");
+
+            return ListView.builder(
+              itemCount: currentFriends.length,
+              itemBuilder: (context, index) {
+                return currentFriends[index];
+              },
+            );
+          },
+        )),
         body: Padding(
           padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
           child: Column(
@@ -162,16 +285,44 @@ class _HomePageState extends State<HomePage> {
               SizedBox(
                 height: SizeConfig.blockSizeVertical! * 5,
                 width: SizeConfig.blockSizeHorizontal! * 90,
-                child: DropdownButton(
-                    items: widget.dropdownItems.map<DropdownMenuItem<String>>(
-                      (String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      },
-                    ).toList(),
-                    onChanged: (value) {}),
+                child: Consumer<Singleton>(
+                  builder: (context, _singleton, child) {
+                    // getGroups();
+                    return DropdownButton(
+                        value: dropdownValue,
+                        items: dropdownItems.map<DropdownMenuItem<String>>(
+                          (String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          },
+                        ).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            String groupID = dropdownPairs
+                                .firstWhere((element) => element.key == value)
+                                .value;
+                            getPosts(groupID);
+                          });
+                        });
+                  },
+                  // child: DropdownButton(
+                  //     value: dropdownValue,
+                  //     items: dropdownItems.map<DropdownMenuItem<String>>(
+                  //       (String value) {
+                  //         return DropdownMenuItem<String>(
+                  //           value: value,
+                  //           child: Text(value),
+                  //         );
+                  //       },
+                  //     ).toList(),
+                  //     onChanged: (value) {
+                  //       setState(() {
+                  //         dropdownValue = value.toString();
+                  //       });
+                  //     }),
+                ),
               ),
               SizedBox(
                 width: SizeConfig.blockSizeHorizontal! * 90,
@@ -191,24 +342,33 @@ class _HomePageState extends State<HomePage> {
                     },
                     onSelectionChanged: (value) {
                       setState(() {
+                        print("VALUE: $value");
                         selected = value.first;
+                        print("${singleton.groupData}");
+                        getGroups();
                       });
                     }),
               ),
-              Container(
+              SizedBox(
                   height: SizeConfig.blockSizeVertical! * 70,
                   width: SizeConfig.blockSizeHorizontal! * 100,
                   // color: Colors.red,
-                  child: ListView.builder(
-                    itemCount: widget.posts.length,
-                    itemBuilder: (context, index) {
-                      return PostCard(
-                          mediaURL: widget.posts[index].mediaURL,
-                          mediaType: widget.posts[index].mediaType,
-                          likes: widget.posts[index].likes,
-                          dislikes: widget.posts[index].dislikes);
-                    },
-                  ))
+                  child: (timelineLoaded)
+                      ? ListView.builder(
+                          itemCount: posts.length,
+                          itemBuilder: (context, index) {
+                            return PostCard(
+                                id: posts[index].id,
+                                mediaURL: posts[index].mediaURL,
+                                mediaType: posts[index].mediaType,
+                                caption: posts[index].caption,
+                                likes: posts[index].likes,
+                                dislikes: posts[index].dislikes);
+                          },
+                        )
+                      : const Center(
+                          child: CircularProgressIndicator(),
+                        ))
             ],
           ),
         ));

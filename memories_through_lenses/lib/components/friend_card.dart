@@ -11,10 +11,15 @@ enum FriendCardType {
 
 class FriendCard extends StatelessWidget {
   const FriendCard(
-      {super.key, required this.type, required this.name, required this.uid});
+      {super.key,
+      required this.type,
+      required this.name,
+      required this.uid,
+      required this.onPressed});
   final FriendCardType type;
   final String name;
   final String uid;
+  final Function onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +65,8 @@ class FriendCard extends StatelessWidget {
                           '$path.$uid': FieldValue.delete(),
                         }).catchError((error) {
                           print('Failed to delete friend request: $error');
+                        }).then((value) {
+                          onPressed();
                         });
                       },
                       style: ButtonStyle(
@@ -88,6 +95,8 @@ class FriendCard extends StatelessWidget {
                           'friend_requests.$uid': FieldValue.delete(),
                         }).catchError((error) {
                           print('Failed to add friend: $error');
+                        }).then((value) {
+                          onPressed();
                         });
                       },
                       style: ButtonStyle(

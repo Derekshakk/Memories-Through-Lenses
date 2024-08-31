@@ -51,4 +51,93 @@ class Database {
 
     _auth.user!.updateDisplayName(displayName);
   }
+
+  Future<void> createPost(String groupId, String caption, File image) async {
+    var ref = FirebaseStorage.instance
+        .ref()
+        .child('posts/${_auth.user!.uid}/${DateTime.now()}');
+    await ref.putFile(image);
+    var imageUrl = await ref.getDownloadURL();
+
+    _firestore.collection('posts').add({
+      'group_id': groupId,
+      'user_id': _auth.user!.uid,
+      'caption': caption,
+      'image_url': imageUrl,
+      'likes': [],
+      'dislikes': [],
+      'comments': [],
+      'created_at': DateTime.now()
+    });
+  }
+
+  Future<void> likePost(String postId) async {
+    // check if the user previously disliked the post
+    var post = await _firestore.collection('posts').doc(postId).get();
+    var dislikes = post.data()!['dislikes'];
+    if (dislikes.contains(_auth.user!.uid)) {
+      removeDislikePost(postId);
+    }
+
+    _firestore.collection('posts').doc(postId).update({
+      'likes': FieldValue.arrayUnion([_auth.user!.uid])
+    });
+  }
+
+  Future<void> removeLikePost(String postId) async {
+    _firestore.collection('posts').doc(postId).update({
+      'likes': FieldValue.arrayRemove([_auth.user!.uid])
+    });
+  }
+
+  Future<void> dislikePost(String postId) async {
+    // check if the user previously liked the post
+    var post = await _firestore.collection('posts').doc(postId).get();
+    var likes = post.data()!['likes'];
+    if (likes.contains(_auth.user!.uid)) {
+      removeLikePost(postId);
+    }
+
+    _firestore.collection('posts').doc(postId).update({
+      'dislikes': FieldValue.arrayUnion([_auth.user!.uid])
+    });
+  }
+
+  Future<void> removeDislikePost(String postId) async {
+    _firestore.collection('posts').doc(postId).update({
+      'dislikes': FieldValue.arrayRemove([_auth.user!.uid])
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getPosts(
+      String groupId, String mode) async {
+    var posts = await _firestore
+        .collection('posts')
+        .where('group_id', isEqualTo: groupId)
+        .get();
+
+    if (mode == 'newest') {
+      posts.docs.sort(
+          (a, b) => b.data()['created_at'].compareTo(a.data()['created_at']));
+    } else if (mode == 'popular') {
+      posts.docs.sort((a, b) =>
+          b.data()['likes'].length.compareTo(a.data()['likes'].length));
+    }
+
+    var posts_list = posts.docs.map((e) => e.data()).toList();
+
+    // for each post, add the id
+    for (var i = 0; i < posts_list.length; i++) {
+      // print("Attempting to add id to post");
+      posts_list[i]['id'] = posts.docs[i].id;
+      // print("Added id to post: {${posts_list[i]['id']}");
+    }
+
+    return posts_list;
+  }
+
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    var users = await _firestore.collection('users').get();
+    return users.docs.map((e) => e.data()).toList();
+  }
 }

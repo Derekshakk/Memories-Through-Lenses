@@ -23,6 +23,9 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
         type: FriendCardType.request,
         name: requests[key]['name'],
         uid: key,
+        onPressed: () {
+          setState(() {});
+        },
       ));
     }
 

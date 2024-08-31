@@ -56,6 +56,9 @@ class Initializer extends StatelessWidget {
 
             // convert the userGroups to a list
             // print("User groups: ");
+
+            singleton.groupData = [];
+
             userGroups.forEach((element) {
               // convert json query snapshot to list
               List<DocumentSnapshot> userGroupsList = element.docs;
@@ -69,6 +72,7 @@ class Initializer extends StatelessWidget {
 
                 singleton.groupData.add(groupData);
               }
+              singleton.notifyListenersSafe();
             });
 
             return HomePage();

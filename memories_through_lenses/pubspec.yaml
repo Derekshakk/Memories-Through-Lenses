@@ -44,6 +44,7 @@ dependencies:
   provider: ^6.1.2
   camera: ^0.11.0+1
   image_picker: ^1.1.2
+  flutter_launcher_icons: ^0.13.1
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +59,13 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path_ios: "assets/ios_icon.png"
+  image_path_android: "assets/android_icon.png"
+  remove_alpha_ios: true # Removes transparency from iOS icons, default false
 
 # The following section is specific to Flutter packages.
 flutter:
