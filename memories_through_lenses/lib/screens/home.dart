@@ -59,41 +59,41 @@ class _HomePageState extends State<HomePage> {
 
   // list of posts (mediaURL, likes, dislikes)
   List<PostData> posts = [
-    PostData(
-        id: "1",
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        caption: "This is a caption",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        id: "2",
-        mediaURL: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-        mediaType: "video",
-        caption: "This is a caption",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        id: "3",
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        caption: "This is a caption",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        id: "4",
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        caption: "This is a caption",
-        likes: 0,
-        dislikes: 0),
-    PostData(
-        id: "5",
-        mediaURL: "https://picsum.photos/200",
-        mediaType: "image",
-        caption: "This is a caption",
-        likes: 0,
-        dislikes: 0),
+    // PostData(
+    //     id: "1",
+    //     mediaURL: "https://picsum.photos/200",
+    //     mediaType: "image",
+    //     caption: "This is a caption",
+    //     likes: 0,
+    //     dislikes: 0),
+    // PostData(
+    //     id: "2",
+    //     mediaURL: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    //     mediaType: "video",
+    //     caption: "This is a caption",
+    //     likes: 0,
+    //     dislikes: 0),
+    // PostData(
+    //     id: "3",
+    //     mediaURL: "https://picsum.photos/200",
+    //     mediaType: "image",
+    //     caption: "This is a caption",
+    //     likes: 0,
+    //     dislikes: 0),
+    // PostData(
+    //     id: "4",
+    //     mediaURL: "https://picsum.photos/200",
+    //     mediaType: "image",
+    //     caption: "This is a caption",
+    //     likes: 0,
+    //     dislikes: 0),
+    // PostData(
+    //     id: "5",
+    //     mediaURL: "https://picsum.photos/200",
+    //     mediaType: "image",
+    //     caption: "This is a caption",
+    //     likes: 0,
+    //     dislikes: 0),
   ];
 
   void getGroups() {
@@ -206,40 +206,65 @@ class _HomePageState extends State<HomePage> {
                 Expanded(
                   child: ListView(
                     children: [
-                      MenuButton(
-                        text: "Create Post",
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/create');
-                        },
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          text: "Create Post",
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/create');
+                          },
+                        ),
                       ),
-                      MenuButton(
-                        text: "Add/Delete Friends",
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/received');
-                        },
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          text: "Add/Delete Friends",
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/received');
+                          },
+                        ),
                       ),
-                      MenuButton(
-                        text: "Manage Groups",
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/group');
-                        },
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          text: "Manage Groups",
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/group');
+                          },
+                        ),
                       ),
-                      MenuButton(
-                        text: "Settings",
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/settings');
-                        },
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          text: "Settings",
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/settings');
+                          },
+                        ),
                       ),
-                      MenuButton(
-                        text: "Log Out",
-                        onPressed: () {
-                          Auth().logout().then(
-                            (value) {
-                              Navigator.pushNamedAndRemoveUntil(
-                                  context, '/', (route) => false);
-                            },
-                          );
-                        },
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          text: "Log Out",
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          onPressed: () {
+                            Auth().logout().then(
+                              (value) {
+                                Navigator.pushNamedAndRemoveUntil(
+                                    context, '/', (route) => false);
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -294,7 +319,8 @@ class _HomePageState extends State<HomePage> {
                           (String value) {
                             return DropdownMenuItem<String>(
                               value: value,
-                              child: Text(value),
+                              child: Text(value,
+                                  style: const TextStyle(fontSize: 20)),
                             );
                           },
                         ).toList(),
@@ -326,15 +352,24 @@ class _HomePageState extends State<HomePage> {
               ),
               SizedBox(
                 width: SizeConfig.blockSizeHorizontal! * 90,
+                height: SizeConfig.blockSizeVertical! * 5,
                 child: SegmentedButton(
-                    segments: const <ButtonSegment<ContentType>>[
+                    segments: <ButtonSegment<ContentType>>[
                       ButtonSegment<ContentType>(
                           value: ContentType.recent,
-                          label: Text('Recent'),
+                          label: Container(
+                              height: SizeConfig.blockSizeVertical! * 4,
+                              alignment: Alignment.center,
+                              child: Text('Recent',
+                                  style: TextStyle(fontSize: 20))),
                           icon: Icon(CupertinoIcons.star)),
                       ButtonSegment<ContentType>(
                           value: ContentType.popular,
-                          label: Text('Popular'),
+                          label: Container(
+                              height: SizeConfig.blockSizeVertical! * 4,
+                              alignment: Alignment.center,
+                              child: Text('Popular',
+                                  style: TextStyle(fontSize: 20))),
                           icon: Icon(CupertinoIcons.flame))
                     ],
                     selected: {

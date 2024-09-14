@@ -99,7 +99,8 @@ class _SignupPageState extends State<SignupPage> {
                 children: [
                   TextButton(
                     onPressed: () {
-                      _launchURL("https://www.google.com/");
+                      _launchURL(
+                          "https://doc-hosting.flycricket.io/memolens-privacy-policy/8e0f366b-f0ab-4d84-9b7f-f348601fd1dc/privacy");
                     },
                     child: const Text("Privacy Policy",
                         style: TextStyle(
@@ -109,7 +110,8 @@ class _SignupPageState extends State<SignupPage> {
                   const Text(" & "),
                   TextButton(
                     onPressed: () {
-                      _launchURL("https://www.youtube.com/");
+                      _launchURL(
+                          "https://doc-hosting.flycricket.io/memolens-terms-of-use/1dd0cb99-4095-49a1-99c5-76221ca02879/terms");
                     },
                     child: const Text("Terms of Service",
                         style: TextStyle(

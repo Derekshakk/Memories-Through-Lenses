@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,8 +32,8 @@ class FriendCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           SizedBox(
-            width: SizeConfig.blockSizeHorizontal! * 10,
-            height: SizeConfig.blockSizeHorizontal! * 10,
+            width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
+            height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
             child: ElevatedButton(
                 onPressed: () {},
                 style: ButtonStyle(
@@ -42,14 +44,14 @@ class FriendCard extends StatelessWidget {
                 child: const Icon(Icons.person, color: Colors.white)),
           ),
           SizedBox(width: SizeConfig.blockSizeHorizontal! * 2),
-          Expanded(child: Text(name)),
+          Expanded(child: Text(name, style: const TextStyle(fontSize: 20))),
 
           // ternary expression
           // (expression) ? (if true) : (if false)
           (type != FriendCardType.addFriend)
               ? SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 10,
-                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
+                  height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   child: ElevatedButton(
                       onPressed: () {
                         // determine database path depending on type
@@ -82,8 +84,8 @@ class FriendCard extends StatelessWidget {
               : Container(),
           (type != FriendCardType.currentFriend)
               ? SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 10,
-                  height: SizeConfig.blockSizeHorizontal! * 10,
+                  width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
+                  height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   child: ElevatedButton(
                       onPressed: () {
                         // add friend of value uid at users/{uid}/friends/$uid and delete request at users/{uid}/friend_requests/$uid

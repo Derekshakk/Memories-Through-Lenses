@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 class MenuButton extends StatelessWidget {
-  const MenuButton({super.key, required this.text, this.onPressed});
+  const MenuButton({super.key, required this.text, this.style, this.onPressed});
   final String text;
+  final TextStyle? style;
   final Function()? onPressed;
 
   @override
@@ -15,7 +16,7 @@ class MenuButton extends StatelessWidget {
         ),
       ),
       onPressed: onPressed,
-      child: Text(text, style: const TextStyle(color: Colors.white)),
+      child: Text(text, style: style),
     );
   }
 }
