@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/size_config.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   LoginPage({super.key});
 
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   TextEditingController emailController = TextEditingController();
+
   TextEditingController passwordController = TextEditingController();
 
   @override

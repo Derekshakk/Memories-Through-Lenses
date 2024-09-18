@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -7,6 +8,9 @@ class SignupPage extends StatefulWidget {
 
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  TextEditingController confirmController = TextEditingController();
+  TextEditingController firstNameController = TextEditingController();
+  TextEditingController lastNameController = TextEditingController();
 
   @override
   State<SignupPage> createState() => _SignupPageState();
@@ -33,11 +37,13 @@ class _SignupPageState extends State<SignupPage> {
             style: TextStyle(fontSize: 50),
           ),
           TextField(
+            controller: widget.firstNameController,
             decoration: const InputDecoration(
               hintText: "First Name",
             ),
           ),
           TextField(
+            controller: widget.lastNameController,
             decoration: const InputDecoration(
               hintText: "Last Name",
             ),
@@ -56,6 +62,7 @@ class _SignupPageState extends State<SignupPage> {
             obscureText: true,
           ),
           TextField(
+            controller: widget.confirmController,
             decoration: const InputDecoration(
               hintText: "Confirm Password",
             ),
@@ -67,13 +74,16 @@ class _SignupPageState extends State<SignupPage> {
                 width: 300,
                 child: ElevatedButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(
+                    backgroundColor: WidgetStateProperty.all(
                         const Color.fromARGB(255, 162, 210, 255)),
                   ),
                   onPressed: () {
                     Auth()
-                        .signUp(widget.emailController.text,
-                            widget.passwordController.text)
+                        .signUp(
+                      widget.emailController.text,
+                      widget.passwordController.text,
+                      "${widget.firstNameController.text} ${widget.lastNameController.text}",
+                    )
                         .then((value) {
                       Navigator.pushNamed(context, "/home");
                     });

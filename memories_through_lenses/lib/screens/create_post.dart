@@ -26,6 +26,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   File? _postMedia;
   String _selectedGroup = '';
   List<Pair> groups = [];
+  bool uploading = false;
 
   void setGroups() {
     groups.clear();
@@ -77,10 +78,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             },
             child: Text('Upload Image or Video'),
           ),
-          ElevatedButton(
-            onPressed: () {},
-            child: Text('Take Image or Video'),
-          ),
+          // ElevatedButton(
+          //   onPressed: () {},
+          //   child: Text('Take Image or Video'),
+          // ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -130,6 +131,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             width: SizeConfig.blockSizeHorizontal! * 90,
             child: ElevatedButton(
               onPressed: () {
+                setState(() {
+                  uploading = true;
+                });
                 Database()
                     .createPost(
                         _selectedGroup, _captionController.text, _postMedia!)
@@ -138,8 +142,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       context, '/', (route) => false);
                 });
               },
-              child:
-                  const Text('Snap and Share', style: TextStyle(fontSize: 20)),
+              child: Text((!uploading) ? 'Snap and Share' : 'Uploading...',
+                  style: TextStyle(fontSize: 20)),
             ),
           )
         ],

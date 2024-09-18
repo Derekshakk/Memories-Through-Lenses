@@ -1,4 +1,4 @@
-package com.example.memories_through_lenses
+package com.derek.memories_through_lenses
 
 import io.flutter.embedding.android.FlutterActivity
 

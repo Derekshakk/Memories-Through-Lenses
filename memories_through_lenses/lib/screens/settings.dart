@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/toggle_row.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -111,12 +112,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                ElevatedButton(onPressed: () {}, child: Text("Delete Account")),
+                ElevatedButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return const DeleteAccountPopup();
+                        },
+                      );
+                    },
+                    child: Text("Delete Account")),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class DeleteAccountPopup extends StatelessWidget {
+  const DeleteAccountPopup({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text("Delete Account"),
+      content: Text("Are you sure you want to delete your account?"),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: Text("Cancel"),
+        ),
+        TextButton(
+          onPressed: () {
+            // Add delete account logic here
+            Auth().deleteUser().then(
+              (value) {
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/', (route) => false);
+              },
+            );
+          },
+          child: Text("Delete"),
+        ),
+      ],
     );
   }
 }

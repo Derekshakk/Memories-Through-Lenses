@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
+import 'package:memories_through_lenses/shared/singleton.dart';
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key});
@@ -10,6 +11,7 @@ class GroupScreen extends StatefulWidget {
 }
 
 class _GroupScreenState extends State<GroupScreen> {
+  final Singleton singleton = Singleton();
   List<GroupCard> groups = [
     GroupCard(name: 'Group 1', groupID: '1', type: GroupCardType.notification),
     GroupCard(name: 'Group 2', groupID: '2', type: GroupCardType.notification),
@@ -19,8 +21,18 @@ class _GroupScreenState extends State<GroupScreen> {
     GroupCard(name: 'Group 5', groupID: '5', type: GroupCardType.notification),
   ];
 
+  void getGroupRequests() {
+    groups.clear(); // Clear the existing groups
+    // Fetch group requests from the user data in singleton
+    singleton.userData['group_invites'].forEach((key, value) {
+      groups.add(GroupCard(
+          name: value['name'], groupID: key, type: GroupCardType.notification));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    getGroupRequests(); // Fetch group requests when building the widget
     return Scaffold(
         body: Center(
             child: Column(
@@ -36,17 +48,22 @@ class _GroupScreenState extends State<GroupScreen> {
               Navigator.pushNamed(context, '/edit_group');
             },
             child: Text('Edit Existing Group')),
-        SizedBox(
-          width: SizeConfig.blockSizeHorizontal! * 90,
-          height: SizeConfig.blockSizeVertical! * 40,
-          child: Card(
-              color: Colors.grey,
-              child: ListView.builder(
-                  itemCount: groups.length,
-                  itemBuilder: (context, index) {
-                    print(index);
-                    return groups[index];
-                  })),
+        Column(
+          children: [
+            Text("Group Invites"),
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 90,
+              height: SizeConfig.blockSizeVertical! * 40,
+              child: Card(
+                  color: Colors.grey,
+                  child: ListView.builder(
+                      itemCount: groups.length,
+                      itemBuilder: (context, index) {
+                        print(index);
+                        return groups[index];
+                      })),
+            ),
+          ],
         ),
         ElevatedButton(
             onPressed: () {

@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.memoriesThroughLenses</string>
+	<string>com.derek.memolens</string>
 	<key>PROJECT_ID</key>
 	<string>memories-through-lenses</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:678538988908:ios:2b5d5476316db57bfdf749</string>
+	<string>1:678538988908:ios:0b204c5f0f3fdaa5fdf749</string>
 </dict>
 </plist>

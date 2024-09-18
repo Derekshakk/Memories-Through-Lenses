@@ -118,7 +118,7 @@ class _HomePageState extends State<HomePage> {
             groupID, (selected == ContentType.popular) ? 'popular' : 'newest')
         .then((value) {
       List<PostData> temp = [];
-      print("VALUE: $value");
+      // print("VALUE: $value");
       for (var element in value) {
         temp.add(PostData(
             id: element['id'],
@@ -188,7 +188,7 @@ class _HomePageState extends State<HomePage> {
                         width: SizeConfig.blockSizeHorizontal! * 25,
                         child: Image.asset("assets/generic_profile.png")),
                 Text(
-                  "${Auth().user!.displayName}",
+                  "${(Auth().user!.displayName != null) ? Auth().user!.displayName : 'User'}",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: Colors.white,
@@ -217,6 +217,7 @@ class _HomePageState extends State<HomePage> {
                           },
                         ),
                       ),
+                      SizedBox(height: SizeConfig.blockSizeVertical! * 2),
                       SizedBox(
                         height: SizeConfig.blockSizeVertical! * 5,
                         child: MenuButton(
@@ -228,6 +229,7 @@ class _HomePageState extends State<HomePage> {
                           },
                         ),
                       ),
+                      SizedBox(height: SizeConfig.blockSizeVertical! * 2),
                       SizedBox(
                         height: SizeConfig.blockSizeVertical! * 5,
                         child: MenuButton(
@@ -239,6 +241,7 @@ class _HomePageState extends State<HomePage> {
                           },
                         ),
                       ),
+                      SizedBox(height: SizeConfig.blockSizeVertical! * 2),
                       SizedBox(
                         height: SizeConfig.blockSizeVertical! * 5,
                         child: MenuButton(
@@ -250,6 +253,7 @@ class _HomePageState extends State<HomePage> {
                           },
                         ),
                       ),
+                      SizedBox(height: SizeConfig.blockSizeVertical! * 2),
                       SizedBox(
                         height: SizeConfig.blockSizeVertical! * 5,
                         child: MenuButton(

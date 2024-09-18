@@ -16,7 +16,8 @@ class Database {
       'private': private,
       'members': [_auth.user!.uid],
       'member_count': 1,
-      'owner': _auth.user!.uid
+      'owner': _auth.user!.uid,
+      'join_requests': []
     });
 
     _firestore.collection('users').doc(_auth.user!.uid).update({

@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:678538988908:android:c48207eace0f130cfdf749",
+        "mobilesdk_app_id": "1:678538988908:android:55fa6180b021d47afdf749",
         "android_client_info": {
-          "package_name": "com.example.memories_through_lenses"
+          "package_name": "com.derek.memories_through_lenses"
         }
       },
       "oauth_client": [],

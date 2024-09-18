@@ -40,57 +40,72 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     setUsers();
     return Scaffold(
         body: SafeArea(
-      child: Center(
-          child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextField(
-              controller: groupNameController,
-              decoration: const InputDecoration(
-                labelText: 'Group Name',
+      child: SingleChildScrollView(
+        child: Center(
+            child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextField(
+                controller: groupNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Group Name',
+                ),
               ),
-            ),
-            TextField(
-              controller: groupDescriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Group Description',
+              TextField(
+                controller: groupDescriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Group Description',
+                ),
               ),
-            ),
-            Container(
-              color: Colors.grey,
-              height: SizeConfig.blockSizeVertical! * 60,
-              width: SizeConfig.blockSizeHorizontal! * 90,
-              child: ListView.builder(
-                itemCount: users.length,
-                itemBuilder: (context, index) {
-                  return GroupFriendCard(
-                    name: users[index].name,
-                    uid: users[index].uid,
-                  );
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    color: Colors.grey,
+                    height: SizeConfig.blockSizeVertical! * 60,
+                    width: SizeConfig.blockSizeHorizontal! * 90,
+                    child: ListView.builder(
+                      itemCount: users.length,
+                      itemBuilder: (context, index) {
+                        return GroupFriendCard(
+                          name: users[index].name,
+                          uid: users[index].uid,
+                        );
+                      },
+                    ),
+                  ),
+                  Center(
+                    child: Container(
+                      child: Text(
+                        (users.length > 0) ? "" : "No Friends Available",
+                        style: TextStyle(fontSize: 25),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              ToggleRow(
+                title: 'Private',
+                onToggled: (value) {
+                  setState(() {
+                    isPrivate = value;
+                  });
                 },
               ),
-            ),
-            ToggleRow(
-              title: 'Private',
-              onToggled: (value) {
-                setState(() {
-                  isPrivate = value;
-                });
-              },
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Database().createGroup(groupNameController.text,
-                    groupDescriptionController.text, isPrivate);
-                Navigator.pop(context);
-              },
-              child: Text('Create Group'),
-            ),
-          ],
-        ),
-      )),
+              ElevatedButton(
+                onPressed: () {
+                  Database().createGroup(groupNameController.text,
+                      groupDescriptionController.text, isPrivate);
+                  Navigator.pop(context);
+                },
+                child: Text('Create Group'),
+              ),
+            ],
+          ),
+        )),
+      ),
     ));
   }
 }
