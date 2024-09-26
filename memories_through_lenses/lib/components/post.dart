@@ -11,12 +11,14 @@ class PostCard extends StatefulWidget {
     required this.mediaURL,
     required this.mediaType,
     required this.caption,
+    required this.creator,
     this.likes = 0,
     this.dislikes = 0,
   });
   final String id;
   final String mediaURL;
   final String mediaType;
+  final String creator;
   int likes = 0;
   int dislikes = 0;
   final String caption;
@@ -134,6 +136,36 @@ class _PostCardState extends State<PostCard> {
                       ),
                     ),
                   ),
+                  // report button on the top right corner
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                        SizeConfig.blockSizeHorizontal! * 76, 8, 8, 8),
+                    child: SizedBox(
+                      height: SizeConfig.blockSizeHorizontal! * 10,
+                      width: SizeConfig.blockSizeHorizontal! * 10,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(132, 158, 158, 158),
+                            padding: const EdgeInsets.all(0.0)),
+                        child: const Icon(
+                          Icons.report,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return ReportPostPopup(
+                                postId: widget.id,
+                                postCreator: widget.creator,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -141,6 +173,37 @@ class _PostCardState extends State<PostCard> {
           Text(widget.caption),
         ],
       ),
+    );
+  }
+}
+
+// report post popup
+class ReportPostPopup extends StatelessWidget {
+  const ReportPostPopup(
+      {super.key, required this.postId, required this.postCreator});
+  final String postId;
+  final String postCreator;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Report Post"),
+      content: const Text("Are you sure you want to report this post?"),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text("Cancel"),
+        ),
+        TextButton(
+          onPressed: () {
+            Database().reportPost(postId, postCreator);
+            Navigator.of(context).pop();
+          },
+          child: const Text("Report"),
+        ),
+      ],
     );
   }
 }

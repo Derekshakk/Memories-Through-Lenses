@@ -15,6 +15,7 @@ enum ContentType { recent, popular }
 
 class PostData {
   final String id;
+  final String creator;
   final String mediaURL;
   final String mediaType;
   final int likes;
@@ -23,6 +24,7 @@ class PostData {
 
   PostData(
       {required this.id,
+      required this.creator,
       required this.mediaURL,
       required this.mediaType,
       required this.caption,
@@ -122,6 +124,7 @@ class _HomePageState extends State<HomePage> {
       for (var element in value) {
         temp.add(PostData(
             id: element['id'],
+            creator: element['user_id'],
             mediaURL: element['image_url'],
             mediaType: 'image',
             caption: element['caption'],
@@ -398,6 +401,7 @@ class _HomePageState extends State<HomePage> {
                           itemBuilder: (context, index) {
                             return PostCard(
                                 id: posts[index].id,
+                                creator: posts[index].creator,
                                 mediaURL: posts[index].mediaURL,
                                 mediaType: posts[index].mediaType,
                                 caption: posts[index].caption,

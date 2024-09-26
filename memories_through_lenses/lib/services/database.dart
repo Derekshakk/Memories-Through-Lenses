@@ -137,6 +137,15 @@ class Database {
     return posts_list;
   }
 
+  Future<void> reportPost(String postId, String postCreator) async {
+    _firestore.collection('reports').add({
+      'post_id': postId,
+      'post_creator': postCreator,
+      'user_id': _auth.user!.uid,
+      'created_at': DateTime.now()
+    });
+  }
+
   Future<List<Map<String, dynamic>>> getUsers() async {
     var users = await _firestore.collection('users').get();
     return users.docs.map((e) => e.data()).toList();
