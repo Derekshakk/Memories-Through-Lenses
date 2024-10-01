@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 // ignore: must_be_immutable
 class PostCard extends StatefulWidget {
@@ -137,35 +138,36 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                   // report button on the top right corner
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                        SizeConfig.blockSizeHorizontal! * 76, 8, 8, 8),
-                    child: SizedBox(
-                      height: SizeConfig.blockSizeHorizontal! * 10,
-                      width: SizeConfig.blockSizeHorizontal! * 10,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                const Color.fromARGB(132, 158, 158, 158),
-                            padding: const EdgeInsets.all(0.0)),
-                        child: const Icon(
-                          Icons.report,
-                          color: Colors.white,
+                  if (widget.creator != Auth().user?.uid)
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          SizeConfig.blockSizeHorizontal! * 76, 8, 8, 8),
+                      child: SizedBox(
+                        height: SizeConfig.blockSizeHorizontal! * 10,
+                        width: SizeConfig.blockSizeHorizontal! * 10,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color.fromARGB(132, 158, 158, 158),
+                              padding: const EdgeInsets.all(0.0)),
+                          child: const Icon(
+                            Icons.report,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return ReportPostPopup(
+                                  postId: widget.id,
+                                  postCreator: widget.creator,
+                                );
+                              },
+                            );
+                          },
                         ),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return ReportPostPopup(
-                                postId: widget.id,
-                                postCreator: widget.creator,
-                              );
-                            },
-                          );
-                        },
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -203,6 +205,10 @@ class ReportPostPopup extends StatelessWidget {
           },
           child: const Text("Report"),
         ),
+        TextButton(
+          onPressed: () {},
+          child: Text("Block User"),
+        )
       ],
     );
   }

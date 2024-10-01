@@ -53,6 +53,7 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
   TextEditingController groupDescriptionController = TextEditingController();
   bool isPrivate = false;
   String? currentGroup;
+  String? currentGroupName;
 
   void setUsers() {
     users.clear();
@@ -114,8 +115,10 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                         print("Comparing ${group.groupID} to $value");
                         if (group.groupID == value) {
                           groupNameController.text = group.name;
+                          currentGroupName = group.name;
                           groupDescriptionController.text = group.description;
                           isPrivate = group.isPrivate;
+                          currentGroup = group.groupID;
                           break;
                         }
                       }
@@ -143,6 +146,9 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                     return GroupFriendCard(
                       name: users[index].name,
                       uid: users[index].uid,
+                      groupID: (currentGroup != null) ? currentGroup! : '',
+                      groupName:
+                          (currentGroupName != null) ? currentGroupName! : '',
                       mode: 'edit',
                     );
                   },

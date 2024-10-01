@@ -24,9 +24,14 @@ class _GroupScreenState extends State<GroupScreen> {
   void getGroupRequests() {
     groups.clear(); // Clear the existing groups
     // Fetch group requests from the user data in singleton
+    print("TESTING: ${singleton.userData['group_invites']}");
+    if (singleton.userData['group_invites'] == null ||
+        singleton.userData['group_invites'].isEmpty) {
+      return;
+    }
     singleton.userData['group_invites'].forEach((key, value) {
       groups.add(GroupCard(
-          name: value['name'], groupID: key, type: GroupCardType.notification));
+          name: value, groupID: key, type: GroupCardType.notification));
     });
   }
 

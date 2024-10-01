@@ -120,8 +120,19 @@ class _HomePageState extends State<HomePage> {
             groupID, (selected == ContentType.popular) ? 'popular' : 'newest')
         .then((value) {
       List<PostData> temp = [];
+      List<String> blockedUsers = (singleton.userData['blocked'] != null)
+          ? singleton.userData['blocked']
+          : [];
+      List<String> blockedPosts = (singleton.userData['reported_posts'] != null)
+          ? singleton.userData['reported_posts']
+          : [];
       // print("VALUE: $value");
       for (var element in value) {
+        if (blockedUsers.contains(element['user_id']) ||
+            blockedPosts.contains(element['id'])) {
+          continue;
+        }
+
         temp.add(PostData(
             id: element['id'],
             creator: element['user_id'],

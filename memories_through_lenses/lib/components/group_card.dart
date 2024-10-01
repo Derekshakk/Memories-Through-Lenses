@@ -36,39 +36,48 @@ class GroupCard extends StatelessWidget {
                   height: SizeConfig.blockSizeHorizontal! * 10,
                   child: ElevatedButton(
                       onPressed: () {
-                        // add user to group's join_requests list
-
-                        // get firestore ref of the group
-                        final groupRef = FirebaseFirestore.instance
-                            .collection('groups')
-                            .doc(groupID);
-                        // add user to the join_requests list
-                        groupRef.update({
-                          'join_requests':
-                              FieldValue.arrayUnion([Auth().user!.uid])
-                        });
-
-                        // show snackbar
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Request sent!'),
-                          ),
-                        );
-
-                        // write group id into user's group_requests list
+                        // respond to the invite by writing the group id into the user's groups list and removing the group id from the user's group_invites list
                         final userRef = FirebaseFirestore.instance
                             .collection('users')
                             .doc(Auth().user!.uid);
+
+                        // Add groupID to user's groups list
                         userRef.update({
-                          'group_requests': FieldValue.arrayUnion([groupID])
+                          'groups': FieldValue.arrayUnion([groupID]),
                         });
+
+                        // Get the current 'group_invites' map and remove the groupID from it
+                        userRef.get().then((doc) {
+                          if (doc.exists) {
+                            Map<String, dynamic> groupInvites =
+                                doc['group_invites'] ?? {};
+                            groupInvites.remove(groupID);
+
+                            // Update the user's document with the modified map
+                            userRef.update({
+                              'group_invites': groupInvites,
+                            });
+                          }
+                        });
+
+                        // Add user to group's members list
+                        final groupRef = FirebaseFirestore.instance
+                            .collection('groups')
+                            .doc(groupID);
+                        groupRef.update({
+                          'members': FieldValue.arrayUnion([Auth().user!.uid])
+                        });
+
+                        Navigator.pushNamedAndRemoveUntil(
+                            context, '/', (route) => false);
                       },
                       style: ButtonStyle(
                         padding: WidgetStateProperty.all(EdgeInsets.zero),
                         backgroundColor: WidgetStateProperty.all(Colors.green),
                         shape: WidgetStateProperty.all(const CircleBorder()),
                       ),
-                      child: const Icon(Icons.add, color: Colors.white)),
+                      child: const Icon(Icons.add_circle_outline,
+                          color: Colors.white)),
                 )
               : Container(),
           (type != GroupCardType.request)
@@ -81,14 +90,52 @@ class GroupCard extends StatelessWidget {
                   width: SizeConfig.blockSizeHorizontal! * 10,
                   height: SizeConfig.blockSizeHorizontal! * 10,
                   child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // remove user from group's join_requests list
+
+                        // get firestore ref of the group
+                        final groupRef = FirebaseFirestore.instance
+                            .collection('groups')
+                            .doc(groupID);
+                        // remove user from the join_requests list
+                        groupRef.update({
+                          'join_requests':
+                              FieldValue.arrayRemove([Auth().user!.uid])
+                        });
+
+                        // show snackbar
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Invite rejected!'),
+                          ),
+                        );
+
+                        // remove group id from user's group_invites map
+                        final userRef = FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(Auth().user!.uid);
+
+                        // Get the current 'group_invites' map and remove the key manually
+                        userRef.get().then((doc) {
+                          if (doc.exists) {
+                            Map<String, dynamic> groupInvites =
+                                doc['group_invites'] ?? {};
+                            groupInvites.remove(groupID);
+
+                            // Update the user's document with the modified map
+                            userRef.update({
+                              'group_invites': groupInvites,
+                            });
+                          }
+                        });
+                      },
                       style: ButtonStyle(
                         padding: WidgetStateProperty.all(EdgeInsets.zero),
                         backgroundColor: WidgetStateProperty.all(Colors.red),
                         shape: WidgetStateProperty.all(const CircleBorder()),
                       ),
-                      child:
-                          const Icon(Icons.check_circle, color: Colors.white)),
+                      child: const Icon(Icons.cancel_outlined,
+                          color: Colors.white)),
                 )
               : Container()
         ],
@@ -99,9 +146,16 @@ class GroupCard extends StatelessWidget {
 
 class GroupFriendCard extends StatefulWidget {
   const GroupFriendCard(
-      {super.key, required this.name, required this.uid, this.mode = 'create'});
+      {super.key,
+      required this.name,
+      required this.uid,
+      this.groupID = '',
+      this.groupName = '',
+      this.mode = 'create'});
   final String name;
   final String uid;
+  final String groupID;
+  final String groupName;
   final String mode;
 
   @override
@@ -191,49 +245,99 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                 color: Colors.yellow,
                 height: _selected ? SizeConfig.blockSizeVertical! * 20 : 0,
                 width: SizeConfig.blockSizeHorizontal! * 90,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: SizeConfig.blockSizeHorizontal! * 90,
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor:
-                              WidgetStateProperty.all(Colors.yellow),
-                          shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0))),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 90,
+                        child: ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor:
+                                WidgetStateProperty.all(Colors.yellow),
+                            shape: WidgetStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(0))),
+                          ),
+                          onPressed: () {
+                            // transfer ownership of group to user with uid
+                            final groupRef = FirebaseFirestore.instance
+                                .collection('groups')
+                                .doc(widget.groupID);
+                            groupRef.update({'owner': widget.uid});
+                            Navigator.pushNamedAndRemoveUntil(
+                                context, '/', (route) => false);
+                          },
+                          child: const Text('Transfer Ownership'),
                         ),
-                        onPressed: () {},
-                        child: const Text('Transfer Ownership'),
                       ),
-                    ),
-                    SizedBox(
-                      width: SizeConfig.blockSizeHorizontal! * 90,
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor:
-                              WidgetStateProperty.all(Colors.yellow),
-                          shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0))),
+                      SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 90,
+                        child: ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor:
+                                WidgetStateProperty.all(Colors.yellow),
+                            shape: WidgetStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(0))),
+                          ),
+                          onPressed: () {
+                            // remove user from group's members list
+                            final groupRef = FirebaseFirestore.instance
+                                .collection('groups')
+                                .doc(widget.groupID);
+                            groupRef.update({
+                              'members': FieldValue.arrayRemove([widget.uid])
+                            });
+                          },
+                          child: const Text('Kick'),
                         ),
-                        onPressed: () {},
-                        child: const Text('Kick'),
                       ),
-                    ),
-                    SizedBox(
-                      width: SizeConfig.blockSizeHorizontal! * 90,
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor:
-                              WidgetStateProperty.all(Colors.yellow),
-                          shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0))),
+                      SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 90,
+                        child: ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor:
+                                WidgetStateProperty.all(Colors.yellow),
+                            shape: WidgetStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(0))),
+                          ),
+                          onPressed: () {
+                            // add user to group's join_requests list
+
+                            // get firestore ref of the group
+                            final groupRef = FirebaseFirestore.instance
+                                .collection('groups')
+                                .doc(widget.groupID);
+                            // add user to the join_requests list
+                            groupRef.update({
+                              'join_requests':
+                                  FieldValue.arrayUnion([widget.uid])
+                            });
+
+                            // show snackbar
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Request sent!'),
+                              ),
+                            );
+
+                            // write group id and name into user's group_invites list
+                            final userRef = FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.uid);
+                            userRef.update({
+                              'group_invites': {
+                                widget.groupID: widget.groupName
+                              }
+                            });
+                          },
+                          child: const Text('Add Friend'),
                         ),
-                        onPressed: () {},
-                        child: const Text('Add Friend'),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               )
             : Container()

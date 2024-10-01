@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:memories_through_lenses/components/eula_popup.dart';
 
 class SignupPage extends StatefulWidget {
   SignupPage({super.key});
@@ -17,6 +18,25 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
+  @override
+  void initState() {
+    super.initState();
+    _showEulaPopup();
+  }
+
+  void _showEulaPopup() {
+    Future.delayed(Duration.zero, () {
+      showDialog(
+        context: context,
+        barrierDismissible:
+            false, // Prevents the user from dismissing the EULA without interacting
+        builder: (BuildContext context) {
+          return EulaPopup();
+        },
+      );
+    });
+  }
+
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
@@ -74,7 +94,7 @@ class _SignupPageState extends State<SignupPage> {
                 width: 300,
                 child: ElevatedButton(
                   style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.all(
+                    backgroundColor: MaterialStateProperty.all(
                         const Color.fromARGB(255, 162, 210, 255)),
                   ),
                   onPressed: () {

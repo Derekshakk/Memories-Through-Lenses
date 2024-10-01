@@ -46,14 +46,21 @@ class _LoginPageState extends State<LoginPage> {
                 width: SizeConfig.blockSizeHorizontal! * 80,
                 child: ElevatedButton(
                     style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
+                      backgroundColor: WidgetStateProperty.all(
                           const Color.fromARGB(255, 162, 210, 255)),
                     ),
                     onPressed: () {
                       Auth()
                           .login(emailController.text, passwordController.text)
                           .then((value) {
-                        Navigator.pushNamed(context, "/home");
+                        if (value) {
+                          Navigator.pushNamed(context, "/home");
+                        } else {
+                          // snackbar
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text("Invalid email or password")));
+                        }
+                        ;
                       });
                     },
                     child:

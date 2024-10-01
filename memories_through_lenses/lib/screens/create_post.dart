@@ -130,18 +130,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           SizedBox(
             width: SizeConfig.blockSizeHorizontal! * 90,
             child: ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  uploading = true;
-                });
-                Database()
-                    .createPost(
-                        _selectedGroup, _captionController.text, _postMedia!)
-                    .then((value) {
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, '/', (route) => false);
-                });
-              },
+              onPressed: (_postMedia != null && _selectedGroup != '')
+                  ? () {
+                      setState(() {
+                        uploading = true;
+                      });
+                      Database()
+                          .createPost(_selectedGroup, _captionController.text,
+                              _postMedia!)
+                          .then((value) {
+                        Navigator.pushNamedAndRemoveUntil(
+                            context, '/', (route) => false);
+                      });
+                    }
+                  : null,
               child: Text((!uploading) ? 'Snap and Share' : 'Uploading...',
                   style: TextStyle(fontSize: 20)),
             ),

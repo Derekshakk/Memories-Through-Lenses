@@ -21,7 +21,8 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
     for (var key in requests.keys) {
       requestCards.add(FriendCard(
         type: FriendCardType.request,
-        name: requests[key]['name'],
+        name:
+            (requests[key]['name'] != null) ? requests[key]['name'] : "Unknown",
         uid: key,
         onPressed: () {
           setState(() {});

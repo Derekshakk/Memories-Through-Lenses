@@ -17,23 +17,27 @@ class _SentScreenState extends State<SentScreen> {
   TextEditingController _controller = TextEditingController();
   List<Map<String, dynamic>> users = [];
   List<Map<String, dynamic>> searchResults = [];
+  List<Widget> combined = [];
 
   Future<void> search(String query) async {
-    // if (query.isEmpty) {
-    //   users = await Database().getUsers().then((value) {
-    //     setState(() {
-    //       users = value;
-    //     });
-    //   });
-    // } else {
-    //   setState(() {
-    //     print("searching for $query");
-    //     searchResults = users
-    //         .where((element) =>
-    //             element['name'].toLowerCase().contains(query.toLowerCase()))
-    //         .toList();
-    //   });
-    // }
+    if (query.isEmpty) {
+      await Database().getUsers().then((value) {
+        setState(() {
+          if (value.isNotEmpty) {
+            users = value;
+          }
+        });
+      });
+    } else {
+      setState(() {
+        print("searching for $query");
+        searchResults = users
+            .where((element) =>
+                element['name'].toLowerCase().contains(query.toLowerCase()))
+            .toList();
+        print("search results: $searchResults");
+      });
+    }
   }
 
   @override
@@ -60,7 +64,7 @@ class _SentScreenState extends State<SentScreen> {
 
               requests.forEach((key, value) {
                 outgoingRequests.add(FriendCard(
-                  type: FriendCardType.addFriend,
+                  type: FriendCardType.sentRequest,
                   name: value['name'],
                   uid: key,
                   onPressed: () {
@@ -82,6 +86,20 @@ class _SentScreenState extends State<SentScreen> {
                 ));
               });
               print("current friends list: $currentFriends");
+
+              // for the combined list, add both the earch results and the outgoing requests
+              combined.clear();
+              searchResults.forEach((element) {
+                combined.add(FriendCard(
+                  type: FriendCardType.addFriend,
+                  name: element['name'],
+                  uid: element['uid'],
+                  onPressed: () {
+                    setState(() {});
+                  },
+                ));
+              });
+              combined.addAll(outgoingRequests);
 
               return SingleChildScrollView(
                 child: Column(
@@ -111,9 +129,9 @@ class _SentScreenState extends State<SentScreen> {
                         child: Card(
                             color: Colors.blue,
                             child: ListView.builder(
-                                itemCount: outgoingRequests.length,
+                                itemCount: combined.length,
                                 itemBuilder: (context, index) =>
-                                    outgoingRequests[index]))),
+                                    combined[index]))),
                     SizedBox(
                       height: SizeConfig.blockSizeVertical! * 2,
                     ),

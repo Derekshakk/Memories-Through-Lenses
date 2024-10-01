@@ -144,10 +144,33 @@ class Database {
       'user_id': _auth.user!.uid,
       'created_at': DateTime.now()
     });
+
+    // record the post in the user's reported posts
+    _firestore.collection('users').doc(_auth.user!.uid).update({
+      'reported_posts': FieldValue.arrayUnion([postId])
+    });
+  }
+
+  Future<void> reportAndBlockUser(String postId, String postCreator) async {
+    reportPost(postId, postCreator);
+    blockUser(postCreator);
   }
 
   Future<List<Map<String, dynamic>>> getUsers() async {
     var users = await _firestore.collection('users').get();
-    return users.docs.map((e) => e.data()).toList();
+    List<Map<String, dynamic>> result =
+        users.docs.map((e) => e.data()).toList();
+    // add the uid to each user
+    for (var i = 0; i < result.length; i++) {
+      result[i]['uid'] = users.docs[i].id;
+    }
+    return result;
+  }
+
+  // block user function that adds the given uid to the current user's blocked list
+  Future<void> blockUser(String uid) async {
+    _firestore.collection('users').doc(_auth.user!.uid).update({
+      'blocked': FieldValue.arrayUnion([uid])
+    });
   }
 }
