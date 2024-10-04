@@ -1,0 +1,13 @@
+Ultralytics YOLOv8.2.74 🚀 Python-3.11.9 torch-2.4.0+cu121 CUDA:0 (NVIDIA GeForce RTX 3080, 10240MiB)
+Model summary (fused): 168 layers, 3,006,818 parameters, 0 gradients, 8.1 GFLOPs
+val: Scanning D:\General Projects\image-ai\dataset\validation\adult.cache... 23 images, 1 backgrounds, 0 corrupt: 100%|██████████| 24/24 [00:00<?, ?it/s]
+                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100%|██████████| 2/2 [00:01<00:00,  1.52it/s]
+                   all         24         23      0.731      0.817      0.878      0.865
+                 adult          5          5      0.543          1      0.862      0.862
+                racism          5          5      0.795      0.779      0.928      0.928
+             substance          4          4      0.755          1      0.945      0.945
+              violence          4          4          1      0.705      0.945      0.945
+               weapons          5          5      0.562        0.6       0.71      0.644
+Speed: 6.4ms preprocess, 6.5ms inference, 0.0ms loss, 1.2ms postprocess per image
+Results saved to runs\detect\train42
+Validation Precision: 73.10%

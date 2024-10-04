@@ -6,3 +6,6 @@ memories_through_lenses/lib/firebase_options.dart
 memories_through_lenses/firebase.json
 
 facial_recognition_ai/venv
+moderation_ai/venv/
+
+moderation_ai/firebase-key.json

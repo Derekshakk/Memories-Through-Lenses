@@ -31,7 +31,7 @@ def is_offensive(predictions):
             return True
     return False
 
-// https://www.derek.com/predict
+# https://www.derek.com/predict
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
