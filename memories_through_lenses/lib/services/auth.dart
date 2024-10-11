@@ -5,7 +5,8 @@ class Auth {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final user = FirebaseAuth.instance.currentUser;
 
-  Future<void> signUp(String email, String password, String name) async {
+  Future<void> signUp(
+      String email, String password, String name, String school) async {
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
@@ -23,6 +24,7 @@ class Auth {
         'groups': [],
         'group_requests': [],
         'group_invites': {},
+        'school': school,
       });
     } catch (e) {
       print(e);

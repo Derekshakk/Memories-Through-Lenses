@@ -7,6 +7,19 @@ class Database {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Auth _auth = Auth();
 
+  Future<List<Map<String, dynamic>>> getSchools() async {
+    var schools = await _firestore.collection('schools').get();
+    List<Map<String, dynamic>> result =
+        schools.docs.map((e) => e.data()).toList();
+
+    // add the id to each school
+    for (var i = 0; i < result.length; i++) {
+      result[i]['id'] = schools.docs[i].id;
+    }
+
+    return result;
+  }
+
   Future<void> createGroup(
       String name, String description, bool private) async {
     var ref = _firestore.collection('groups').doc();

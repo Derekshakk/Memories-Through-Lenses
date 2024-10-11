@@ -42,12 +42,23 @@ def predict():
 
     url = data['url']
     
-    print("attempting to read image")
+    print(f"attempting to read image from {url}")
 
     try:
         # Download the image
-        file = requests.get(url)
+        response = requests.get(url)
         response.raise_for_status()
+        print("image downloaded")
+
+        # Check the content type of the image
+        content_type = response.headers['Content-Type']
+        print(content_type)
+        if 'image' not in content_type:
+            return jsonify({"error": "Invalid image"}), 400
+
+        with open('test.jpg', 'wb') as f:
+            f.write(response.content)
+        print("image saved")
 
         # Read the image file
         img = Image.open(BytesIO(response.content))
@@ -75,4 +86,4 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)
