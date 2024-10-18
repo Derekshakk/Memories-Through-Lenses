@@ -90,6 +90,32 @@ class _SentScreenState extends State<SentScreen> {
               // for the combined list, add both the earch results and the outgoing requests
               combined.clear();
               searchResults.forEach((element) {
+                var newFriend = FriendCard(
+                  type: FriendCardType.addFriend,
+                  name: element['name'],
+                  uid: element['uid'],
+                  onPressed: () {
+                    setState(() {});
+                  },
+                );
+
+                // check if the user is already a friend or part of outgoing requests
+                for (var friend in currentFriends) {
+                  if (friend is FriendCard) {
+                    if (friend.uid == newFriend.uid) {
+                      continue;
+                    }
+                  }
+                }
+
+                for (var request in outgoingRequests) {
+                  if (request is FriendCard) {
+                    if (request.uid == newFriend.uid) {
+                      continue;
+                    }
+                  }
+                }
+
                 combined.add(FriendCard(
                   type: FriendCardType.addFriend,
                   name: element['name'],
@@ -105,6 +131,11 @@ class _SentScreenState extends State<SentScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    const Text(
+                      "Add Friends",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
                     Padding(
                       padding: EdgeInsets.fromLTRB(
                           SizeConfig.blockSizeHorizontal! * 10,
@@ -134,6 +165,11 @@ class _SentScreenState extends State<SentScreen> {
                                     combined[index]))),
                     SizedBox(
                       height: SizeConfig.blockSizeVertical! * 2,
+                    ),
+                    const Text(
+                      "Current Friends",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(
                         width: SizeConfig.blockSizeHorizontal! * 80,

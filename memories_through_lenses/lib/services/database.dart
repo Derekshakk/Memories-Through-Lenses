@@ -57,11 +57,17 @@ class Database {
   }
 
   Future<void> updateProfile(
-      String displayName, String username, String profileImage) async {
-    _firestore.collection('users').doc(_auth.user!.uid).update({
-      'name': username,
-      'profile_image': profileImage,
-    });
+      String displayName, String username, String? profileImage) async {
+    if (profileImage != null) {
+      _firestore.collection('users').doc(_auth.user!.uid).update({
+        'name': username,
+        'profile_image': profileImage,
+      });
+    } else {
+      _firestore.collection('users').doc(_auth.user!.uid).update({
+        'name': username,
+      });
+    }
 
     _auth.user!.updateDisplayName(displayName);
   }

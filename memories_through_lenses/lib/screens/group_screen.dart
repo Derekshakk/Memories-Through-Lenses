@@ -39,43 +39,44 @@ class _GroupScreenState extends State<GroupScreen> {
   Widget build(BuildContext context) {
     getGroupRequests(); // Fetch group requests when building the widget
     return Scaffold(
+        appBar: AppBar(),
         body: Center(
             child: Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        ElevatedButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/join_group');
-            },
-            child: Text('Join Group')),
-        ElevatedButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/edit_group');
-            },
-            child: Text('Edit Existing Group')),
-        Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Text("Group Invites"),
-            SizedBox(
-              width: SizeConfig.blockSizeHorizontal! * 90,
-              height: SizeConfig.blockSizeVertical! * 40,
-              child: Card(
-                  color: Colors.grey,
-                  child: ListView.builder(
-                      itemCount: groups.length,
-                      itemBuilder: (context, index) {
-                        print(index);
-                        return groups[index];
-                      })),
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/join_group');
+                },
+                child: Text('Join Group')),
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/edit_group');
+                },
+                child: Text('Edit Existing Group')),
+            Column(
+              children: [
+                Text("Group Invites"),
+                SizedBox(
+                  width: SizeConfig.blockSizeHorizontal! * 90,
+                  height: SizeConfig.blockSizeVertical! * 40,
+                  child: Card(
+                      color: Colors.grey,
+                      child: ListView.builder(
+                          itemCount: groups.length,
+                          itemBuilder: (context, index) {
+                            print(index);
+                            return groups[index];
+                          })),
+                ),
+              ],
             ),
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/create_group');
+                },
+                child: Text('Create Group')),
           ],
-        ),
-        ElevatedButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/create_group');
-            },
-            child: Text('Create Group')),
-      ],
-    )));
+        )));
   }
 }

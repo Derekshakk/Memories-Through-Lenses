@@ -120,12 +120,13 @@ class _HomePageState extends State<HomePage> {
             groupID, (selected == ContentType.popular) ? 'popular' : 'newest')
         .then((value) {
       List<PostData> temp = [];
-      List<String> blockedUsers = (singleton.userData['blocked'] != null)
+      List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
           ? singleton.userData['blocked']
           : [];
-      List<String> blockedPosts = (singleton.userData['reported_posts'] != null)
-          ? singleton.userData['reported_posts']
-          : [];
+      List<dynamic> blockedPosts =
+          (singleton.userData['reported_posts'] != null)
+              ? singleton.userData['reported_posts']
+              : [];
       // print("VALUE: $value");
       for (var element in value) {
         if (blockedUsers.contains(element['user_id']) ||
@@ -142,6 +143,10 @@ class _HomePageState extends State<HomePage> {
             likes: element['likes'].length,
             dislikes: element['dislikes'].length));
       }
+
+      // reverse the list so that the newest post is at the top
+      temp = temp.reversed.toList();
+
       setState(() {
         posts = temp;
       });
@@ -267,6 +272,7 @@ class _HomePageState extends State<HomePage> {
                           },
                         ),
                       ),
+                      // TODO: add a "see personal yearbook" button
                       SizedBox(height: SizeConfig.blockSizeVertical! * 2),
                       SizedBox(
                         height: SizeConfig.blockSizeVertical! * 5,

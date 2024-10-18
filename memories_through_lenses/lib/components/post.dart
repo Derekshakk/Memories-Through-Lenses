@@ -3,6 +3,7 @@ import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 // ignore: must_be_immutable
 class PostCard extends StatefulWidget {
@@ -72,71 +73,6 @@ class _PostCardState extends State<PostCard> {
                             },
                           ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: SizedBox(
-                      height: SizeConfig.blockSizeHorizontal! * 90,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              SizedBox(
-                                width: SizeConfig.blockSizeHorizontal! * 10,
-                                height: SizeConfig.blockSizeHorizontal! * 10,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      padding: EdgeInsets.all(0.0)),
-                                  child: Icon(
-                                    Icons.thumb_up,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      widget.likes++;
-                                      Database().likePost(widget.id);
-                                    });
-                                  },
-                                ),
-                              ),
-                              Text("${widget.likes}")
-                            ],
-                          ),
-                          SizedBox(
-                            width: SizeConfig.blockSizeHorizontal! * 3,
-                          ),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              SizedBox(
-                                width: SizeConfig.blockSizeHorizontal! * 10,
-                                height: SizeConfig.blockSizeHorizontal! * 10,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      padding: EdgeInsets.all(0.0)),
-                                  child: Icon(
-                                    Icons.thumb_down,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      widget.dislikes++;
-                                      Database().dislikePost(widget.id);
-                                    });
-                                  },
-                                ),
-                              ),
-                              Text("${widget.dislikes}"),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                   // report button on the top right corner
                   if (widget.creator != Auth().user?.uid)
                     Padding(
@@ -172,7 +108,94 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
           ),
-          Text(widget.caption),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: SizedBox(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 10,
+                        height: SizeConfig.blockSizeHorizontal! * 10,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              padding: EdgeInsets.all(0.0)),
+                          child: Icon(
+                            Icons.thumb_up,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              widget.likes++;
+                              Database().likePost(widget.id);
+                            });
+                          },
+                        ),
+                      ),
+                      Text("${widget.likes}")
+                    ],
+                  ),
+                  SizedBox(
+                    width: SizeConfig.blockSizeHorizontal! * 3,
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 10,
+                        height: SizeConfig.blockSizeHorizontal! * 10,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              padding: EdgeInsets.all(0.0)),
+                          child: Icon(
+                            Icons.thumb_down,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              widget.dislikes++;
+                              Database().dislikePost(widget.id);
+                            });
+                          },
+                        ),
+                      ),
+                      Text("${widget.dislikes}"),
+                    ],
+                  ),
+                  SizedBox(
+                    width: SizeConfig.blockSizeHorizontal! * 3,
+                  ),
+                  SizedBox(
+                      width: SizeConfig.blockSizeHorizontal! * 65,
+                      height: SizeConfig.blockSizeHorizontal! * 20,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Center(
+                          child: MarkdownBody(
+                            data: widget.caption,
+                            styleSheet: MarkdownStyleSheet(
+                              textAlign: WrapAlignment.center,
+                              p: const TextStyle(
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // child: Text(
+                        //   widget.caption,
+                        //   textAlign: TextAlign.center,
+                        // ),
+                      )),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

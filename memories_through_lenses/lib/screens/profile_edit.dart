@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/shared/singleton.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -16,6 +18,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   File? _profileImage;
   TextEditingController nameController = TextEditingController();
   TextEditingController usernameController = TextEditingController();
+  final Singleton _singleton = Singleton();
 
   @override
   Widget build(BuildContext context) {
@@ -98,10 +101,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Database().uploadProfileImage(_profileImage!).then((value) {
-                  Database().updateProfile(
-                      nameController.text, usernameController.text, value);
-                });
+                String oldDisplayName = Auth().user!.displayName!;
+                String oldUsername = _singleton.userData['name'];
+
+                String newDisplayName = (nameController.text.isEmpty)
+                    ? oldDisplayName
+                    : nameController.text;
+
+                String newUsername = (usernameController.text.isEmpty)
+                    ? oldUsername
+                    : usernameController.text;
+
+                if (_profileImage == null) {
+                  Database().updateProfile(newDisplayName, newUsername, null);
+                } else {
+                  Database().uploadProfileImage(_profileImage!).then((value) {
+                    Database()
+                        .updateProfile(newDisplayName, newUsername, value);
+                  });
+                }
+
                 Navigator.pushNamedAndRemoveUntil(
                     context, '/', (route) => false);
               },
