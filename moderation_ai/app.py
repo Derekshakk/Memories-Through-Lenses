@@ -7,7 +7,7 @@ from PIL import Image
 from io import BytesIO
 import requests
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, storage
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -19,15 +19,20 @@ model = YOLO(model_path)
 
 # Initialize Firebase
 cred = credentials.Certificate('firebase-key.json')
-firebase_admin.initialize_app(cred)
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'memories-through-lenses.appspot.com'
+})
 
 # Initialize Firestore DB
 db = firestore.client()
 
+# Initialize Firebase Storage
+bucket = storage.bucket()
+
 def is_offensive(predictions):
-    offensive_classes = ['adult', 'racism', 'substance', 'violence', 'weapons']
+    offensive_classes = {'adult', 'racism', 'substance', 'violence', 'weapons'}
     for pred in predictions:
-        if model.names[int(pred.cls)] in offensive_classes and float(pred.conf) > 0.5:
+        if model.names[int(pred.cls)] in offensive_classes and float(pred.conf) > 0.7:
             return True
     return False
 
@@ -41,6 +46,8 @@ def predict():
         return jsonify({"error": "Missing 'url' parameter"}), 400
 
     url = data['url']
+
+    # print(data['user_uid'])
     
     print(f"attempting to read image from {url}")
 
@@ -79,6 +86,20 @@ def predict():
                 "class": model.names[int(pred.cls)],  # Class name
                 "confidence": float(pred.conf),  # Confidence score
             })
+
+        # Check if the image is offensive
+        if is_offensive(predictions):
+            response["offensive"] = True
+            print("offensive image")
+
+            # remove image from storage
+            blob = bucket.blob(f"posts/{data['user_uid']}/{data['image_name']}")
+            blob.delete()
+
+        else:
+            response["offensive"] = False
+            print("non-offensive image")
+
 
         return jsonify(response), 200
 

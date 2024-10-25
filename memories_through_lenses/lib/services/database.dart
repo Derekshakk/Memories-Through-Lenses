@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:http/http.dart' as http;
 
 class Database {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -73,11 +77,37 @@ class Database {
   }
 
   Future<void> createPost(String groupId, String caption, File image) async {
+    var currentTime = DateTime.now();
     var ref = FirebaseStorage.instance
         .ref()
-        .child('posts/${_auth.user!.uid}/${DateTime.now()}');
+        .child('posts/${_auth.user!.uid}/$currentTime');
     await ref.putFile(image);
     var imageUrl = await ref.getDownloadURL();
+
+    Map<String, String> validationData = {
+      'url': imageUrl,
+      'user_uid': _auth.user!.uid,
+      'image_name': '$currentTime',
+    };
+
+    // get the server url from RTDB at node moderation_server_url
+    var url = await FirebaseDatabase.instance
+        .ref('moderation_server_url')
+        .once()
+        .then((value) => value.snapshot.value.toString());
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(validationData),
+    );
+
+    if (response.statusCode == 200) {
+      print('Image processed successfully');
+      print(response.body);
+    } else {
+      print('Failed to process image: ${response.body}');
+    }
 
     _firestore.collection('posts').add({
       'group_id': groupId,
