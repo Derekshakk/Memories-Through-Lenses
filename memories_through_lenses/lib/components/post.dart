@@ -4,6 +4,7 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:memories_through_lenses/screens/comments.dart';
 
 // ignore: must_be_immutable
 class PostCard extends StatefulWidget {
@@ -54,11 +55,26 @@ class _PostCardState extends State<PostCard> {
                     // ternary expression:
                     // (condition) ? (if true) : (if false)
                     child: (widget.mediaType == "image")
-                        ? Image.network(
-                            widget.mediaURL,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
+                        ? InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CommentScreen(
+                                    id: widget.id,
+                                    mediaURL: widget.mediaURL,
+                                    mediaType: widget.mediaType,
+                                    creator: widget.creator,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Image.network(
+                              widget.mediaURL,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
                           )
                         : FutureBuilder(
                             future: _controller.initialize(),
