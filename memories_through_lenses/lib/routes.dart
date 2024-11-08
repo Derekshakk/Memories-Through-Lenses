@@ -12,6 +12,7 @@ import 'package:memories_through_lenses/screens/groupSubscreens/create_group.dar
 import 'package:memories_through_lenses/screens/groupSubscreens/join_group.dart';
 import 'package:memories_through_lenses/screens/groupSubscreens/edit_group.dart';
 import 'package:memories_through_lenses/screens/profile_edit.dart';
+import 'package:memories_through_lenses/screens/camera.dart';
 
 var routes = {
   "/": (context) => Initializer(),
@@ -23,6 +24,7 @@ var routes = {
   "/settings": (context) => SettingsScreen(),
   "/notifications": (context) => NotificationScreen(),
   "/create": (context) => CreatePostScreen(),
+  "/camera": (context) => CameraScreen(),
   "/group": (context) => GroupScreen(),
   "/create_group": (context) => CreateGroupScreen(),
   "/join_group": (context) => JoinGroupScreen(),

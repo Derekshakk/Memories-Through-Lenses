@@ -101,7 +101,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                String oldDisplayName = Auth().user!.displayName!;
+                String oldDisplayName = (Auth().user!.displayName != null)
+                    ? Auth().user!.displayName!
+                    : '';
                 String oldUsername = _singleton.userData['name'];
 
                 String newDisplayName = (nameController.text.isEmpty)
@@ -125,6 +127,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     context, '/', (route) => false);
               },
               child: const Text('Save'),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Current Username: ',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${_singleton.userData['name']}'),
+                ],
+              ),
             ),
           ],
         ),

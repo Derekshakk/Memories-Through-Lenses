@@ -166,14 +166,6 @@ class Database {
         .where('group_id', isEqualTo: groupId)
         .get();
 
-    if (mode == 'newest') {
-      posts.docs.sort(
-          (a, b) => b.data()['created_at'].compareTo(a.data()['created_at']));
-    } else if (mode == 'popular') {
-      posts.docs.sort((a, b) =>
-          b.data()['likes'].length.compareTo(a.data()['likes'].length));
-    }
-
     var posts_list = posts.docs.map((e) => e.data()).toList();
 
     // for each post, add the id
@@ -181,6 +173,23 @@ class Database {
       // print("Attempting to add id to post");
       posts_list[i]['id'] = posts.docs[i].id;
       // print("Added id to post: {${posts_list[i]['id']}");
+    }
+
+    if (mode == 'newest') {
+      print("Sorting by newest");
+      posts_list.sort((a, b) => a['created_at'].compareTo(b['created_at']));
+    } else if (mode == 'popular') {
+      print("Sorting by popular");
+      posts_list.sort((a, b) => b['likes'].length.compareTo(a['likes'].length));
+
+      // reverse the list to get the most popular first
+      posts_list = posts_list.reversed.toList();
+    }
+
+    // for debug, print the post id, created_at, and likes
+    for (var post in posts_list) {
+      print(
+          "Post ID: ${post['id']} Created At: ${post['created_at']} Likes: ${post['likes'].length}");
     }
 
     return posts_list;

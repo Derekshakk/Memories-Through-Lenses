@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 class Singleton extends ChangeNotifier {
@@ -24,6 +26,9 @@ class Singleton extends ChangeNotifier {
   List<Map<String, dynamic>> schoolData = [];
 
   Map<String, dynamic> get userData => _userData;
+
+  File? videoFile;
+  File? imageFile;
 
   void notifyListenersSafe() {
     WidgetsBinding.instance.addPostFrameCallback((_) {

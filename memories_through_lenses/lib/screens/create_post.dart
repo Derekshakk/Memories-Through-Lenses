@@ -38,6 +38,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (singleton.imageFile != null) {
+      _postMedia = singleton.imageFile;
+    } else if (singleton.videoFile != null) {
+      _postMedia = singleton.videoFile;
+    }
+    singleton.imageFile = null;
+    singleton.videoFile = null;
+
     setGroups();
     print("CREATING POST: ${singleton.groupData}");
     return Scaffold(
@@ -81,10 +89,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 },
                 child: Text('Upload Image or Video'),
               ),
-              // ElevatedButton(
-              //   onPressed: () {},
-              //   child: Text('Take Image or Video'),
-              // ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/camera');
+                },
+                child: Text('Take Image or Video'),
+              ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(

@@ -101,15 +101,15 @@ class _HomePageState extends State<HomePage> {
   void getGroups() {
     dropdownItems.clear();
     dropdownPairs.clear();
-    print("SINGLETON: ${singleton.groupData}");
+    // print("SINGLETON: ${singleton.groupData}");
     List<Map<String, dynamic>> groups = singleton.groupData;
     for (var element in groups) {
-      print("ADDING: ${element['name']}");
+      // print("ADDING: ${element['name']}");
       dropdownItems.add(element['name']);
       dropdownPairs.add(Pair(element['name'], element['groupID']));
     }
 
-    print("dropdownItems: $dropdownItems");
+    // print("dropdownItems: $dropdownItems");
 
     if (dropdownItems.isNotEmpty) dropdownValue = dropdownItems[0];
   }
@@ -158,11 +158,11 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     getGroups();
 
-    // set a timer to run after 3 seconds
+    // set a timer to run after 1 seconds
     Timer(const Duration(seconds: 1), () {
       setState(() {
         selected = ContentType.popular;
-        print("${singleton.groupData}");
+        // print("${singleton.groupData}");
         timelineLoaded = true;
         getGroups();
       });
@@ -175,7 +175,10 @@ class _HomePageState extends State<HomePage> {
       String groupID = dropdownPairs
           .firstWhere((element) => element.key == dropdownValue)
           .value;
-      getPosts(groupID);
+      if (groupID.isNotEmpty && posts.isEmpty) {
+        // print("dropdownPairs: $dropdownPairs");
+        getPosts(groupID);
+      }
     }
 
     return Scaffold(
@@ -183,7 +186,7 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.blue,
         ),
         drawer: Drawer(
-          backgroundColor: Color.fromARGB(255, 44, 44, 44),
+          backgroundColor: const Color.fromARGB(255, 44, 44, 44),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -384,17 +387,17 @@ class _HomePageState extends State<HomePage> {
                           label: Container(
                               height: SizeConfig.blockSizeVertical! * 4,
                               alignment: Alignment.center,
-                              child: Text('Recent',
+                              child: const Text('Recent',
                                   style: TextStyle(fontSize: 20))),
-                          icon: Icon(CupertinoIcons.star)),
+                          icon: const Icon(CupertinoIcons.star)),
                       ButtonSegment<ContentType>(
                           value: ContentType.popular,
                           label: Container(
                               height: SizeConfig.blockSizeVertical! * 4,
                               alignment: Alignment.center,
-                              child: Text('Popular',
+                              child: const Text('Popular',
                                   style: TextStyle(fontSize: 20))),
-                          icon: Icon(CupertinoIcons.flame))
+                          icon: const Icon(CupertinoIcons.flame))
                     ],
                     selected: {
                       selected
@@ -405,6 +408,10 @@ class _HomePageState extends State<HomePage> {
                         selected = value.first;
                         print("${singleton.groupData}");
                         getGroups();
+                        getPosts(dropdownPairs
+                            .firstWhere(
+                                (element) => element.key == dropdownValue)
+                            .value);
                       });
                     }),
               ),
