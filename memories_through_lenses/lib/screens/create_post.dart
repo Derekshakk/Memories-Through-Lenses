@@ -5,6 +5,8 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
 class Pair {
   final String key;
@@ -24,9 +26,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Singleton singleton = Singleton();
   final TextEditingController _captionController = TextEditingController();
   File? _postMedia;
+  String mediaType = '';
   String _selectedGroup = '';
   List<Pair> groups = [];
   bool uploading = false;
+
+  late VideoPlayerController _controller;
+
+  void initVideoPlayer() {
+    if (_postMedia != null) {
+      _controller = VideoPlayerController.file(_postMedia!)
+        ..initialize().then((_) {
+          setState(() {});
+        });
+    }
+  }
 
   void setGroups() {
     groups.clear();
@@ -40,8 +54,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     if (singleton.imageFile != null) {
       _postMedia = singleton.imageFile;
+      mediaType = 'image';
     } else if (singleton.videoFile != null) {
       _postMedia = singleton.videoFile;
+      mediaType = 'video';
+      initVideoPlayer();
     }
     singleton.imageFile = null;
     singleton.videoFile = null;
@@ -49,29 +66,47 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setGroups();
     print("CREATING POST: ${singleton.groupData}");
     return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            },
+          ),
+        ),
         body: SafeArea(
             child: SingleChildScrollView(
           child: Center(
               child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                color: Colors.grey,
-                height: SizeConfig.blockSizeVertical! * 40,
-                width: SizeConfig.blockSizeHorizontal! * 90,
-                child: Center(
-                    child: (_postMedia != null)
-                        ? SizedBox(
-                            height: SizeConfig.blockSizeVertical! * 40,
-                            width: SizeConfig.blockSizeHorizontal! * 90,
-                            child: Image.file(
-                              _postMedia!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const Text('No Image or Video Selected',
-                            style: TextStyle(fontSize: 20))),
+              Consumer<Singleton>(
+                builder: (context, singleton, child) {
+                  return Container(
+                      color: Colors.grey,
+                      height: SizeConfig.blockSizeVertical! * 40,
+                      width: SizeConfig.blockSizeHorizontal! * 90,
+                      child: Center(
+                        child: (_postMedia != null && mediaType == 'image')
+                            ? SizedBox(
+                                height: SizeConfig.blockSizeVertical! * 40,
+                                width: SizeConfig.blockSizeHorizontal! * 90,
+                                child: Image.file(
+                                  _postMedia!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : (_postMedia != null && mediaType == 'video')
+                                ? SizedBox(
+                                    height: SizeConfig.blockSizeVertical! * 40,
+                                    width: SizeConfig.blockSizeHorizontal! * 90,
+                                    child: VideoPlayer(_controller),
+                                  )
+                                : const Center(
+                                    child: Text('No Image or Video Selected',
+                                        style: TextStyle(fontSize: 20))),
+                      ));
+                },
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -82,6 +117,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       if (value != null) {
                         setState(() {
                           _postMedia = File(value.path);
+                          mediaType = 'image';
                         });
                       }
                     },

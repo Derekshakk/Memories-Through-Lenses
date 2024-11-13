@@ -142,10 +142,12 @@ class _CameraScreenState extends State<CameraScreen> {
                               imageFile = image;
                               print(image.path);
                               setState(() {
-                                singleton.imageFile = imageFile as File;
+                                singleton.imageFile = File(imageFile!.path);
                                 singleton.videoFile = null;
-                                singleton.notifyListenersSafe();
-                                Navigator.pop(context);
+                                // singleton.notifyListenersDelayed(
+                                //     Duration(seconds: 1));
+                                // Navigator.pop(context);
+                                Navigator.pushNamed(context, '/create');
                               });
                             } else {
                               if (!controller!.value.isRecordingVideo) {
@@ -161,7 +163,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                 videoFile = video;
                                 setupVideoplayer();
                                 setState(() {
-                                  singleton.videoFile = videoFile as File;
+                                  singleton.videoFile = File(videoFile!.path);
                                   singleton.imageFile = null;
                                   // singleton.notifyListenersSafe();
                                 });
@@ -234,10 +236,10 @@ class _CameraScreenState extends State<CameraScreen> {
                           color: Colors.white,
                           icon: Icon(Icons.check_circle),
                           onPressed: () {
-                            singleton.videoFile = videoFile as File;
+                            singleton.videoFile = File(videoFile!.path);
                             singleton.imageFile = null;
                             singleton.notifyListenersSafe();
-                            Navigator.pop(context);
+                            Navigator.pushNamed(context, '/create');
                           },
                         )
                       ],

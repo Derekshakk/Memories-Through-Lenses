@@ -25,29 +25,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 90,
-                  // height: SizeConfig.blockSizeVertical! * 40,
-                  child: const Card(
-                    color: Colors.grey,
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Text("Notification Settings",
-                              style: TextStyle(fontSize: 20)),
-                          ToggleRow(title: "Disable All Notifications"),
-                          ToggleRow(title: "New Uploads in Groups"),
-                          ToggleRow(title: "Comments on Posts"),
-                          ToggleRow(title: "Likes on Posts"),
-                          ToggleRow(title: "New Group Invitations"),
-                          ToggleRow(title: "Friend Requests"),
-                          // ToggleRow(title: "Admin Announcements"),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                // SizedBox(
+                //   width: SizeConfig.blockSizeHorizontal! * 90,
+                //   // height: SizeConfig.blockSizeVertical! * 40,
+                //   child: const Card(
+                //     color: Colors.grey,
+                //     child: Padding(
+                //       padding: EdgeInsets.all(16.0),
+                //       child: Column(
+                //         children: [
+                //           Text("Notification Settings",
+                //               style: TextStyle(fontSize: 20)),
+                //           ToggleRow(title: "Disable All Notifications"),
+                //           ToggleRow(title: "New Uploads in Groups"),
+                //           ToggleRow(title: "Comments on Posts"),
+                //           ToggleRow(title: "Likes on Posts"),
+                //           ToggleRow(title: "New Group Invitations"),
+                //           ToggleRow(title: "Friend Requests"),
+                //           // ToggleRow(title: "Admin Announcements"),
+                //         ],
+                //       ),
+                //     ),
+                //   ),
+                // ),
                 // SizedBox(
                 //   width: SizeConfig.blockSizeHorizontal! * 90,
                 //   // height: SizeConfig.blockSizeVertical! * 40,

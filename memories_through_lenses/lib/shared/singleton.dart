@@ -36,6 +36,12 @@ class Singleton extends ChangeNotifier {
     });
   }
 
+  void notifyListenersDelayed(Duration duration) {
+    Future.delayed(duration, () {
+      notifyListenersSafe();
+    });
+  }
+
   void setUserData(Map<String, dynamic> data) {
     _userData = data;
     notifyListenersSafe();
