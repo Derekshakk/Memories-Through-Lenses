@@ -119,8 +119,63 @@ class _CommentScreenState extends State<CommentScreen> {
                         Expanded(
                           child: ListView(
                             children: [
-                              ListTile(
-                                title: const Text("Comment 1"),
+                              Container(
+                                height: SizeConfig.blockSizeVertical! * 15,
+                                color: Colors.amber,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const CircleAvatar(
+                                        radius: 20,
+                                        backgroundImage: NetworkImage(
+                                            'https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&height=900&width=1600&fit=bounds'),
+                                      ),
+                                      Container(
+                                        // color: Colors.white,
+                                        width: SizeConfig.blockSizeHorizontal! *
+                                            70,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text("Username"),
+                                            Text(
+                                                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."),
+                                            // TextButton(
+                                            //   style: TextButton.styleFrom(
+                                            //       padding: EdgeInsets.zero),
+                                            //   onPressed: () {},
+                                            //   child: Text("Reply"),
+                                            // ),
+                                            // TextButton(
+                                            //   style: TextButton.styleFrom(
+                                            //       padding: EdgeInsets.zero),
+                                            //   onPressed: () {},
+                                            //   child: Text("View Replies"),
+                                            // )
+                                          ],
+                                        ),
+                                      ),
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          IconButton(
+                                            onPressed: () {},
+                                            icon: const Icon(
+                                                Icons.favorite_border),
+                                          ),
+                                          Text("0"),
+                                        ],
+                                      )
+                                    ],
+                                  ),
+                                ),
                               ),
                               ListTile(
                                 title: const Text("Comment 2"),
