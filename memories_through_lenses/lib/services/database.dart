@@ -209,6 +209,90 @@ class Database {
     });
   }
 
+  // create a comment on a post
+  Future<void> createComment(String postId, String comment) async {
+    // comments is a subcollection of posts
+    _firestore.collection('posts').doc(postId).collection('comments').add({
+      'uid': _auth.user!.uid,
+      'description': comment,
+      'created_at': DateTime.now(),
+      'likes': [],
+    });
+  }
+
+  // like a comment by adding the user's uid to the likes array
+  Future<void> likeComment(String postId, String commentId) async {
+    _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .update({
+      'likes': FieldValue.arrayUnion([_auth.user!.uid])
+    });
+  }
+
+  // unlike a comment
+  Future<void> removeLikeComment(String postId, String commentId) async {
+    _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .update({
+      'likes': FieldValue.arrayRemove([_auth.user!.uid])
+    });
+  }
+
+  // report a comment
+  Future<void> reportComment(String postId, String commentId) async {
+    _firestore.collection('reports').add({
+      'post_id': postId,
+      'comment_id': commentId,
+      'user_id': _auth.user!.uid,
+      'created_at': DateTime.now()
+    });
+  }
+
+  // delete a comment
+  Future<void> deleteComment(String postId, String commentId) async {
+    _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .delete();
+  }
+
+  // edit a comment
+  Future<void> editComment(
+      String postId, String commentId, String newComment) async {
+    _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .update({'description': newComment});
+  }
+
+  // get all comments for a post
+  Future<List<Map<String, dynamic>>> getComments(String postId) async {
+    var comments = await _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .get();
+
+    var comments_list = comments.docs.map((e) => e.data()).toList();
+
+    // for each comment, add the id
+    for (var i = 0; i < comments_list.length; i++) {
+      comments_list[i]['id'] = comments.docs[i].id;
+    }
+
+    return comments_list;
+  }
+
   Future<void> reportAndBlockUser(String postId, String postCreator) async {
     reportPost(postId, postCreator);
     blockUser(postCreator);

@@ -4,6 +4,7 @@ import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:video_player/video_player.dart';
 import 'package:memories_through_lenses/size_config.dart';
+import 'package:memories_through_lenses/components/comment.dart';
 
 class CommentScreen extends StatefulWidget {
   const CommentScreen(
@@ -24,6 +25,8 @@ class CommentScreen extends StatefulWidget {
 class _CommentScreenState extends State<CommentScreen> {
   late VideoPlayerController _controller;
 
+  List<Map<String, dynamic>> comments = [];
+
   @override
   void initState() {
     super.initState();
@@ -31,6 +34,14 @@ class _CommentScreenState extends State<CommentScreen> {
       _controller =
           VideoPlayerController.networkUrl(Uri.parse(widget.mediaURL));
     }
+
+    // get comments
+    Database().getComments(widget.id).then((value) {
+      setState(() {
+        comments = value;
+        print("Comments: $comments");
+      });
+    });
   }
 
   @override
@@ -111,101 +122,19 @@ class _CommentScreenState extends State<CommentScreen> {
                 ),
                 Expanded(
                   child: Container(
-                    color: Colors.blue,
+                    color: Colors.white,
                     width: SizeConfig.blockSizeHorizontal! * 100,
                     child: Column(
                       children: [
                         // comments
                         Expanded(
-                          child: ListView(
-                            children: [
-                              Container(
-                                height: SizeConfig.blockSizeVertical! * 15,
-                                color: Colors.amber,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const CircleAvatar(
-                                        radius: 20,
-                                        backgroundImage: NetworkImage(
-                                            'https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&height=900&width=1600&fit=bounds'),
-                                      ),
-                                      Container(
-                                        // color: Colors.white,
-                                        width: SizeConfig.blockSizeHorizontal! *
-                                            70,
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text("Username"),
-                                            Text(
-                                                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."),
-                                            // TextButton(
-                                            //   style: TextButton.styleFrom(
-                                            //       padding: EdgeInsets.zero),
-                                            //   onPressed: () {},
-                                            //   child: Text("Reply"),
-                                            // ),
-                                            // TextButton(
-                                            //   style: TextButton.styleFrom(
-                                            //       padding: EdgeInsets.zero),
-                                            //   onPressed: () {},
-                                            //   child: Text("View Replies"),
-                                            // )
-                                          ],
-                                        ),
-                                      ),
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          IconButton(
-                                            onPressed: () {},
-                                            icon: const Icon(
-                                                Icons.favorite_border),
-                                          ),
-                                          Text("0"),
-                                        ],
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 2"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 3"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 4"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 5"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 6"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 7"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 8"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 9"),
-                              ),
-                              ListTile(
-                                title: const Text("Comment 10"),
-                              ),
-                            ],
-                          ),
+                          child: ListView.builder(
+                              itemCount: comments.length,
+                              itemBuilder: (context, index) {
+                                return Comment(
+                                  description: comments[index]["description"],
+                                );
+                              }),
                         ),
                         // comment input
                         Padding(
