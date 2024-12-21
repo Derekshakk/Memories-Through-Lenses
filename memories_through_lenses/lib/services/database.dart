@@ -67,6 +67,8 @@ class Database {
         'name': username,
         'profile_image': profileImage,
       });
+
+      _auth.user!.updatePhotoURL(profileImage);
     } else {
       _firestore.collection('users').doc(_auth.user!.uid).update({
         'name': username,
@@ -215,8 +217,10 @@ class Database {
     _firestore.collection('posts').doc(postId).collection('comments').add({
       'uid': _auth.user!.uid,
       'description': comment,
-      'created_at': DateTime.now(),
+      'date': DateTime.now(),
       'likes': [],
+      'username': _auth.user!.displayName,
+      'profilePic': _auth.user!.photoURL
     });
   }
 
@@ -288,6 +292,23 @@ class Database {
     // for each comment, add the id
     for (var i = 0; i < comments_list.length; i++) {
       comments_list[i]['id'] = comments.docs[i].id;
+
+      // get the user's name and profile image
+      // print("Getting user data at ${comments_list[i]['uid']}");
+      // var user = await _firestore
+      //     .collection('users')
+      //     .doc(comments_list[i]['uid'])
+      //     .get().then((value) {
+      //       var user_data = value.data();
+      //       print("User data: ${value.data()}");
+      //     });
+
+      // comments_list[i]['username'] = user_data!['name'];
+      if (!comments_list[i].containsKey("profilePic") ||
+          comments_list[i]['profilePic'].isEmpty) {
+        comments_list[i]['profilePic'] =
+            'https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&height=900&width=1600&fit=bounds';
+      }
     }
 
     return comments_list;

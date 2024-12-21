@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/services/auth.dart';
@@ -24,8 +25,14 @@ class CommentScreen extends StatefulWidget {
 
 class _CommentScreenState extends State<CommentScreen> {
   late VideoPlayerController _controller;
+  TextEditingController commentController = TextEditingController();
 
   List<Map<String, dynamic>> comments = [];
+
+  String timestampToDateString(Timestamp timestamp) {
+    DateTime date = timestamp.toDate();
+    return "${date.month}/${date.day}/${date.year}";
+  }
 
   @override
   void initState() {
@@ -132,7 +139,12 @@ class _CommentScreenState extends State<CommentScreen> {
                               itemCount: comments.length,
                               itemBuilder: (context, index) {
                                 return Comment(
+                                  username: comments[index]["username"],
+                                  profilePic: comments[index]["profilePic"],
+                                  date: timestampToDateString(
+                                      comments[index]["date"]),
                                   description: comments[index]["description"],
+                                  likes: comments[index]["likes"],
                                 );
                               }),
                         ),
@@ -146,10 +158,27 @@ class _CommentScreenState extends State<CommentScreen> {
                                   decoration: const InputDecoration(
                                     hintText: "Add a comment...",
                                   ),
+                                  controller: commentController,
                                 ),
                               ),
                               ElevatedButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  Database()
+                                      .createComment(
+                                          widget.id, commentController.text)
+                                      .then((value) {
+                                    // get comments
+                                    Database()
+                                        .getComments(widget.id)
+                                        .then((value) {
+                                      setState(() {
+                                        comments = value;
+                                        print("Comments: $comments");
+                                      });
+                                    });
+                                  });
+                                  commentController.clear();
+                                },
                                 child: const Text("Post"),
                               )
                             ],

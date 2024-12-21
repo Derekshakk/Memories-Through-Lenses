@@ -2,8 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 
 class Comment extends StatefulWidget {
-  const Comment({super.key, required this.description});
+  const Comment(
+      {super.key,
+      required this.description,
+      required this.profilePic,
+      required this.username,
+      required this.date,
+      required this.likes});
+  final String profilePic;
   final String description;
+  final String username;
+  final String date;
+  final List<dynamic> likes;
 
   @override
   State<Comment> createState() => _CommentState();
@@ -32,10 +42,9 @@ class _CommentState extends State<Comment> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 20,
-                backgroundImage: NetworkImage(
-                    'https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&height=900&width=1600&fit=bounds'),
+                backgroundImage: NetworkImage(widget.profilePic),
               ),
               Container(
                 color: Colors.white,
@@ -46,10 +55,9 @@ class _CommentState extends State<Comment> {
                   children: [
                     Row(
                       children: [
-                        Text("Username"),
+                        Text(widget.username),
                         Padding(padding: EdgeInsets.all(5.0)),
-                        Text("mm/dd/yyyy",
-                            style: TextStyle(color: Colors.grey)),
+                        Text(widget.date, style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                     Text(widget.description),
@@ -75,7 +83,7 @@ class _CommentState extends State<Comment> {
                     onPressed: () {},
                     icon: const Icon(Icons.favorite_border),
                   ),
-                  Text("0"),
+                  Text(widget.likes.length.toString()),
                 ],
               )
             ],
