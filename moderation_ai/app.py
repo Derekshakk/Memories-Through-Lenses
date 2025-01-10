@@ -69,6 +69,8 @@ def predict():
 
         # Read the image file
         img = Image.open(BytesIO(response.content))
+
+        img = img.resize((320, 320))
         
         # Perform prediction
         results = model([img])
