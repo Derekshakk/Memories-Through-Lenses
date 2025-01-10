@@ -70,7 +70,7 @@ def predict():
         # Read the image file
         img = Image.open(BytesIO(response.content))
 
-        img = img.resize((320, 320))
+        img = img.resize((64, 64))
         
         # Perform prediction
         results = model([img])
