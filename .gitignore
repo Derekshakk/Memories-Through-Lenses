@@ -9,3 +9,5 @@ facial_recognition_ai/venv
 moderation_ai/venv/
 
 moderation_ai/firebase-key.json
+
+venv/

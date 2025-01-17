@@ -18,7 +18,7 @@ def get_user_face(video_path):
 
         # process every 30th frame
         if frame_number % 30 == 0:
-            rgb_frame = frame[:, :, ::-1]
+            rgb_frame = np.ascontiguousarray(frame[:, :, ::-1])
 
             # Find all face locations and encodings in the current frame
             face_locations = face_recognition.face_locations(rgb_frame)

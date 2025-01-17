@@ -2,7 +2,7 @@ import requests
 
 def send_image_to_server(image_url):
     cloud_url = "https://memories-through-lenses.onrender.com/predict"
-    url = 'http://192.168.0.158:5001/predict'
+    url = 'http://192.168.4.29:5001/predict'
     user_uid = 'KFO2QXGyTDYx84PEf18UfVJ606M2'
     image_name = '1280px-SIG_Pro_by_Augustas_Didzgalvis.jpg'
 
@@ -12,7 +12,7 @@ def send_image_to_server(image_url):
         'image_name': image_name
     }
 
-    response = requests.post(cloud_url, json=data)
+    response = requests.post(url, json=data)
     return response.json()
 
 def main():
