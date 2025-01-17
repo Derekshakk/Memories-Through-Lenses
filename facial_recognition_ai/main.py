@@ -23,6 +23,7 @@ def get_user_face(video_path):
             # Find all face locations and encodings in the current frame
             face_locations = face_recognition.face_locations(rgb_frame)
             if len(face_locations) > 0:
+                print(f"Found {len(face_locations)} face(s) in frame {frame_number}")
                 encodings = face_recognition.face_encodings(rgb_frame, face_locations)
                 face_encodings.extend(encodings)
 
@@ -55,7 +56,7 @@ def find_user_in_images(user_face_encoding, photos_path_pattern, tolerance=0.6):
     return matches
 
 def main():
-    video_path = "demo_user.mp4"  # Path to the video file
+    video_path = "demo_user2.mp4"  # Path to the video file
     photos_path_pattern = "photos/*.jpg"  # Path pattern for photos
 
     print("Extracting user face encoding from video...")
