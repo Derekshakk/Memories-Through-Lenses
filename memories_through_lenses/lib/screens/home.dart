@@ -21,7 +21,7 @@ class PostData {
   final int likes;
   final int dislikes;
   final String caption;
-
+  final DateTime created_at;
   PostData(
       {required this.id,
       required this.creator,
@@ -29,7 +29,8 @@ class PostData {
       required this.mediaType,
       required this.caption,
       required this.likes,
-      required this.dislikes});
+      required this.dislikes,
+      required this.created_at});
 }
 
 class Pair {
@@ -141,7 +142,10 @@ class _HomePageState extends State<HomePage> {
             mediaType: 'image',
             caption: element['caption'],
             likes: element['likes'].length,
-            dislikes: element['dislikes'].length));
+            dislikes: element['dislikes'].length,
+            // Timestamp to datetime
+            created_at: DateTime.fromMillisecondsSinceEpoch(
+                element['created_at'].seconds * 1000)));
       }
 
       // reverse the list so that the newest post is at the top
@@ -236,6 +240,18 @@ class _HomePageState extends State<HomePage> {
                               fontSize: 20, color: Colors.white),
                           onPressed: () {
                             Navigator.pushNamed(context, '/create');
+                          },
+                        ),
+                      ),
+                      SizedBox(height: SizeConfig.blockSizeVertical! * 2),
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          text: "Your Yearbook",
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/yearbook');
                           },
                         ),
                       ),

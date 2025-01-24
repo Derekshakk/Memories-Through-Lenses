@@ -6,10 +6,12 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
+import 'package:memories_through_lenses/shared/singleton.dart';
 
 class Database {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Auth _auth = Auth();
+  final Singleton _singleton = Singleton();
 
   Future<List<Map<String, dynamic>>> getSchools() async {
     var schools = await _firestore.collection('schools').get();
@@ -195,6 +197,24 @@ class Database {
     }
 
     return posts_list;
+  }
+
+  Future<List<Map<String, dynamic>>> getYearBook() {
+    // get every post in the posts collection whose id is in the yearbook array of the user's data from singleton
+    return _firestore
+        .collection('posts')
+        .where(FieldPath.documentId, whereIn: _singleton.userData['yearbook'])
+        .get()
+        .then((value) {
+      var posts_list = value.docs.map((e) => e.data()).toList();
+
+      // for each post, add the id
+      for (var i = 0; i < posts_list.length; i++) {
+        posts_list[i]['id'] = value.docs[i].id;
+      }
+
+      return posts_list;
+    });
   }
 
   Future<void> reportPost(String postId, String postCreator) async {

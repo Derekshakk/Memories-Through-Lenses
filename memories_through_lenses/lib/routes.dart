@@ -13,6 +13,7 @@ import 'package:memories_through_lenses/screens/groupSubscreens/join_group.dart'
 import 'package:memories_through_lenses/screens/groupSubscreens/edit_group.dart';
 import 'package:memories_through_lenses/screens/profile_edit.dart';
 import 'package:memories_through_lenses/screens/camera.dart';
+import 'package:memories_through_lenses/screens/yearbook.dart';
 
 var routes = {
   "/": (context) => Initializer(),
@@ -30,4 +31,5 @@ var routes = {
   "/join_group": (context) => JoinGroupScreen(),
   "/edit_group": (context) => EditGroupScreen(),
   "/profile_edit": (context) => ProfileEditScreen(),
+  "/yearbook": (context) => YearbookScreen(),
 };

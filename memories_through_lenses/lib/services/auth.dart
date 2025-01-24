@@ -25,6 +25,7 @@ class Auth {
         'group_requests': [],
         'group_invites': {},
         'school': school,
+        'yearbook': [],
       });
     } catch (e) {
       print(e);
