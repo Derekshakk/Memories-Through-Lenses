@@ -22,6 +22,7 @@ class PostData {
   final int dislikes;
   final String caption;
   final DateTime created_at;
+  final String userOpinion; // "like", "dislike", or "none"
   PostData(
       {required this.id,
       required this.creator,
@@ -30,7 +31,8 @@ class PostData {
       required this.caption,
       required this.likes,
       required this.dislikes,
-      required this.created_at});
+      required this.created_at,
+      this.userOpinion = "none"}); // default is "none" if not specified
 }
 
 class Pair {
@@ -135,17 +137,27 @@ class _HomePageState extends State<HomePage> {
           continue;
         }
 
+        // check if the user previously liked or disliked the post
+        String userOpinion = "none";
+        if (element['likes'].contains(singleton.userData['uid'])) {
+          userOpinion = "like";
+        } else if (element['dislikes'].contains(singleton.userData['uid'])) {
+          userOpinion = "dislike";
+        }
+
         temp.add(PostData(
-            id: element['id'],
-            creator: element['user_id'],
-            mediaURL: element['image_url'],
-            mediaType: 'image',
-            caption: element['caption'],
-            likes: element['likes'].length,
-            dislikes: element['dislikes'].length,
-            // Timestamp to datetime
-            created_at: DateTime.fromMillisecondsSinceEpoch(
-                element['created_at'].seconds * 1000)));
+          id: element['id'],
+          creator: element['user_id'],
+          mediaURL: element['image_url'],
+          mediaType: 'image',
+          caption: element['caption'],
+          likes: element['likes'].length,
+          dislikes: element['dislikes'].length,
+          // Timestamp to datetime
+          created_at: DateTime.fromMillisecondsSinceEpoch(
+              element['created_at'].seconds * 1000),
+          userOpinion: userOpinion,
+        ));
       }
 
       // reverse the list so that the newest post is at the top
@@ -316,6 +328,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+        // end drawer should have the title "Friends" and a list of friends
         endDrawer: Drawer(child: Consumer(
           builder: (context, _singleton, child) {
             List<Widget> currentFriends = [];
@@ -337,11 +350,30 @@ class _HomePageState extends State<HomePage> {
             });
             print("current friends list: $currentFriends");
 
-            return ListView.builder(
-              itemCount: currentFriends.length,
-              itemBuilder: (context, index) {
-                return currentFriends[index];
-              },
+            return SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      "Friends",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: currentFriends.length,
+                      itemBuilder: (context, index) {
+                        return currentFriends[index];
+                      },
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         )),

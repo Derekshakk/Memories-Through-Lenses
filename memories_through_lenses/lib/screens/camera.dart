@@ -26,6 +26,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
   final Singleton singleton = Singleton();
 
+  int _selectedCameraIndex = 0;
+
   Future<void> initCamera() async {
     cameras = await availableCameras();
     if (kDebugMode) print(cameras);
@@ -42,6 +44,21 @@ class _CameraScreenState extends State<CameraScreen> {
       }
       setState(() {});
     });
+    await controller!.lockCaptureOrientation();
+  }
+
+  // Method to switch between cameras.
+  Future<void> _switchCamera() async {
+    if (cameras.length < 2) return;
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % cameras.length;
+    if (controller != null) {
+      await controller!.dispose();
+    }
+    controller =
+        CameraController(cameras[_selectedCameraIndex], ResolutionPreset.high);
+    await controller!.initialize();
+    if (!mounted) return;
+    setState(() {});
     await controller!.lockCaptureOrientation();
   }
 
@@ -81,6 +98,27 @@ class _CameraScreenState extends State<CameraScreen> {
                         child: const Center(
                           child: CircularProgressIndicator(),
                         )),
+                // back button in the top-left corner.
+                Positioned(
+                  top: SizeConfig.blockSizeVertical! * 5,
+                  left: SizeConfig.blockSizeHorizontal! * 5,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                // Camera flip button in the top-right corner.
+                Positioned(
+                  top: SizeConfig.blockSizeVertical! * 5,
+                  right: SizeConfig.blockSizeHorizontal! * 5,
+                  child: IconButton(
+                    icon: const Icon(Icons.flip_camera_android,
+                        color: Colors.white),
+                    onPressed: _switchCamera,
+                  ),
+                ),
                 // photo / video toggle
                 Positioned(
                   top: SizeConfig.blockSizeVertical! * 5,

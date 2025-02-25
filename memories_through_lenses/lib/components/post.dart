@@ -17,6 +17,7 @@ class PostCard extends StatefulWidget {
     required this.creator,
     this.likes = 0,
     this.dislikes = 0,
+    this.userOpinion = "none",
   });
   final String id;
   final String mediaURL;
@@ -25,6 +26,7 @@ class PostCard extends StatefulWidget {
   int likes = 0;
   int dislikes = 0;
   final String caption;
+  String userOpinion; // "like", "dislike", or "none"
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -147,7 +149,20 @@ class _PostCardState extends State<PostCard> {
                           ),
                           onPressed: () {
                             setState(() {
-                              widget.likes++;
+                              // widget.likes++;
+                              // if the user has already liked the post, then remove the like
+                              if (widget.userOpinion == "like") {
+                                widget.likes--;
+                                widget.userOpinion = "none";
+                              } else if (widget.userOpinion == "dislike") {
+                                widget.dislikes--;
+                                widget.userOpinion = "like";
+                                widget.likes++;
+                              } else {
+                                widget.userOpinion = "like";
+                                widget.likes++;
+                              }
+
                               Database().likePost(widget.id);
                             });
                           },
@@ -175,7 +190,21 @@ class _PostCardState extends State<PostCard> {
                           ),
                           onPressed: () {
                             setState(() {
-                              widget.dislikes++;
+                              // widget.dislikes++;
+
+                              // if the user has already disliked the post, then remove the dislike
+                              if (widget.userOpinion == "dislike") {
+                                widget.dislikes--;
+                                widget.userOpinion = "none";
+                              } else if (widget.userOpinion == "like") {
+                                widget.likes--;
+                                widget.userOpinion = "dislike";
+                                widget.dislikes++;
+                              } else {
+                                widget.userOpinion = "dislike";
+                                widget.dislikes++;
+                              }
+
                               Database().dislikePost(widget.id);
                             });
                           },

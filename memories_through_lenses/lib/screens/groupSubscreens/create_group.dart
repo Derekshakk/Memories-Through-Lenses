@@ -39,73 +39,74 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget build(BuildContext context) {
     setUsers();
     return Scaffold(
+        appBar: AppBar(),
         body: SafeArea(
-      child: SingleChildScrollView(
-        child: Center(
-            child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextField(
-                controller: groupNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Group Name',
-                ),
-              ),
-              TextField(
-                controller: groupDescriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Group Description',
-                ),
-              ),
-              Stack(
-                alignment: Alignment.center,
+          child: SingleChildScrollView(
+            child: Center(
+                child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    color: Colors.grey,
-                    height: SizeConfig.blockSizeVertical! * 60,
-                    width: SizeConfig.blockSizeHorizontal! * 90,
-                    child: ListView.builder(
-                      itemCount: users.length,
-                      itemBuilder: (context, index) {
-                        return GroupFriendCard(
-                          name: users[index].name,
-                          uid: users[index].uid,
-                        );
-                      },
+                  TextField(
+                    controller: groupNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Group Name',
                     ),
                   ),
-                  Center(
-                    child: Container(
-                      child: Text(
-                        (users.length > 0) ? "" : "No Friends Available",
-                        style: TextStyle(fontSize: 25),
-                      ),
+                  TextField(
+                    controller: groupDescriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Group Description',
                     ),
+                  ),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        color: Colors.grey,
+                        height: SizeConfig.blockSizeVertical! * 60,
+                        width: SizeConfig.blockSizeHorizontal! * 90,
+                        child: ListView.builder(
+                          itemCount: users.length,
+                          itemBuilder: (context, index) {
+                            return GroupFriendCard(
+                              name: users[index].name,
+                              uid: users[index].uid,
+                            );
+                          },
+                        ),
+                      ),
+                      Center(
+                        child: Container(
+                          child: Text(
+                            (users.length > 0) ? "" : "No Friends Available",
+                            style: TextStyle(fontSize: 25),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  ToggleRow(
+                    title: 'Private',
+                    onToggled: (value) {
+                      setState(() {
+                        isPrivate = value;
+                      });
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Database().createGroup(groupNameController.text,
+                          groupDescriptionController.text, isPrivate);
+                      Navigator.pop(context);
+                    },
+                    child: Text('Create Group'),
                   ),
                 ],
               ),
-              ToggleRow(
-                title: 'Private',
-                onToggled: (value) {
-                  setState(() {
-                    isPrivate = value;
-                  });
-                },
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Database().createGroup(groupNameController.text,
-                      groupDescriptionController.text, isPrivate);
-                  Navigator.pop(context);
-                },
-                child: Text('Create Group'),
-              ),
-            ],
+            )),
           ),
-        )),
-      ),
-    ));
+        ));
   }
 }

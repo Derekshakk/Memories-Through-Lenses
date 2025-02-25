@@ -22,7 +22,7 @@ class _YearbookScreenState extends State<YearbookScreen> {
   @override
   void initState() {
     super.initState();
-    getPosts('jkH2u79s9O30Kjjmw49I');
+    getPosts();
 
     setState(() {
       years = getYears();
@@ -42,44 +42,63 @@ class _YearbookScreenState extends State<YearbookScreen> {
     return items;
   }
 
-  void getPosts(String groupID) {
-    Database().getPosts(groupID, 'newest').then((value) {
-      List<PostData> temp = [];
-      List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
-          ? singleton.userData['blocked']
-          : [];
-      List<dynamic> blockedPosts =
-          (singleton.userData['reported_posts'] != null)
-              ? singleton.userData['reported_posts']
-              : [];
-      // print("VALUE: $value");
-      for (var element in value) {
-        if (blockedUsers.contains(element['user_id']) ||
-            blockedPosts.contains(element['id'])) {
-          continue;
+  void getPosts() {
+    // get list of all groups a user is part of from their userData
+    List<dynamic> groups = singleton.userData['groups'];
+
+    for (var id in groups) {
+      Database().getPosts(id.toString(), 'newest').then((value) {
+        List<PostData> temp = [];
+        List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
+            ? singleton.userData['blocked']
+            : [];
+        List<dynamic> blockedPosts =
+            (singleton.userData['reported_posts'] != null)
+                ? singleton.userData['reported_posts']
+                : [];
+        // print("VALUE: $value");
+        for (var element in value) {
+          if (blockedUsers.contains(element['user_id']) ||
+              blockedPosts.contains(element['id'])) {
+            continue;
+          }
+
+          // check if the created_at date is in the selected year
+          DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(
+              element['created_at'].seconds * 1000);
+          if (createdAt.year.toString() != selectedYear) {
+            print(
+                "Skipping post with id ${element['id']} because it is not in the selected year");
+            print("Selected year: $selectedYear");
+            print("Post year: ${createdAt.year}");
+            continue;
+          }
+
+          temp.add(PostData(
+            id: element['id'],
+            creator: element['user_id'],
+            mediaURL: element['image_url'],
+            mediaType: 'image',
+            caption: element['caption'],
+            likes: element['likes'].length,
+            dislikes: element['dislikes'].length,
+            // Timestamp to datetime
+            created_at: DateTime.fromMillisecondsSinceEpoch(
+                element['created_at'].seconds * 1000),
+          ));
         }
 
-        temp.add(PostData(
-          id: element['id'],
-          creator: element['user_id'],
-          mediaURL: element['image_url'],
-          mediaType: 'image',
-          caption: element['caption'],
-          likes: element['likes'].length,
-          dislikes: element['dislikes'].length,
-          // Timestamp to datetime
-          created_at: DateTime.fromMillisecondsSinceEpoch(
-              element['created_at'].seconds * 1000),
-        ));
-      }
+        // sort by created_at so that the newest post is at the top
+        temp = temp
+            .where(
+                (element) => element.created_at.year.toString() == selectedYear)
+            .toList();
 
-      // reverse the list so that the newest post is at the top
-      temp = temp.reversed.toList();
-
-      setState(() {
-        posts = temp;
+        setState(() {
+          posts = temp;
+        });
       });
-    });
+    }
   }
 
   @override
@@ -95,7 +114,9 @@ class _YearbookScreenState extends State<YearbookScreen> {
             items: years,
             onChanged: (value) {
               setState(() {
+                print("Selected year: $value");
                 selectedYear = value;
+                getPosts();
               });
             }),
       )),

@@ -87,94 +87,97 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
     setUsers();
     setGroups();
     return Scaffold(
-        body: SafeArea(
-      child: SingleChildScrollView(
-        child: Center(
-            child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              DropdownButton(
-                  hint: Text('Select Group'),
-                  value: currentGroup,
-                  items: groups.map((group) {
-                    return DropdownMenuItem(
-                      child: Text(group.name),
-                      value: group.groupID,
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      print("Setting current group to $value");
-                      // set current group to whichever group has the same name as value
-                      currentGroup = value.toString();
+        appBar: AppBar(
+          title: DropdownButton(
+              hint: Text('Select Group'),
+              value: currentGroup,
+              items: groups.map((group) {
+                return DropdownMenuItem(
+                  child: Text(group.name),
+                  value: group.groupID,
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  print("Setting current group to $value");
+                  // set current group to whichever group has the same name as value
+                  currentGroup = value.toString();
 
-                      // set the group name and description to the current group's name and description
-                      for (Group group in groups) {
-                        print("Comparing ${group.groupID} to $value");
-                        if (group.groupID == value) {
-                          groupNameController.text = group.name;
-                          currentGroupName = group.name;
-                          groupDescriptionController.text = group.description;
-                          isPrivate = group.isPrivate;
-                          currentGroup = group.groupID;
-                          break;
-                        }
-                      }
-                    });
-                  }),
-              TextField(
-                controller: groupNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Group Name',
-                ),
+                  // set the group name and description to the current group's name and description
+                  for (Group group in groups) {
+                    print("Comparing ${group.groupID} to $value");
+                    if (group.groupID == value) {
+                      groupNameController.text = group.name;
+                      currentGroupName = group.name;
+                      groupDescriptionController.text = group.description;
+                      isPrivate = group.isPrivate;
+                      currentGroup = group.groupID;
+                      break;
+                    }
+                  }
+                });
+              }),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Center(
+                child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextField(
+                    controller: groupNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Group Name',
+                    ),
+                  ),
+                  TextField(
+                    controller: groupDescriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Group Description',
+                    ),
+                  ),
+                  Container(
+                    color: Colors.grey,
+                    height: SizeConfig.blockSizeVertical! * 60,
+                    width: SizeConfig.blockSizeHorizontal! * 90,
+                    child: ListView.builder(
+                      itemCount: users.length,
+                      itemBuilder: (context, index) {
+                        return GroupFriendCard(
+                          name: users[index].name,
+                          uid: users[index].uid,
+                          groupID: (currentGroup != null) ? currentGroup! : '',
+                          groupName: (currentGroupName != null)
+                              ? currentGroupName!
+                              : '',
+                          mode: 'edit',
+                        );
+                      },
+                    ),
+                  ),
+                  ToggleRow(
+                    title: 'Private',
+                    initialValue: isPrivate,
+                    onToggled: (value) {
+                      setState(() {
+                        print("Setting isPrivate to $value");
+                        isPrivate = value;
+                      });
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Database().updateGroup(, name, description, isPrivate)
+                      Navigator.pop(context);
+                    },
+                    child: Text('Edit Group'),
+                  ),
+                ],
               ),
-              TextField(
-                controller: groupDescriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Group Description',
-                ),
-              ),
-              Container(
-                color: Colors.grey,
-                height: SizeConfig.blockSizeVertical! * 60,
-                width: SizeConfig.blockSizeHorizontal! * 90,
-                child: ListView.builder(
-                  itemCount: users.length,
-                  itemBuilder: (context, index) {
-                    return GroupFriendCard(
-                      name: users[index].name,
-                      uid: users[index].uid,
-                      groupID: (currentGroup != null) ? currentGroup! : '',
-                      groupName:
-                          (currentGroupName != null) ? currentGroupName! : '',
-                      mode: 'edit',
-                    );
-                  },
-                ),
-              ),
-              ToggleRow(
-                title: 'Private',
-                initialValue: isPrivate,
-                onToggled: (value) {
-                  setState(() {
-                    print("Setting isPrivate to $value");
-                    isPrivate = value;
-                  });
-                },
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // Database().updateGroup(, name, description, isPrivate)
-                  Navigator.pop(context);
-                },
-                child: Text('Edit Group'),
-              ),
-            ],
+            )),
           ),
-        )),
-      ),
-    ));
+        ));
   }
 }
