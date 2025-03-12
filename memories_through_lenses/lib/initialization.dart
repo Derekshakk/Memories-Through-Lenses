@@ -16,6 +16,7 @@ class Initializer extends StatelessWidget {
     Singleton singleton = Singleton();
     User? user = Auth().user;
 
+
     if (user != null) {
       return StreamBuilder<Object>(
           stream: FirebaseFirestore.instance

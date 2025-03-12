@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
@@ -39,7 +40,11 @@ class _GroupScreenState extends State<GroupScreen> {
   Widget build(BuildContext context) {
     getGroupRequests(); // Fetch group requests when building the widget
     return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(
+          title: Text('Manage Groups',
+              style:
+                  GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
+        ),
         body: Center(
             child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,

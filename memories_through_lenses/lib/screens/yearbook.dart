@@ -42,64 +42,121 @@ class _YearbookScreenState extends State<YearbookScreen> {
     return items;
   }
 
-  void getPosts() {
+  Future<void> getPosts() async {
     // get list of all groups a user is part of from their userData
-    List<dynamic> groups = singleton.userData['groups'];
 
-    for (var id in groups) {
-      Database().getPosts(id.toString(), 'newest').then((value) {
-        List<PostData> temp = [];
-        List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
-            ? singleton.userData['blocked']
-            : [];
-        List<dynamic> blockedPosts =
-            (singleton.userData['reported_posts'] != null)
-                ? singleton.userData['reported_posts']
-                : [];
-        // print("VALUE: $value");
-        for (var element in value) {
-          if (blockedUsers.contains(element['user_id']) ||
-              blockedPosts.contains(element['id'])) {
-            continue;
-          }
-
-          // check if the created_at date is in the selected year
-          DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(
-              element['created_at'].seconds * 1000);
-          if (createdAt.year.toString() != selectedYear) {
-            print(
-                "Skipping post with id ${element['id']} because it is not in the selected year");
-            print("Selected year: $selectedYear");
-            print("Post year: ${createdAt.year}");
-            continue;
-          }
-
-          temp.add(PostData(
-            id: element['id'],
-            creator: element['user_id'],
-            mediaURL: element['image_url'],
-            mediaType: 'image',
-            caption: element['caption'],
-            likes: element['likes'].length,
-            dislikes: element['dislikes'].length,
-            // Timestamp to datetime
-            created_at: DateTime.fromMillisecondsSinceEpoch(
-                element['created_at'].seconds * 1000),
-          ));
-        }
-
-        // sort by created_at so that the newest post is at the top
-        temp = temp
-            .where(
-                (element) => element.created_at.year.toString() == selectedYear)
-            .toList();
-
-        setState(() {
-          posts = temp;
-        });
-      });
+    List<dynamic> yearbookList = [];
+    if (singleton.userData.containsKey('yearbook') &&
+        singleton.userData['yearbook'] != null) {
+      yearbookList = singleton.userData['yearbook'];
     }
+    print(yearbookList);
+    List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
+        ? singleton.userData['blocked']
+        : [];
+    List<dynamic> groups = singleton.userData['groups'];
+    List<PostData> temp = [];
+    for (var postID in yearbookList) {
+      print("Post ID: $postID");
+      Map<String, dynamic>? post = await Database().getPost(postID);
+      if (post == null ||
+          blockedUsers.contains(post['user_id']) ||
+          !groups.contains(post['group_id'])) {
+        continue;
+      }
+
+      // check if the created_at date is in the selected year
+      DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(
+          post['created_at'].seconds * 1000);
+      if (createdAt.year.toString() != selectedYear) {
+        print(
+            "Skipping post with id ${post['id']} because it is not in the selected year");
+        print("Selected year: $selectedYear");
+        print("Post year: ${createdAt.year}");
+        continue;
+      }
+      temp.add(PostData(
+        id: post['id'],
+        creator: post['user_id'],
+        mediaURL: post['image_url'],
+        mediaType: 'image',
+        caption: post['caption'],
+        likes: post['likes'].length,
+        dislikes: post['dislikes'].length,
+        // Timestamp to datetime
+        created_at: DateTime.fromMillisecondsSinceEpoch(
+            post['created_at'].seconds * 1000),
+      ));
+    }
+    temp = temp
+        .where((element) => element.created_at.year.toString() == selectedYear)
+        .toList();
+
+    setState(() {
+      posts = temp;
+    });
   }
+
+  // void getPosts() {
+  //   // get list of all groups a user is part of from their userData
+  //   List<dynamic> groups = singleton.userData['groups'];
+  //
+  //   print(singleton.userData['name']);
+  //
+  //   for (var id in groups) {
+  //     Database().getPosts(id.toString(), 'newest').then((value) {
+  //       List<PostData> temp = [];
+  //       List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
+  //           ? singleton.userData['blocked']
+  //           : [];
+  //       List<dynamic> blockedPosts =
+  //           (singleton.userData['reported_posts'] != null)
+  //               ? singleton.userData['reported_posts']
+  //               : [];
+  //       // print("VALUE: $value");
+  //       for (var element in value) {
+  //         if (blockedUsers.contains(element['user_id']) ||
+  //             blockedPosts.contains(element['id'])) {
+  //           continue;
+  //         }
+  //
+  //         // check if the created_at date is in the selected year
+  //         DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(
+  //             element['created_at'].seconds * 1000);
+  //         if (createdAt.year.toString() != selectedYear) {
+  //           print(
+  //               "Skipping post with id ${element['id']} because it is not in the selected year");
+  //           print("Selected year: $selectedYear");
+  //           print("Post year: ${createdAt.year}");
+  //           continue;
+  //         }
+  //
+  //         temp.add(PostData(
+  //           id: element['id'],
+  //           creator: element['user_id'],
+  //           mediaURL: element['image_url'],
+  //           mediaType: 'image',
+  //           caption: element['caption'],
+  //           likes: element['likes'].length,
+  //           dislikes: element['dislikes'].length,
+  //           // Timestamp to datetime
+  //           created_at: DateTime.fromMillisecondsSinceEpoch(
+  //               element['created_at'].seconds * 1000),
+  //         ));
+  //       }
+  //
+  //       // sort by created_at so that the newest post is at the top
+  //       temp = temp
+  //           .where(
+  //               (element) => element.created_at.year.toString() == selectedYear)
+  //           .toList();
+  //
+  //       setState(() {
+  //         posts = temp;
+  //       });
+  //     });
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

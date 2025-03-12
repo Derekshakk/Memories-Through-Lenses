@@ -48,6 +48,7 @@ dependencies:
   flutter_markdown: ^0.7.4
   firebase_database: ^10.5.7
   google_fonts: ^6.2.1
+  chewie: ^1.7.0
 
 dev_dependencies:
   flutter_test:

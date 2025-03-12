@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/toggle_row.dart';
 import 'package:memories_through_lenses/services/auth.dart';
@@ -17,7 +18,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Settings'),
+        title: Text('Settings',
+            style: GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
       ),
       body: SafeArea(
         child: Center(

@@ -162,10 +162,11 @@ class _HomePageState extends State<HomePage> {
 
       // reverse the list so that the newest post is at the top
       temp = temp.reversed.toList();
-
-      setState(() {
-        posts = temp;
-      });
+      if (mounted) {
+        setState(() {
+          posts = temp;
+        });
+      }
     });
   }
 
@@ -176,12 +177,14 @@ class _HomePageState extends State<HomePage> {
 
     // set a timer to run after 1 seconds
     Timer(const Duration(seconds: 1), () {
-      setState(() {
-        selected = ContentType.popular;
-        // print("${singleton.groupData}");
-        timelineLoaded = true;
-        getGroups();
-      });
+      if (mounted) {
+        setState(() {
+          selected = ContentType.popular;
+          // print("${singleton.groupData}");
+          timelineLoaded = true;
+          getGroups();
+        });
+      }
     });
   }
 
@@ -226,7 +229,7 @@ class _HomePageState extends State<HomePage> {
                         width: SizeConfig.blockSizeHorizontal! * 25,
                         child: Image.asset("assets/generic_profile.png")),
                 Text(
-                  "${(Auth().user!.displayName != null) ? Auth().user!.displayName : 'User'}",
+                  "${singleton.userData['name'] ?? 'User'}",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: Colors.white,
@@ -264,6 +267,18 @@ class _HomePageState extends State<HomePage> {
                               fontSize: 20, color: Colors.white),
                           onPressed: () {
                             Navigator.pushNamed(context, '/yearbook');
+                          },
+                        ),
+                      ),
+                      SizedBox(height: SizeConfig.blockSizeVertical! * 2),
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        child: MenuButton(
+                          text: "Scan Face",
+                          style: const TextStyle(
+                              fontSize: 20, color: Colors.white),
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/scan_face');
                           },
                         ),
                       ),
@@ -387,7 +402,6 @@ class _HomePageState extends State<HomePage> {
                 width: SizeConfig.blockSizeHorizontal! * 90,
                 child: Consumer<Singleton>(
                   builder: (context, _singleton, child) {
-                    // getGroups();
                     return DropdownButton(
                         value: dropdownValue,
                         items: dropdownItems.map<DropdownMenuItem<String>>(
@@ -404,6 +418,10 @@ class _HomePageState extends State<HomePage> {
                             String groupID = dropdownPairs
                                 .firstWhere((element) => element.key == value)
                                 .value;
+                            setState(() {
+                              dropdownValue = value.toString();
+                            });
+
                             getPosts(groupID);
                           });
                         });
@@ -454,12 +472,14 @@ class _HomePageState extends State<HomePage> {
                       setState(() {
                         print("VALUE: $value");
                         selected = value.first;
+
                         print("${singleton.groupData}");
                         getGroups();
-                        getPosts(dropdownPairs
-                            .firstWhere(
-                                (element) => element.key == dropdownValue)
-                            .value);
+                        if (dropdownPairs.isNotEmpty)
+                          getPosts(dropdownPairs
+                              .firstWhere(
+                                  (element) => element.key == dropdownValue)
+                              .value);
                       });
                     }),
               ),

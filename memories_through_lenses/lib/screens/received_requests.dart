@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/friend_card.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
@@ -34,7 +35,9 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
 
     return Scaffold(
         appBar: AppBar(
-          title: Text("Pending Requests"),
+          title: Text("Pending Requests",
+              style:
+                  GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
         ),
         body: Center(
           child: Column(

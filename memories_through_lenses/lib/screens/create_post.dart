@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
@@ -30,6 +31,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String _selectedGroup = '';
   List<Pair> groups = [];
   bool uploading = false;
+  String _message = '';
 
   late VideoPlayerController _controller;
 
@@ -51,6 +53,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    _controller.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (singleton.imageFile != null) {
       _postMedia = singleton.imageFile;
@@ -67,6 +76,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     print("CREATING POST: ${singleton.groupData}");
     return Scaffold(
         appBar: AppBar(
+          title: Text(
+            'Create Post',
+            style: GoogleFonts.merriweather(fontSize: 30, color: Colors.black),
+          ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
@@ -103,7 +116,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                     child: VideoPlayer(_controller),
                                   )
                                 : const Center(
-                                    child: Text('No Image or Video Selected',
+                                    child: Text('No Image Selected',
                                         style: TextStyle(fontSize: 20))),
                       ));
                 },
@@ -123,13 +136,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     },
                   );
                 },
-                child: Text('Upload Image or Video'),
+                child: Text('Upload Image'),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, '/camera');
                 },
-                child: Text('Take Image or Video'),
+                child: Text('Take Image'),
               ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -183,20 +196,32 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ? () {
                           setState(() {
                             uploading = true;
+                            _message = '';
                           });
                           Database()
                               .createPost(_selectedGroup,
                                   _captionController.text, _postMedia!)
                               .then((value) {
-                            Navigator.pushNamedAndRemoveUntil(
-                                context, '/', (route) => false);
+                            if (!value)
+                              setState(() {
+                                uploading = false;
+                                _message =
+                                    'Error uploading post. Image is classified as inappropriate';
+                              });
+                            else
+                              Navigator.pushNamedAndRemoveUntil(
+                                  context, '/', (route) => false);
                           });
                         }
                       : null,
                   child: Text((!uploading) ? 'Snap and Share' : 'Uploading...',
                       style: TextStyle(fontSize: 20)),
                 ),
-              )
+              ),
+              Text(
+                  textAlign: TextAlign.center,
+                  _message,
+                  style: TextStyle(fontSize: 20, color: Colors.red)),
             ],
           )),
         )));

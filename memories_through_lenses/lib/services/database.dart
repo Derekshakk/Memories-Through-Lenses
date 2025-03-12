@@ -36,7 +36,8 @@ class Database {
       'members': [_auth.user!.uid],
       'member_count': 1,
       'owner': _auth.user!.uid,
-      'join_requests': []
+      'join_requests': [],
+      'school': _singleton.userData['school'],
     });
 
     _firestore.collection('users').doc(_auth.user!.uid).update({
@@ -62,8 +63,7 @@ class Database {
     return await ref.getDownloadURL();
   }
 
-  Future<void> updateProfile(
-      String displayName, String username, String? profileImage) async {
+  Future<void> updateProfile(String username, String? profileImage) async {
     if (profileImage != null) {
       _firestore.collection('users').doc(_auth.user!.uid).update({
         'name': username,
@@ -76,11 +76,9 @@ class Database {
         'name': username,
       });
     }
-
-    _auth.user!.updateDisplayName(displayName);
   }
 
-  Future<void> createPost(String groupId, String caption, File image) async {
+  Future<bool> createPost(String groupId, String caption, File image) async {
     var currentTime = DateTime.now();
     var ref = FirebaseStorage.instance
         .ref()
@@ -99,7 +97,7 @@ class Database {
         .ref('moderation_server_url')
         .once()
         .then((value) => value.snapshot.value.toString());
-
+    print('Server URL: $url');
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
@@ -108,12 +106,17 @@ class Database {
 
     if (response.statusCode == 200) {
       print('Image processed successfully');
-      print(response.body);
+
+      var message = jsonDecode(response.body);
+      if (message['offensive'] == true) {
+        return false;
+      }
     } else {
       print('Failed to process image: ${response.body}');
+      return false;
     }
 
-    _firestore.collection('posts').add({
+    DocumentReference postRef = await _firestore.collection('posts').add({
       'group_id': groupId,
       'user_id': _auth.user!.uid,
       'caption': caption,
@@ -123,6 +126,28 @@ class Database {
       'comments': [],
       'created_at': DateTime.now()
     });
+
+    url = await FirebaseDatabase.instance
+        .ref('yearbook_server_url')
+        .once()
+        .then((value) => value.snapshot.value.toString());
+
+    var data = {
+      'photo_path': imageUrl,
+      'post_id': postRef.id,
+    };
+    final response_yearbook = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+
+    if (response_yearbook.statusCode == 200) {
+      print(response.body);
+    } else {
+      print('Failed to process image: ${response.body}');
+    }
+    return true;
   }
 
   Future<void> likePost(String postId) async {
@@ -180,10 +205,10 @@ class Database {
     }
 
     if (mode == 'newest') {
-      print("Sorting by newest");
+      //print("Sorting by newest");
       posts_list.sort((a, b) => a['created_at'].compareTo(b['created_at']));
     } else if (mode == 'popular') {
-      print("Sorting by popular");
+      //print("Sorting by popular");
       posts_list.sort((a, b) => b['likes'].length.compareTo(a['likes'].length));
 
       // reverse the list to get the most popular first
@@ -197,6 +222,17 @@ class Database {
     }
 
     return posts_list;
+  }
+
+  Future<Map<String, dynamic>?> getPost(String postId) async {
+    // check if the user previously liked the post
+    var post = await _firestore.collection('posts').doc(postId).get();
+    if (!post.exists) {
+      return null;
+    }
+    var post_data = post.data();
+    post_data!['id'] = postId;
+    return post_data;
   }
 
   Future<List<Map<String, dynamic>>> getYearBook() {

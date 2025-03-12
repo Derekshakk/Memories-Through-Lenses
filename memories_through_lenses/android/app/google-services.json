@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "678538988908",
+    "firebase_url": "https://memories-through-lenses-default-rtdb.firebaseio.com",
     "project_id": "memories-through-lenses",
     "storage_bucket": "memories-through-lenses.appspot.com"
   },

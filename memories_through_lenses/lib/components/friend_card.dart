@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/services/database.dart';
 
+import '../shared/singleton.dart';
+
 enum FriendCardType {
   request,
   sentRequest,
@@ -14,16 +16,18 @@ enum FriendCardType {
 }
 
 class FriendCard extends StatelessWidget {
-  const FriendCard(
+  FriendCard(
       {super.key,
       required this.type,
       required this.name,
       required this.uid,
       required this.onPressed});
+
   final FriendCardType type;
   final String name;
   final String uid;
   final Function onPressed;
+  Singleton singleton = Singleton();
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +142,7 @@ class FriendCard extends StatelessWidget {
                               .doc(uid)
                               .update({
                             'friend_requests.${Auth().user!.uid}': {
-                              'name': Auth().user!.displayName
+                              'name': singleton.userData['name']
                             },
                           }).catchError((error) {
                             print('Failed to add outgoing request: $error');
@@ -182,7 +186,7 @@ class FriendCard extends StatelessWidget {
                               .doc(uid)
                               .update({
                             'friends.${Auth().user!.uid}': {
-                              'name': Auth().user!.displayName
+                              'name': singleton.userData['name']
                             },
                             'outgoing_requests.${Auth().user!.uid}':
                                 FieldValue.delete(),

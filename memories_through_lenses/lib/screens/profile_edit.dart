@@ -16,9 +16,17 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   File? _profileImage;
-  TextEditingController nameController = TextEditingController();
+
+  // TextEditingController nameController = TextEditingController();
   TextEditingController usernameController = TextEditingController();
   final Singleton _singleton = Singleton();
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    usernameController.text = _singleton.userData['name'];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,22 +82,28 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               child: SizedBox(
                   height: SizeConfig.blockSizeHorizontal! * 25,
                   width: SizeConfig.blockSizeHorizontal! * 25,
-                  child: (_profileImage == null)
-                      ? Image.asset("assets/generic_profile.png")
-                      : ClipRRect(
+                  child: _singleton.userData['profile_image'] != null
+                      ? ClipRRect(
                           borderRadius: BorderRadius.circular(100),
-                          child:
-                              Image.file(_profileImage!, fit: BoxFit.cover))),
+                          child: Image.network(
+                              _singleton.userData['profile_image'],
+                              fit: BoxFit.cover))
+                      : (_profileImage == null)
+                          ? Image.asset("assets/generic_profile.png")
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(100),
+                              child: Image.file(_profileImage!,
+                                  fit: BoxFit.cover))),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Display Name',
-                ),
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.all(8.0),
+            //   child: TextField(
+            //     controller: nameController,
+            //     decoration: const InputDecoration(
+            //       labelText: 'Display Name',
+            //     ),
+            //   ),
+            // ),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
@@ -101,25 +115,20 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                String oldDisplayName = (Auth().user!.displayName != null)
-                    ? Auth().user!.displayName!
-                    : '';
+                // String oldDisplayName = (Auth().user!.displayName != null)
+                //     ? Auth().user!.displayName!
+                //     : '';
                 String oldUsername = _singleton.userData['name'];
-
-                String newDisplayName = (nameController.text.isEmpty)
-                    ? oldDisplayName
-                    : nameController.text;
 
                 String newUsername = (usernameController.text.isEmpty)
                     ? oldUsername
                     : usernameController.text;
 
                 if (_profileImage == null) {
-                  Database().updateProfile(newDisplayName, newUsername, null);
+                  Database().updateProfile(newUsername, null);
                 } else {
                   Database().uploadProfileImage(_profileImage!).then((value) {
-                    Database()
-                        .updateProfile(newDisplayName, newUsername, value);
+                    Database().updateProfile(newUsername, value);
                   });
                 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/size_config.dart';
 
@@ -25,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           Text(
             "LOGIN",
-            style: TextStyle(fontSize: 50),
+            style: GoogleFonts.merriweather(fontSize: 50, color: Colors.black),
           ),
           TextField(
               decoration: const InputDecoration(
@@ -60,7 +61,6 @@ class _LoginPageState extends State<LoginPage> {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                               content: Text("Invalid email or password")));
                         }
-                        ;
                       });
                     },
                     child:

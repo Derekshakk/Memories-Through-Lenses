@@ -76,6 +76,12 @@ class _PostCardState extends State<PostCard> {
                               width: double.infinity,
                               height: double.infinity,
                               fit: BoxFit.cover,
+                              errorBuilder: (BuildContext context, Object error,
+                                  StackTrace? stackTrace) {
+                                return const Center(
+                                  child: Text("Image not found"),
+                                );
+                              },
                             ),
                           )
                         : FutureBuilder(
@@ -222,12 +228,14 @@ class _PostCardState extends State<PostCard> {
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Center(
-                          child: MarkdownBody(
-                            data: widget.caption,
-                            styleSheet: MarkdownStyleSheet(
-                              textAlign: WrapAlignment.center,
-                              p: const TextStyle(
-                                fontSize: 16,
+                          child: SingleChildScrollView(
+                            child: MarkdownBody(
+                              data: widget.caption,
+                              styleSheet: MarkdownStyleSheet(
+                                textAlign: WrapAlignment.center,
+                                p: const TextStyle(
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/friend_card.dart';
 import 'package:memories_through_lenses/shared/singleton.dart';
@@ -50,7 +52,9 @@ class _SentScreenState extends State<SentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text("Sent Requests"),
+          title: Text("Sent Requests",
+              style:
+                  GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
         ),
         body: Center(
           child: Consumer<Singleton>(
@@ -89,7 +93,12 @@ class _SentScreenState extends State<SentScreen> {
 
               // for the combined list, add both the earch results and the outgoing requests
               combined.clear();
-              searchResults.forEach((element) {
+
+              for (var element in searchResults) {
+                bool alreadyFriends = false;
+                if (element['uid'] == Auth().user!.uid) {
+                  continue;
+                }
                 var newFriend = FriendCard(
                   type: FriendCardType.addFriend,
                   name: element['name'],
@@ -103,19 +112,27 @@ class _SentScreenState extends State<SentScreen> {
                 for (var friend in currentFriends) {
                   if (friend is FriendCard) {
                     if (friend.uid == newFriend.uid) {
-                      continue;
+                      alreadyFriends = true;
+                      break;
                     }
                   }
+                }
+
+                if (alreadyFriends) {
+                  continue;
                 }
 
                 for (var request in outgoingRequests) {
                   if (request is FriendCard) {
                     if (request.uid == newFriend.uid) {
-                      continue;
+                      alreadyFriends = true;
+                      break;
                     }
                   }
                 }
-
+                if (alreadyFriends) {
+                  continue;
+                }
                 combined.add(FriendCard(
                   type: FriendCardType.addFriend,
                   name: element['name'],
@@ -124,7 +141,7 @@ class _SentScreenState extends State<SentScreen> {
                     setState(() {});
                   },
                 ));
-              });
+              }
               combined.addAll(outgoingRequests);
 
               return SingleChildScrollView(

@@ -34,8 +34,13 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   Future<void> getGroupsCollection() async {
     searchedGroups.clear(); // Clear the existing groups
     // Fetch groups from Firestore
-    QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection('groups').get();
+    print('|'+ singleton.userData['school']+ '|');
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('groups')
+        .where('school', isEqualTo: singleton.userData['school'])
+        .get();
+    print('*' * 50);
+    print(snapshot.docs);
     List<GroupCard> fetchedGroups = [];
     for (var doc in snapshot.docs) {
       // check that user is not owner of the group
@@ -100,7 +105,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text("Sent Requests"),
+          title: Text("Join Group"),
         ),
         body: Center(
           child: SingleChildScrollView(

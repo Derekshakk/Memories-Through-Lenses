@@ -97,6 +97,24 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   ),
                   ElevatedButton(
                     onPressed: () {
+                      if (groupNameController.text.isEmpty ||
+                          groupDescriptionController.text.isEmpty) {
+                        //show dialog
+                        showDialog(context: context, builder: (context) {
+                          return AlertDialog(
+                            title: Text('Error'),
+                            content: Text('Please fill out all fields'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                child: Text('OK'),
+                              ),
+                            ],
+                          );
+                        });
+                      }
                       Database().createGroup(groupNameController.text,
                           groupDescriptionController.text, isPrivate);
                       Navigator.pop(context);

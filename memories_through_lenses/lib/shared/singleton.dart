@@ -18,7 +18,9 @@ class Singleton extends ChangeNotifier {
     'friends': {},
     'friend_requests': {},
     'outgoing_requests': {},
-    'groups': []
+    'groups': [],
+    'blocked': [],
+    'yearbook': [],
   };
 
   // Map<String, dynamic> groupData = {};
