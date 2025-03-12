@@ -1,0 +1,2 @@
+C:/Users/maris/Desktop/CodingMinds/Memories-Through-Lenses/memories_through_lenses/android/app/.cxx/RelWithDebInfo/56173v2n/x86/CMakeFiles/edit_cache.dir
+C:/Users/maris/Desktop/CodingMinds/Memories-Through-Lenses/memories_through_lenses/android/app/.cxx/RelWithDebInfo/56173v2n/x86/CMakeFiles/rebuild_cache.dir

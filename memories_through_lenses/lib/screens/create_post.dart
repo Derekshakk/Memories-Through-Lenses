@@ -56,7 +56,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void dispose() {
     // TODO: implement dispose
     super.dispose();
-    _controller.dispose();
+    if (mediaType == 'video') _controller.dispose();
   }
 
   @override

@@ -42,6 +42,12 @@ class _CommentState extends State<Comment> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              widget.profilePic == ""
+                  ? const CircleAvatar(
+                      radius: 20,
+                      backgroundImage: AssetImage("assets/generic_profile.png"),
+                    )
+                  :
               CircleAvatar(
                 radius: 20,
                 backgroundImage: NetworkImage(widget.profilePic),
