@@ -177,29 +177,45 @@ class _YearbookScreenState extends State<YearbookScreen> {
               });
             }),
       )),
-      body: Container(
-        child: Center(
-          child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 5,
-                  mainAxisSpacing: 5,
-                  childAspectRatio: 0.7),
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                return SmallPostCard(
-                  id: posts[index].id,
-                  creator: posts[index].creator,
-                  mediaURL: posts[index].mediaURL,
-                  mediaType: posts[index].mediaType,
-                  caption: posts[index].caption,
-                  likes: posts[index].likes,
-                  dislikes: posts[index].dislikes,
-                  created_at: posts[index].created_at,
-                );
-              }),
-        ),
-      ),
+      body: posts.isEmpty
+          ? Column(
+              children: [
+                SizedBox(height: SizeConfig.blockSizeVertical! * 10),
+                Center(
+                    child: Icon(Icons.photo_album_outlined,
+                        size: 100, color: Colors.blueAccent)),
+                SizedBox(height: SizeConfig.blockSizeVertical! * 2),
+                Center(
+                  child: Text('Your yearbook has no posts yet.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.merriweather(fontSize: 25)),
+                ),
+              ],
+            )
+          : Container(
+              child: Center(
+                child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 5,
+                            mainAxisSpacing: 5,
+                            childAspectRatio: 0.7),
+                    itemCount: posts.length,
+                    itemBuilder: (context, index) {
+                      return SmallPostCard(
+                        id: posts[index].id,
+                        creator: posts[index].creator,
+                        mediaURL: posts[index].mediaURL,
+                        mediaType: posts[index].mediaType,
+                        caption: posts[index].caption,
+                        likes: posts[index].likes,
+                        dislikes: posts[index].dislikes,
+                        created_at: posts[index].created_at,
+                      );
+                    }),
+              ),
+            ),
     );
   }
 }
