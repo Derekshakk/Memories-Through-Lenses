@@ -54,67 +54,37 @@ class _HomePageState extends State<HomePage> {
   ContentType selected = ContentType.popular;
   bool timelineLoaded = false;
 
-  List<String> dropdownItems = ["Item 1", "Item 2", "Item 3"];
-  List<Pair> dropdownPairs = [
-    Pair("Item 1", "1"),
-    Pair("Item 2", "2"),
-    Pair("Item 3", "3")
-  ];
-  String dropdownValue = "";
+  List<String> dropdownItems = [];
+  List<Pair> dropdownPairs = [];
+  String? dropdownValue;
 
   // list of posts (mediaURL, likes, dislikes)
-  List<PostData> posts = [
-    // PostData(
-    //     id: "1",
-    //     mediaURL: "https://picsum.photos/200",
-    //     mediaType: "image",
-    //     caption: "This is a caption",
-    //     likes: 0,
-    //     dislikes: 0),
-    // PostData(
-    //     id: "2",
-    //     mediaURL: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-    //     mediaType: "video",
-    //     caption: "This is a caption",
-    //     likes: 0,
-    //     dislikes: 0),
-    // PostData(
-    //     id: "3",
-    //     mediaURL: "https://picsum.photos/200",
-    //     mediaType: "image",
-    //     caption: "This is a caption",
-    //     likes: 0,
-    //     dislikes: 0),
-    // PostData(
-    //     id: "4",
-    //     mediaURL: "https://picsum.photos/200",
-    //     mediaType: "image",
-    //     caption: "This is a caption",
-    //     likes: 0,
-    //     dislikes: 0),
-    // PostData(
-    //     id: "5",
-    //     mediaURL: "https://picsum.photos/200",
-    //     mediaType: "image",
-    //     caption: "This is a caption",
-    //     likes: 0,
-    //     dislikes: 0),
-  ];
+  List<PostData> posts = [];
 
   void getGroups() {
+    if (singleton.groupData == null) return;
+    
+    String? previousValue = dropdownValue;
     dropdownItems.clear();
     dropdownPairs.clear();
-    // print("SINGLETON: ${singleton.groupData}");
+    
     List<Map<String, dynamic>> groups = singleton.groupData;
     for (var element in groups) {
-      // print("ADDING: ${element['name']}");
-      dropdownItems.add(element['name']);
-      dropdownPairs.add(Pair(element['name'], element['groupID']));
+      String name = element['name'] ?? '';
+      String groupID = element['groupID'] ?? '';
+      if (name.isNotEmpty && groupID.isNotEmpty) {
+        dropdownItems.add(name);
+        dropdownPairs.add(Pair(name, groupID));
+      }
     }
 
-    // print("dropdownItems: $dropdownItems");
-
-    if (dropdownItems.isNotEmpty) dropdownValue = dropdownItems[0];
+    if (dropdownItems.isNotEmpty) {
+      if (previousValue != null && dropdownItems.contains(previousValue)) {
+        dropdownValue = previousValue;
+      } else {
+        dropdownValue = dropdownItems[0];
+      }
+    }
   }
 
   void getPosts(String groupID) {
@@ -123,44 +93,38 @@ class _HomePageState extends State<HomePage> {
             groupID, (selected == ContentType.popular) ? 'popular' : 'newest')
         .then((value) {
       List<PostData> temp = [];
-      List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
-          ? singleton.userData['blocked']
-          : [];
-      List<dynamic> blockedPosts =
-          (singleton.userData['reported_posts'] != null)
-              ? singleton.userData['reported_posts']
-              : [];
-      // print("VALUE: $value");
+      List<dynamic> blockedUsers = singleton.userData?['blocked'] ?? [];
+      List<dynamic> blockedPosts = singleton.userData?['reported_posts'] ?? [];
+
       for (var element in value) {
         if (blockedUsers.contains(element['user_id']) ||
             blockedPosts.contains(element['id'])) {
           continue;
         }
 
-        // check if the user previously liked or disliked the post
         String userOpinion = "none";
-        if (element['likes'].contains(singleton.userData['uid'])) {
+        if (element['likes']?.contains(singleton.userData?['uid']) ?? false) {
           userOpinion = "like";
-        } else if (element['dislikes'].contains(singleton.userData['uid'])) {
+        } else if (element['dislikes']?.contains(singleton.userData?['uid']) ?? false) {
           userOpinion = "dislike";
         }
 
         temp.add(PostData(
-          id: element['id'],
-          creator: element['user_id'],
-          mediaURL: element['image_url'],
+          id: element['id'] ?? '',
+          creator: element['user_id'] ?? '',
+          mediaURL: element['image_url'] ?? '',
           mediaType: 'image',
-          caption: element['caption'],
-          likes: element['likes'].length,
-          dislikes: element['dislikes'].length,
-          // Timestamp to datetime
-          created_at: DateTime.fromMillisecondsSinceEpoch(
-              element['created_at'].seconds * 1000),
+          caption: element['caption'] ?? '',
+          likes: element['likes']?.length ?? 0,
+          dislikes: element['dislikes']?.length ?? 0,
+          created_at: element['created_at'] != null 
+              ? DateTime.fromMillisecondsSinceEpoch(
+                  element['created_at'].seconds * 1000)
+              : DateTime.now(),
           userOpinion: userOpinion,
         ));
       }
 
-      // reverse the list so that the newest post is at the top
       temp = temp.reversed.toList();
       if (mounted) {
         setState(() {
@@ -175,12 +139,10 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     getGroups();
 
-    // set a timer to run after 1 seconds
     Timer(const Duration(seconds: 1), () {
       if (mounted) {
         setState(() {
           selected = ContentType.popular;
-          // print("${singleton.groupData}");
           timelineLoaded = true;
           getGroups();
         });
@@ -190,16 +152,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (dropdownPairs.isNotEmpty) {
-      String groupID = dropdownPairs
-          .firstWhere((element) => element.key == dropdownValue)
-          .value;
-      if (groupID.isNotEmpty && posts.isEmpty) {
-        // print("dropdownPairs: $dropdownPairs");
-        getPosts(groupID);
-      }
-    }
-
     return Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.blue,
@@ -240,7 +192,6 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.fromLTRB(85, 0, 85, 0),
                     child: ElevatedButton(
                         onPressed: () {
-                          print("Edit profile");
                           Navigator.pushNamed(context, '/profile_edit');
                         },
                         child: const Text("Edit"))),
@@ -318,7 +269,6 @@ class _HomePageState extends State<HomePage> {
                           },
                         ),
                       ),
-                      // TODO: add a "see personal yearbook" button
                       SizedBox(height: SizeConfig.blockSizeVertical! * 2),
                       SizedBox(
                         height: SizeConfig.blockSizeVertical! * 5,
@@ -326,13 +276,22 @@ class _HomePageState extends State<HomePage> {
                           text: "Log Out",
                           style: const TextStyle(
                               fontSize: 20, color: Colors.white),
-                          onPressed: () {
-                            Auth().logout().then(
-                              (value) {
-                                Navigator.pushNamedAndRemoveUntil(
-                                    context, '/', (route) => false);
-                              },
-                            );
+                          onPressed: () async {
+                            try {
+                              await Auth().logout();
+                              if (mounted) {
+                                Navigator.pushReplacementNamed(context, '/');
+                              }
+                            } catch (e) {
+                              print('Error during logout: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Error logging out. Please try again.'),
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                       ),
@@ -343,27 +302,27 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        // end drawer should have the title "Friends" and a list of friends
         endDrawer: Drawer(child: Consumer(
           builder: (context, _singleton, child) {
             List<Widget> currentFriends = [];
-            Map<String, dynamic> friends = singleton.userData['friends'];
+            Map<String, dynamic>? friends = singleton.userData?['friends'] as Map<String, dynamic>?;
 
-            print("populating current friends list");
-            friends.forEach((key, value) {
-              print("key: $key, value: $value");
-              currentFriends.add(FriendCard(
-                type: FriendCardType.currentFriend,
-                name: value['name'],
-                uid: key,
-                onPressed: () {
-                  setState(() {
-                    print("removing friend: $key");
-                  });
-                },
-              ));
-            });
-            print("current friends list: $currentFriends");
+            if (friends != null) {
+              friends.forEach((key, value) {
+                if (value != null && value['name'] != null) {
+                  currentFriends.add(FriendCard(
+                    type: FriendCardType.currentFriend,
+                    name: value['name'],
+                    uid: key,
+                    onPressed: () {
+                      setState(() {
+                        // Handle friend removal here
+                      });
+                    },
+                  ));
+                }
+              });
+            }
 
             return SafeArea(
               child: Column(
@@ -380,12 +339,22 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: currentFriends.length,
-                      itemBuilder: (context, index) {
-                        return currentFriends[index];
-                      },
-                    ),
+                    child: currentFriends.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No friends yet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: currentFriends.length,
+                            itemBuilder: (context, index) {
+                              return currentFriends[index];
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -402,108 +371,110 @@ class _HomePageState extends State<HomePage> {
                 width: SizeConfig.blockSizeHorizontal! * 90,
                 child: Consumer<Singleton>(
                   builder: (context, _singleton, child) {
-                    return DropdownButton(
-                        value: dropdownValue,
-                        items: dropdownItems.map<DropdownMenuItem<String>>(
-                          (String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value,
-                                  style: const TextStyle(fontSize: 20)),
-                            );
-                          },
-                        ).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            String groupID = dropdownPairs
-                                .firstWhere((element) => element.key == value)
-                                .value;
-                            setState(() {
-                              dropdownValue = value.toString();
-                            });
-
-                            getPosts(groupID);
-                          });
+                    if (dropdownItems.isEmpty) {
+                      return const Center(
+                        child: Text('No groups available',
+                            style: TextStyle(fontSize: 20)),
+                      );
+                    }
+                    
+                    return DropdownButton<String>(
+                      value: dropdownValue,
+                      hint: const Text('Select a group',
+                          style: TextStyle(fontSize: 20)),
+                      items: dropdownItems.map<DropdownMenuItem<String>>(
+                        (String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value,
+                                style: const TextStyle(fontSize: 20)),
+                          );
+                        },
+                      ).toList(),
+                      onChanged: (String? value) {
+                        if (value == null) return;
+                        
+                        final groupPair = dropdownPairs
+                            .firstWhere((element) => element.key == value,
+                                orElse: () => Pair('', ''));
+                                
+                        if (groupPair.value.isEmpty) return;
+                        
+                        setState(() {
+                          dropdownValue = value;
                         });
+                        getPosts(groupPair.value);
+                      },
+                    );
                   },
-                  // child: DropdownButton(
-                  //     value: dropdownValue,
-                  //     items: dropdownItems.map<DropdownMenuItem<String>>(
-                  //       (String value) {
-                  //         return DropdownMenuItem<String>(
-                  //           value: value,
-                  //           child: Text(value),
-                  //         );
-                  //       },
-                  //     ).toList(),
-                  //     onChanged: (value) {
-                  //       setState(() {
-                  //         dropdownValue = value.toString();
-                  //       });
-                  //     }),
                 ),
               ),
               SizedBox(
                 width: SizeConfig.blockSizeHorizontal! * 90,
                 height: SizeConfig.blockSizeVertical! * 5,
                 child: SegmentedButton(
-                    segments: <ButtonSegment<ContentType>>[
-                      ButtonSegment<ContentType>(
-                          value: ContentType.recent,
-                          label: Container(
-                              height: SizeConfig.blockSizeVertical! * 4,
-                              alignment: Alignment.center,
-                              child: const Text('Recent',
-                                  style: TextStyle(fontSize: 20))),
-                          icon: const Icon(CupertinoIcons.star)),
-                      ButtonSegment<ContentType>(
-                          value: ContentType.popular,
-                          label: Container(
-                              height: SizeConfig.blockSizeVertical! * 4,
-                              alignment: Alignment.center,
-                              child: const Text('Popular',
-                                  style: TextStyle(fontSize: 20))),
-                          icon: const Icon(CupertinoIcons.flame))
-                    ],
-                    selected: {
-                      selected
-                    },
-                    onSelectionChanged: (value) {
-                      setState(() {
-                        print("VALUE: $value");
-                        selected = value.first;
-
-                        print("${singleton.groupData}");
-                        getGroups();
-                        if (dropdownPairs.isNotEmpty)
-                          getPosts(dropdownPairs
-                              .firstWhere(
-                                  (element) => element.key == dropdownValue)
-                              .value);
-                      });
-                    }),
+                  segments: <ButtonSegment<ContentType>>[
+                    ButtonSegment<ContentType>(
+                      value: ContentType.recent,
+                      label: Container(
+                        height: SizeConfig.blockSizeVertical! * 4,
+                        alignment: Alignment.center,
+                        child: const Text('Recent',
+                            style: TextStyle(fontSize: 20)),
+                      ),
+                      icon: const Icon(CupertinoIcons.star),
+                    ),
+                    ButtonSegment<ContentType>(
+                      value: ContentType.popular,
+                      label: Container(
+                        height: SizeConfig.blockSizeVertical! * 4,
+                        alignment: Alignment.center,
+                        child: const Text('Popular',
+                            style: TextStyle(fontSize: 20)),
+                      ),
+                      icon: const Icon(CupertinoIcons.flame),
+                    ),
+                  ],
+                  selected: {selected},
+                  onSelectionChanged: (value) {
+                    setState(() {
+                      selected = value.first;
+                    });
+                    
+                    if (dropdownValue != null) {
+                      final groupPair = dropdownPairs
+                          .firstWhere((element) => element.key == dropdownValue,
+                              orElse: () => Pair('', ''));
+                      if (groupPair.value.isNotEmpty) {
+                        getPosts(groupPair.value);
+                      }
+                    }
+                  },
+                ),
               ),
               SizedBox(
-                  height: SizeConfig.blockSizeVertical! * 70,
-                  width: SizeConfig.blockSizeHorizontal! * 100,
-                  // color: Colors.red,
-                  child: (timelineLoaded)
-                      ? ListView.builder(
-                          itemCount: posts.length,
-                          itemBuilder: (context, index) {
-                            return PostCard(
-                                id: posts[index].id,
-                                creator: posts[index].creator,
-                                mediaURL: posts[index].mediaURL,
-                                mediaType: posts[index].mediaType,
-                                caption: posts[index].caption,
-                                likes: posts[index].likes,
-                                dislikes: posts[index].dislikes);
-                          },
-                        )
-                      : const Center(
-                          child: CircularProgressIndicator(),
-                        ))
+                height: SizeConfig.blockSizeVertical! * 70,
+                width: SizeConfig.blockSizeHorizontal! * 100,
+                child: (timelineLoaded)
+                    ? ListView.builder(
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          return PostCard(
+                            id: posts[index].id,
+                            creator: posts[index].creator,
+                            mediaURL: posts[index].mediaURL,
+                            mediaType: posts[index].mediaType,
+                            caption: posts[index].caption,
+                            likes: posts[index].likes,
+                            dislikes: posts[index].dislikes,
+                            userOpinion: posts[index].userOpinion,
+                          );
+                        },
+                      )
+                    : const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+              ),
             ],
           ),
         ));
