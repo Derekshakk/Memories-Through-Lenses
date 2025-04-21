@@ -145,6 +145,8 @@ class _CommentScreenState extends State<CommentScreen> {
                                       comments[index]["date"]),
                                   description: comments[index]["description"],
                                   likes: comments[index]["likes"],
+                                  postId: widget.id,
+                                  commentId: comments[index]["id"],
                                 );
                               }),
                         ),

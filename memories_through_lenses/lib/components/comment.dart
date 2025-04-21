@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
+import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 class Comment extends StatefulWidget {
   const Comment(
@@ -8,22 +10,63 @@ class Comment extends StatefulWidget {
       required this.profilePic,
       required this.username,
       required this.date,
-      required this.likes});
+      required this.likes,
+      required this.postId,
+      required this.commentId});
   final String profilePic;
   final String description;
   final String username;
   final String date;
   final List<dynamic> likes;
+  final String postId;
+  final String commentId;
 
   @override
   State<Comment> createState() => _CommentState();
 }
 
 class _CommentState extends State<Comment> {
+  bool isLiked = false;
+  late List<dynamic> currentLikes;
+  
+  @override
+  void initState() {
+    super.initState();
+    currentLikes = List.from(widget.likes);
+    checkIfLiked();
+  }
+  
+  void checkIfLiked() {
+    final currentUser = Auth().user?.uid;
+    if (currentUser != null) {
+      setState(() {
+        isLiked = currentLikes.contains(currentUser);
+      });
+    }
+  }
+  
+  void toggleLike() async {
+    final currentUser = Auth().user?.uid;
+    if (currentUser == null) return;
+    
+    setState(() {
+      if (isLiked) {
+        // Unlike
+        currentLikes.remove(currentUser);
+        Database().removeLikeComment(widget.postId, widget.commentId);
+      } else {
+        // Like
+        currentLikes.add(currentUser);
+        Database().likeComment(widget.postId, widget.commentId);
+      }
+      isLiked = !isLiked;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
+      onLongPress: () {
         // TODO: REPLACE WITH ONLONGPRESS WHEN MOVING TO TEST ON DEVICES
         print("Long Pressed");
         showDialog(
@@ -86,10 +129,13 @@ class _CommentState extends State<Comment> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.favorite_border),
+                    onPressed: toggleLike,
+                    icon: Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: isLiked ? Colors.red : null,
+                    ),
                   ),
-                  Text(widget.likes.length.toString()),
+                  Text(currentLikes.length.toString()),
                 ],
               )
             ],
