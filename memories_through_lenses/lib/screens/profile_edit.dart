@@ -20,12 +20,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   // TextEditingController nameController = TextEditingController();
   TextEditingController usernameController = TextEditingController();
   final Singleton _singleton = Singleton();
+  int _usernameLength = 0;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     usernameController.text = _singleton.userData['name'];
+    _usernameLength = usernameController.text.length;
   }
 
   @override
@@ -47,32 +49,49 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           ListTile(
                             title: const Text('Camera'),
                             onTap: () async {
-                              // final image = await ImagePicker().pickImage(
-                              //     source: ImageSource.camera,
-                              //     imageQuality: 50,
-                              //     maxWidth: 150);
-                              // if (image != null) {
-                              //   setState(() {
-                              //     _profileImage = File(image.path);
-                              //   });
-                              // }
-                              // Navigator.pop(context);
+                              try {
+                                final image = await ImagePicker().pickImage(
+                                     source: ImageSource.camera,
+                                     imageQuality: 50,
+                                     maxWidth: 150);
+                                 if (image != null) {
+                                   setState(() {
+                                     _profileImage = File(image.path);
+                                   });
+                                 }
+                                 Navigator.pop(context);
+                              } catch (e) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Camera error: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             },
                           ),
                           ListTile(
                             title: const Text('Gallery'),
                             onTap: () async {
-                              await ImagePicker()
-                                  .pickImage(source: ImageSource.gallery)
-                                  .then(
-                                (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _profileImage = File(value.path);
-                                    });
-                                  }
-                                },
-                              );
+                              try {
+                                final image = await ImagePicker()
+                                    .pickImage(source: ImageSource.gallery);
+                                if (image != null) {
+                                  setState(() {
+                                    _profileImage = File(image.path);
+                                  });
+                                }
+                                Navigator.pop(context);
+                              } catch (e) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Gallery error: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             },
                           ),
                         ],
@@ -108,32 +127,74 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               padding: const EdgeInsets.all(8.0),
               child: TextField(
                 controller: usernameController,
-                decoration: const InputDecoration(
+                maxLength: 35,
+                decoration: InputDecoration(
                   labelText: 'Username',
+                  hintText: 'Enter username (max 35 characters)',
+                  counterText: '$_usernameLength/35',
+                  counterStyle: TextStyle(
+                    color: _usernameLength > 45 ? Colors.red : 
+                           _usernameLength > 40 ? Colors.orange : Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                      color: _usernameLength > 45 ? Colors.red : Colors.blue,
+                      width: 2.0,
+                    ),
+                  ),
                 ),
+                onChanged: (value) {
+                  setState(() {
+                    _usernameLength = value.length;
+                  });
+                },
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                // String oldDisplayName = (Auth().user!.displayName != null)
-                //     ? Auth().user!.displayName!
-                //     : '';
-                String oldUsername = _singleton.userData['name'];
+              onPressed: () async {
+                try {
+                  // String oldDisplayName = (Auth().user!.displayName != null)
+                  //     ? Auth().user!.displayName!
+                  //     : '';
+                  String oldUsername = _singleton.userData['name'];
 
-                String newUsername = (usernameController.text.isEmpty)
-                    ? oldUsername
-                    : usernameController.text;
+                  String newUsername = (usernameController.text.isEmpty)
+                      ? oldUsername
+                      : usernameController.text;
 
-                if (_profileImage == null) {
-                  Database().updateProfile(newUsername, null);
-                } else {
-                  Database().uploadProfileImage(_profileImage!).then((value) {
-                    Database().updateProfile(newUsername, value);
-                  });
+                  // Validate username length
+                  if (newUsername.length > 35) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Username cannot exceed 35 characters'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (_profileImage == null) {
+                    await Database().updateProfile(newUsername, null);
+                  } else {
+                    String imageUrl = await Database().uploadProfileImage(_profileImage!);
+                    await Database().updateProfile(newUsername, imageUrl);
+                  }
+
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/', (route) => false);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error saving profile: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
-
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/', (route) => false);
               },
               child: const Text('Save'),
             ),

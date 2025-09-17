@@ -5,11 +5,20 @@ class Auth {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final user = FirebaseAuth.instance.currentUser;
 
-  Future<void> signUp(
+  Future<String?> signUp(
       String email, String password, String name, String school) async {
     try {
+      // Check if email already exists
+      String? duplicateCheck = await _checkEmailExists(email);
+      if (duplicateCheck != null) {
+        return duplicateCheck; // Return error message
+      }
+
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Send email verification
+      await userCredential.user!.sendEmailVerification();
 
       // Add user to Firestore
       await FirebaseFirestore.instance
@@ -27,8 +36,38 @@ class Auth {
         'school': school,
         'yearbook': [],
       });
+
+      return null; // Success
     } catch (e) {
       print(e);
+      if (e.toString().contains('email-already-in-use')) {
+        return 'An account with this email already exists. Please use a different email or try logging in.';
+      } else if (e.toString().contains('weak-password')) {
+        return 'Password is too weak. Please choose a stronger password.';
+      } else if (e.toString().contains('invalid-email')) {
+        return 'Please enter a valid email address.';
+      } else {
+        return 'An error occurred during signup. Please try again.';
+      }
+    }
+  }
+
+  Future<String?> _checkEmailExists(String email) async {
+    try {
+      // Check if email exists in Firestore
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isNotEmpty) {
+        return 'An account with this email already exists. Please use a different email or try logging in.';
+      }
+      return null; // Email doesn't exist
+    } catch (e) {
+      print('Error checking email: $e');
+      return null; // Allow signup to proceed if check fails
     }
   }
 

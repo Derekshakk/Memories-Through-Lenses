@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:memories_through_lenses/screens/comments.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ignore: must_be_immutable
 class PostCard extends StatefulWidget {
@@ -15,6 +16,7 @@ class PostCard extends StatefulWidget {
     required this.mediaType,
     required this.caption,
     required this.creator,
+    required this.created_at,
     this.likes = 0,
     this.dislikes = 0,
     this.userOpinion = "none",
@@ -23,6 +25,7 @@ class PostCard extends StatefulWidget {
   final String mediaURL;
   final String mediaType;
   final String creator;
+  final DateTime created_at;
   int likes = 0;
   int dislikes = 0;
   final String caption;
@@ -33,6 +36,60 @@ class PostCard extends StatefulWidget {
 }
 
 class _PostCardState extends State<PostCard> {
+  Map<String, dynamic>? userData;
+  bool isLoadingUserData = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.creator)
+          .get();
+      
+      if (mounted) {
+        setState(() {
+          userData = userDoc.data() as Map<String, dynamic>?;
+          isLoadingUserData = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingUserData = false;
+        });
+      }
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 7) {
+      // Show full date for posts older than a week
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } else if (difference.inDays > 0) {
+      // Show days ago for posts within a week
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      // Show hours ago for posts within a day
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      // Show minutes ago for posts within an hour
+      return '${difference.inMinutes}m ago';
+    } else {
+      // Show "now" for very recent posts
+      return 'now';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     late VideoPlayerController _controller;
@@ -45,6 +102,80 @@ class _PostCardState extends State<PostCard> {
       padding: const EdgeInsets.all(8.0),
       child: Column(
         children: [
+          // User info header
+          Container(
+            width: SizeConfig.blockSizeHorizontal! * 90,
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(10.0),
+            ),
+            child: Row(
+              children: [
+                // Profile image
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey[300],
+                  ),
+                  child: isLoadingUserData
+                      ? const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: userData?['profile_image'] != null
+                              ? Image.network(
+                                  userData!['profile_image'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/generic_profile.png",
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  "assets/generic_profile.png",
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                // User name and creation time
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isLoadingUserData
+                            ? "Loading..."
+                            : userData?['name'] ?? 'Unknown User',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _formatDateTime(widget.created_at),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           SizedBox(
             width: SizeConfig.blockSizeHorizontal! * 90,
             height: SizeConfig.blockSizeHorizontal! * 90,

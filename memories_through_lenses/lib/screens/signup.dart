@@ -21,7 +21,9 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  String schoolSelection = "";
+
+
+  String schoolSelection = "Sage Hill School";
   final Singleton _singleton = Singleton();
   List<DropdownMenuItem<String>> schools = [
     DropdownMenuItem(
@@ -83,13 +85,39 @@ class _SignupPageState extends State<SignupPage> {
         widget.confirmController.text.isNotEmpty &&
         widget.firstNameController.text.isNotEmpty &&
         widget.lastNameController.text.isNotEmpty &&
-        widget.passwordController.text == widget.confirmController.text &&
-        schoolSelection.isNotEmpty;
+        widget.passwordController.text == widget.confirmController.text;
+  }
+
+  String getMissingFields() {
+    List<String> missingFields = [];
+    
+    if (widget.firstNameController.text.isEmpty) {
+      missingFields.add("First Name");
+    }
+    if (widget.lastNameController.text.isEmpty) {
+      missingFields.add("Last Name");
+    }
+    if (widget.emailController.text.isEmpty) {
+      missingFields.add("Email");
+    }
+    if (widget.passwordController.text.isEmpty) {
+      missingFields.add("Password");
+    }
+    if (widget.confirmController.text.isEmpty) {
+      missingFields.add("Confirm Password");
+    }
+    if (widget.passwordController.text.isNotEmpty && 
+        widget.confirmController.text.isNotEmpty && 
+        widget.passwordController.text != widget.confirmController.text) {
+      missingFields.add("Passwords do not match");
+    }
+    
+    return missingFields.join(", ");
   }
 
   @override
   Widget build(BuildContext context) {
-    print(schools);
+
     return Scaffold(
         body: Padding(
       padding: const EdgeInsets.all(50.0),
@@ -133,22 +161,8 @@ class _SignupPageState extends State<SignupPage> {
               ),
               obscureText: true,
             ),
-            DropdownButton(
-              items: schools.isNotEmpty
-                  ? schools
-                  : [
-                      const DropdownMenuItem(
-                          value: "", child: Text("Select School"))
-                    ],
-              onChanged: (String? value) {
-                setState(() {
-                  schoolSelection = value!;
-                });
-              },
-              value: schoolSelection.isEmpty && schools.isNotEmpty
-                  ? schools.first.value
-                  : schoolSelection,
-            ),
+            SizedBox(height: 20,),
+
             Column(
               children: [
                 SizedBox(
@@ -159,20 +173,94 @@ class _SignupPageState extends State<SignupPage> {
                           const Color.fromARGB(255, 162, 210, 255)),
                     ),
                     // ternary expression: (expression) ? (if true) : (if false)
-                    onPressed: canSignUp()
-                        ? () {
-                            Auth()
-                                .signUp(
-                              widget.emailController.text,
-                              widget.passwordController.text,
-                              "${widget.firstNameController.text} ${widget.lastNameController.text}",
-                              schoolSelection,
-                            )
-                                .then((value) {
-                              Navigator.pushNamed(context, "/");
-                            });
-                          }
-                        : null,
+                    onPressed: () async {
+                      if (!canSignUp()) {
+                        // Show missing fields message
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Missing Information'),
+                              content: Text('Please fill in the following fields: ${getMissingFields()}'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                        return;
+                      }
+
+                      // Show loading indicator
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (BuildContext context) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        },
+                      );
+
+                      String? errorMessage = await Auth().signUp(
+                        widget.emailController.text,
+                        widget.passwordController.text,
+                        "${widget.firstNameController.text} ${widget.lastNameController.text}",
+                        "Sage Hill School",
+                      );
+
+                      // Hide loading indicator
+                      Navigator.of(context).pop();
+
+                      if (errorMessage == null) {
+                        // Success - show verification alert
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Email Verification Required'),
+                              content: const Text(
+                                'Please check your email and spam folder to verify your account. You must verify your email before you can log in.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop(); // Close dialog
+                                    Navigator.pushNamed(context, "/"); // Go to login
+                                  },
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      } else {
+                        // Error - show error message
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Signup Error'),
+                              content: Text(errorMessage),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+                    },
                     child: const Text("SIGNUP",
                         style: TextStyle(color: Colors.black)),
                   ),

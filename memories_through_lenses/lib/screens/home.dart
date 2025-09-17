@@ -62,10 +62,16 @@ class _HomePageState extends State<HomePage> {
 
   // list of posts (mediaURL, likes, dislikes)
   List<PostData> posts = [];
+  List<PostData> filteredPosts = [];
+  
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  bool isSearching = false;
 
   @override
   void initState() {
     super.initState();
+    print( Auth().user?.uid);
     _focusNode = FocusNode();
     initializeData();
 
@@ -113,6 +119,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> refreshGroups() async {
+
     try {
       // Get the latest groups data from Firestore
       QuerySnapshot userGroups = await FirebaseFirestore.instance
@@ -222,19 +229,104 @@ class _HomePageState extends State<HomePage> {
       if (mounted) {
         setState(() {
           posts = temp;
+          filteredPosts = temp; // Initialize filtered posts with all posts
         });
       }
     });
   }
 
+  void _performSearch() {
+    final searchQuery = _searchController.text.trim();
+    if (searchQuery.isEmpty) {
+      if (isSearching) {
+        setState(() {
+          filteredPosts = List.from(posts);
+          isSearching = false;
+        });
+      }
+    } else {
+      final filtered = posts.where((post) {
+        return post.caption.toLowerCase().contains(searchQuery.toLowerCase());
+      }).toList();
+      
+      // Only update if the results are different
+      if (filtered.length != filteredPosts.length || !isSearching) {
+        setState(() {
+          filteredPosts = filtered;
+          isSearching = true;
+        });
+      }
+    }
+  }
+
+  void _filterPosts(String searchQuery) {
+    // This method is no longer used but kept for compatibility
+    _performSearch();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      filteredPosts = posts;
+      isSearching = false;
+    });
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search posts by caption...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: isSearching
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25.0),
+                ),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onSubmitted: (value) {
+                _performSearch();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(25.0),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.search, color: Colors.white),
+              onPressed: _performSearch,
+              tooltip: 'Search',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _focusNode.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Focus(
         focusNode: _focusNode,
         child: Scaffold(
@@ -449,122 +541,131 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             )),
-            body: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SizedBox(
-                    height: SizeConfig.blockSizeVertical! * 5,
-                    width: SizeConfig.blockSizeHorizontal! * 90,
-                    child: Consumer<Singleton>(
-                      builder: (context, _singleton, child) {
-                        if (dropdownItems.isEmpty) {
-                          return const Center(
-                            child: Text('No groups available',
-                                style: TextStyle(fontSize: 20)),
-                          );
-                        }
-
-                        return DropdownButton<String>(
-                          value: dropdownValue,
-                          hint: const Text('Select a group',
-                              style: TextStyle(fontSize: 20)),
-                          items: dropdownItems.map<DropdownMenuItem<String>>(
-                            (String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value,
-                                    style: const TextStyle(fontSize: 20)),
-                              );
-                            },
-                          ).toList(),
-                          onChanged: (String? value) {
-                            if (value == null) return;
-
+            body: Column(
+              children: [
+                _buildSearchBar(),
+                // Fixed header section
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                  child: Column(
+                    children: [
+                      // Group selector
+                      SizedBox(
+                        height: SizeConfig.blockSizeVertical! * 5,
+                        width: SizeConfig.blockSizeHorizontal! * 90,
+                        child: dropdownItems.isEmpty
+                            ? const Center(
+                                child: Text('No groups available',
+                                    style: TextStyle(fontSize: 20)),
+                              )
+                            : DropdownButton<String>(
+                                value: dropdownValue,
+                                hint: const Text('Select a group',
+                                    style: TextStyle(fontSize: 20)),
+                                items: dropdownItems.map<DropdownMenuItem<String>>(
+                                  (String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value,
+                                          style: const TextStyle(fontSize: 20)),
+                                    );
+                                  },
+                                ).toList(),
+                                onChanged: (String? value) {
+                                  if (value == null) return;
+                 
+                                  final groupPair = dropdownPairs.firstWhere(
+                                      (element) => element.key == value,
+                                      orElse: () => Pair('', ''));
+                 
+                                  if (groupPair.value.isEmpty) return;
+                 
+                                  setState(() {
+                                    dropdownValue = value;
+                                  });
+                                  getPosts(groupPair.value);
+                                },
+                              ),
+                      ),
+                    SizedBox(
+                      width: SizeConfig.blockSizeHorizontal! * 90,
+                      height: SizeConfig.blockSizeVertical! * 5,
+                      child: SegmentedButton(
+                        segments: <ButtonSegment<ContentType>>[
+                          ButtonSegment<ContentType>(
+                            value: ContentType.recent,
+                            label: Container(
+                              height: SizeConfig.blockSizeVertical! * 4,
+                              alignment: Alignment.center,
+                              child: const Text('Recent',
+                                  style: TextStyle(fontSize: 20)),
+                            ),
+                            icon: const Icon(CupertinoIcons.star),
+                          ),
+                          ButtonSegment<ContentType>(
+                            value: ContentType.popular,
+                            label: Container(
+                              height: SizeConfig.blockSizeVertical! * 4,
+                              alignment: Alignment.center,
+                              child: const Text('Popular',
+                                  style: TextStyle(fontSize: 20)),
+                            ),
+                            icon: const Icon(CupertinoIcons.flame),
+                          ),
+                        ],
+                        selected: {selected},
+                        onSelectionChanged: (value) {
+                          setState(() {
+                            selected = value.first;
+                          });
+                
+                          if (dropdownValue != null) {
                             final groupPair = dropdownPairs.firstWhere(
-                                (element) => element.key == value,
+                                (element) => element.key == dropdownValue,
                                 orElse: () => Pair('', ''));
-
-                            if (groupPair.value.isEmpty) return;
-
-                            setState(() {
-                              dropdownValue = value;
-                            });
-                            getPosts(groupPair.value);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: SizeConfig.blockSizeHorizontal! * 90,
-                    height: SizeConfig.blockSizeVertical! * 5,
-                    child: SegmentedButton(
-                      segments: <ButtonSegment<ContentType>>[
-                        ButtonSegment<ContentType>(
-                          value: ContentType.recent,
-                          label: Container(
-                            height: SizeConfig.blockSizeVertical! * 4,
-                            alignment: Alignment.center,
-                            child: const Text('Recent',
-                                style: TextStyle(fontSize: 20)),
-                          ),
-                          icon: const Icon(CupertinoIcons.star),
-                        ),
-                        ButtonSegment<ContentType>(
-                          value: ContentType.popular,
-                          label: Container(
-                            height: SizeConfig.blockSizeVertical! * 4,
-                            alignment: Alignment.center,
-                            child: const Text('Popular',
-                                style: TextStyle(fontSize: 20)),
-                          ),
-                          icon: const Icon(CupertinoIcons.flame),
-                        ),
-                      ],
-                      selected: {selected},
-                      onSelectionChanged: (value) {
-                        setState(() {
-                          selected = value.first;
-                        });
-
-                        if (dropdownValue != null) {
-                          final groupPair = dropdownPairs.firstWhere(
-                              (element) => element.key == dropdownValue,
-                              orElse: () => Pair('', ''));
-                          if (groupPair.value.isNotEmpty) {
-                            getPosts(groupPair.value);
+                            if (groupPair.value.isNotEmpty) {
+                              getPosts(groupPair.value);
+                            }
                           }
-                        }
-                      },
-                    ),
+                        },
+                      ),
+                     ),
+                      // Search bar
+
+                    ],
                   ),
-                  SizedBox(
-                    height: SizeConfig.blockSizeVertical! * 70,
-                    width: SizeConfig.blockSizeHorizontal! * 100,
-                    child: (timelineLoaded)
-                        ? ListView.builder(
-                            itemCount: posts.length,
-                            itemBuilder: (context, index) {
-                              return PostCard(
-                                id: posts[index].id,
-                                creator: posts[index].creator,
-                                mediaURL: posts[index].mediaURL,
-                                mediaType: posts[index].mediaType,
-                                caption: posts[index].caption,
-                                likes: posts[index].likes,
-                                dislikes: posts[index].dislikes,
-                                userOpinion: posts[index].userOpinion,
-                              );
-                            },
-                          )
-                        : const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                  ),
-                ],
-              ),
+                ),
+                // Scrollable posts section
+                Expanded(
+                  child: (timelineLoaded)
+                      ? filteredPosts.isEmpty && isSearching
+                          ? const Center(
+                              child: Text(
+                                'No posts found matching your search',
+                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filteredPosts.length,
+                              itemBuilder: (context, index) {
+                                return PostCard(
+                                  id: filteredPosts[index].id,
+                                  creator: filteredPosts[index].creator,
+                                  mediaURL: filteredPosts[index].mediaURL,
+                                  mediaType: filteredPosts[index].mediaType,
+                                  caption: filteredPosts[index].caption,
+                                  created_at: filteredPosts[index].created_at,
+                                  likes: filteredPosts[index].likes,
+                                  dislikes: filteredPosts[index].dislikes,
+                                  userOpinion: filteredPosts[index].userOpinion,
+                                );
+                              },
+                            )
+                      : const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                ),
+              ],
             )));
   }
 }
