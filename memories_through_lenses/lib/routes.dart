@@ -1,4 +1,3 @@
-import 'package:memories_through_lenses/initialization.dart';
 import 'package:memories_through_lenses/screens/login.dart';
 import 'package:memories_through_lenses/screens/scan_face.dart';
 import 'package:memories_through_lenses/screens/signup.dart';
@@ -17,7 +16,6 @@ import 'package:memories_through_lenses/screens/camera.dart';
 import 'package:memories_through_lenses/screens/yearbook.dart';
 
 var routes = {
-  "/": (context) => Initializer(),
   "/login": (context) => LoginPage(),
   "/signup": (context) => SignupPage(),
   "/home": (context) => HomePage(),

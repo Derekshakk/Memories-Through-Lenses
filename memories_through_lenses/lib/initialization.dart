@@ -4,86 +4,95 @@ import 'package:memories_through_lenses/screens/login.dart';
 import 'package:memories_through_lenses/screens/home.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/services/auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
-class Initializer extends StatelessWidget {
+class Initializer extends StatefulWidget {
   const Initializer({super.key});
 
   @override
+  State<Initializer> createState() => _InitializerState();
+}
+
+class _InitializerState extends State<Initializer> {
+  @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
-    Singleton singleton = Singleton();
-    User? user = Auth().user;
 
+    // Listen to auth state changes
+    return StreamBuilder<User?>(
+      stream: Auth().authStateChanges,
+      builder: (context, snapshot) {
+        // Show loading while checking auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
 
-    if (user != null) {
-      return StreamBuilder<Object>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .snapshots(),
-          builder: (context, snapshot) {
-            print("Snapshot: $snapshot");
-            if (snapshot.connectionState == ConnectionState.waiting ||
-                !snapshot.hasData) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
+        // User is logged in
+        if (snapshot.hasData && snapshot.data != null) {
+          return const _AuthenticatedView();
+        }
 
-            if (snapshot.hasData &&
-                (snapshot.data as DocumentSnapshot).data() != null) {
-              // print("User data: ${snapshot.data}");
-              singleton.setUserData((snapshot.data as DocumentSnapshot).data()
-                  as Map<String, dynamic>);
+        // User is logged out
+        return const _UnauthenticatedView();
+      },
+    );
+  }
+}
 
-              print(singleton.userData);
+class _AuthenticatedView extends StatefulWidget {
+  const _AuthenticatedView();
 
-              List<dynamic> groups = singleton.userData["groups"];
+  @override
+  State<_AuthenticatedView> createState() => _AuthenticatedViewState();
+}
 
-              for (int i = 0; i < groups.length; i++) {
-                String groupID = groups[i].toString();
-                print(groupID);
-              }
+class _AuthenticatedViewState extends State<_AuthenticatedView> {
+  @override
+  void initState() {
+    super.initState();
+    // Load user data once when entering authenticated state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final provider = Provider.of<UserProvider>(context, listen: false);
+        provider.loadUserData();
+        provider.loadGroups();
+      }
+    });
+  }
 
-              // get the groups collection
-              var groupsCollection =
-                  FirebaseFirestore.instance.collection('groups');
-              // get the groups that the user is a part of in the members list
-              var userGroups = groupsCollection
-                  .where('members', arrayContains: user.uid)
-                  .snapshots();
+  @override
+  Widget build(BuildContext context) {
+    return HomePage();
+  }
+}
 
-              // convert the userGroups to a list
-              // print("User groups: ");
+class _UnauthenticatedView extends StatefulWidget {
+  const _UnauthenticatedView();
 
-              singleton.groupData = [];
+  @override
+  State<_UnauthenticatedView> createState() => _UnauthenticatedViewState();
+}
 
-              userGroups.forEach((element) {
-                // convert json query snapshot to list
-                List<DocumentSnapshot> userGroupsList = element.docs;
-                for (var element in userGroupsList) {
-                  // print(element.data());
-                  Map<String, dynamic> groupData =
-                      element.data() as Map<String, dynamic>;
+class _UnauthenticatedViewState extends State<_UnauthenticatedView> {
+  @override
+  void initState() {
+    super.initState();
+    // Clear provider data once when entering unauthenticated state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final provider = Provider.of<UserProvider>(context, listen: false);
+        provider.clear();
+      }
+    });
+  }
 
-                  // add groupID to groupData, it's the key of the document
-                  groupData["groupID"] = element.id;
-
-                  singleton.groupData.add(groupData);
-                }
-                singleton.notifyListenersSafe();
-              });
-
-              return HomePage();
-            }
-
-            return LoginPage();
-          });
-    }
-    return LoginPage();
+  @override
+  Widget build(BuildContext context) {
+    return const LoginPage();
   }
 }

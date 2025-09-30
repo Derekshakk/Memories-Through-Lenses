@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/toggle_row.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class User {
   final String name;
@@ -39,53 +39,74 @@ class EditGroupScreen extends StatefulWidget {
 
 class _EditGroupScreenState extends State<EditGroupScreen> {
   List<User> users = [];
-  List<Group> groups = [
-    Group(
-        name: 'Group 1',
-        description: 'Description 1',
-        groupID: '1',
-        isPrivate: false,
-        members: ['1'],
-        owner: '1'),
-  ];
-  Singleton singleton = Singleton();
+  List<Group> groups = [];
   TextEditingController groupNameController = TextEditingController();
   TextEditingController groupDescriptionController = TextEditingController();
   bool isPrivate = false;
   String? currentGroup;
   String? currentGroupName;
 
-  void setUsers() {
-    users.clear();
-    Map<String, dynamic> friends = singleton.userData['friends'];
+  @override
+  void initState() {
+    super.initState();
+    loadData();
+  }
 
-    for (var key in friends.keys) {
-      users.add(User(name: friends[key]['name'], uid: key));
+  Future<void> loadData() async {
+    await Future.wait([loadFriends(), loadGroups()]);
+  }
+
+  Future<void> loadFriends() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(Auth().user!.uid)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        Map<String, dynamic> friends = userDoc.data()?['friends'] ?? {};
+        setState(() {
+          users.clear();
+          for (var key in friends.keys) {
+            users.add(User(name: friends[key]['name'], uid: key));
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading friends: $e');
     }
   }
 
-  void setGroups() {
-    groups.clear();
-    for (Map<String, dynamic> group in singleton.groupData) {
-      final String uid = Auth().user!.uid;
-      if (group['owner'] != uid) {
-        continue;
-      }
+  Future<void> loadGroups() async {
+    try {
+      final uid = Auth().user!.uid;
+      final groupsSnapshot = await FirebaseFirestore.instance
+          .collection('groups')
+          .where('owner', isEqualTo: uid)
+          .get();
 
-      groups.add(Group(
-          name: group['name'],
-          description: group['description'],
-          groupID: group['groupID'],
-          isPrivate: group['private'],
-          members: group['members'],
-          owner: group['owner']));
+      if (mounted) {
+        setState(() {
+          groups.clear();
+          for (var doc in groupsSnapshot.docs) {
+            final data = doc.data();
+            groups.add(Group(
+                name: data['name'],
+                description: data['description'],
+                groupID: doc.id,
+                isPrivate: data['private'],
+                members: data['members'],
+                owner: data['owner']));
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading groups: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    setUsers();
-    setGroups();
     return Scaffold(
         appBar: AppBar(
           title: DropdownButton(

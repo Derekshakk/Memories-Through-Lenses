@@ -5,6 +5,9 @@ class Auth {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final user = FirebaseAuth.instance.currentUser;
 
+  // Stream to listen to authentication state changes
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
   Future<String?> signUp(
       String email, String password, String name, String school) async {
     try {

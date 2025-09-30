@@ -4,7 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:memories_through_lenses/firebase_options.dart';
 import 'package:provider/provider.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:memories_through_lenses/screens/login.dart';
+import 'package:memories_through_lenses/screens/home.dart';
 
 late final FirebaseApp app;
 late final FirebaseAuth auth;
@@ -17,14 +19,17 @@ void main() async {
   );
   auth = FirebaseAuth.instanceFor(app: app);
 
-  runApp(ChangeNotifierProvider(
-      create: (context) => Singleton(), child: const MyApp()));
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => UserProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -34,7 +39,55 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          // Show loading while checking auth state
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          // User is logged in
+          if (snapshot.hasData && snapshot.data != null) {
+            return const AuthenticatedHome();
+          }
+
+          // User is not logged in
+          return const LoginPage();
+        },
+      ),
       routes: routes,
     );
+  }
+}
+
+class AuthenticatedHome extends StatefulWidget {
+  const AuthenticatedHome({super.key});
+
+  @override
+  State<AuthenticatedHome> createState() => _AuthenticatedHomeState();
+}
+
+class _AuthenticatedHomeState extends State<AuthenticatedHome> {
+  @override
+  void initState() {
+    super.initState();
+    // Load user data once
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final provider = Provider.of<UserProvider>(context, listen: false);
+        provider.loadUserData();
+        provider.loadGroups();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HomePage();
   }
 }

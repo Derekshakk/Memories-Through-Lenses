@@ -1,11 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:memories_through_lenses/screens/comments.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
-import 'package:memories_through_lenses/services/auth.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:memories_through_lenses/screens/comments.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ignore: must_be_immutable
 class PostCard extends StatefulWidget {
@@ -21,6 +21,7 @@ class PostCard extends StatefulWidget {
     this.dislikes = 0,
     this.userOpinion = "none",
   });
+
   final String id;
   final String mediaURL;
   final String mediaType;
@@ -38,11 +39,13 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   Map<String, dynamic>? userData;
   bool isLoadingUserData = true;
+  int commentCount = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+    _fetchCommentCount();
   }
 
   Future<void> _fetchUserData() async {
@@ -51,7 +54,7 @@ class _PostCardState extends State<PostCard> {
           .collection('users')
           .doc(widget.creator)
           .get();
-      
+
       if (mounted) {
         setState(() {
           userData = userDoc.data() as Map<String, dynamic>?;
@@ -68,13 +71,31 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
+  Future<void> _fetchCommentCount() async {
+    try {
+      QuerySnapshot commentsSnapshot = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.id)
+          .collection('comments')
+          .get();
+
+      if (mounted) {
+        setState(() {
+          commentCount = commentsSnapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error fetching comment count: $e');
+    }
+  }
+
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
     if (difference.inDays > 7) {
-      // Show full date for posts older than a week
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+      // Show full date for posts older than a week (MM/DD/YYYY format)
+      return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
     } else if (difference.inDays > 0) {
       // Show days ago for posts within a week
       return '${difference.inDays}d ago';
@@ -263,11 +284,35 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
           ),
+          if (widget.caption.isNotEmpty)
+            SizedBox(
+                width: SizeConfig.blockSizeHorizontal! * 52,
+                height: SizeConfig.blockSizeHorizontal! * 20,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: MarkdownBody(
+                        data: widget.caption,
+                        styleSheet: MarkdownStyleSheet(
+                          textAlign: WrapAlignment.center,
+                          p: const TextStyle(
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // child: Text(
+                  //   widget.caption,
+                  //   textAlign: TextAlign.center,
+                  // ),
+                )),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: SizedBox(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Column(
@@ -309,7 +354,7 @@ class _PostCardState extends State<PostCard> {
                     ],
                   ),
                   SizedBox(
-                    width: SizeConfig.blockSizeHorizontal! * 3,
+                    width: SizeConfig.blockSizeHorizontal! * 5,
                   ),
                   Column(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -351,31 +396,44 @@ class _PostCardState extends State<PostCard> {
                     ],
                   ),
                   SizedBox(
-                    width: SizeConfig.blockSizeHorizontal! * 3,
+                    width: SizeConfig.blockSizeHorizontal! * 5,
                   ),
-                  SizedBox(
-                      width: SizeConfig.blockSizeHorizontal! * 65,
-                      height: SizeConfig.blockSizeHorizontal! * 20,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Center(
-                          child: SingleChildScrollView(
-                            child: MarkdownBody(
-                              data: widget.caption,
-                              styleSheet: MarkdownStyleSheet(
-                                textAlign: WrapAlignment.center,
-                                p: const TextStyle(
-                                  fontSize: 16,
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 10,
+                        height: SizeConfig.blockSizeHorizontal! * 10,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding: EdgeInsets.all(0.0)),
+                          child: Icon(
+                            Icons.comment,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CommentScreen(
+                                  id: widget.id,
+                                  mediaURL: widget.mediaURL,
+                                  mediaType: widget.mediaType,
+                                  creator: widget.creator,
                                 ),
                               ),
-                            ),
-                          ),
+                            ).then((_) {
+                              // Refresh comment count when returning
+                              _fetchCommentCount();
+                            });
+                          },
                         ),
-                        // child: Text(
-                        //   widget.caption,
-                        //   textAlign: TextAlign.center,
-                        // ),
-                      )),
+                      ),
+                      Text("$commentCount"),
+                    ],
+                  ),
+
                 ],
               ),
             ),
@@ -390,6 +448,7 @@ class _PostCardState extends State<PostCard> {
 class ReportPostPopup extends StatelessWidget {
   const ReportPostPopup(
       {super.key, required this.postId, required this.postCreator});
+
   final String postId;
   final String postCreator;
 

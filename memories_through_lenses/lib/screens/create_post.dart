@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/services/database.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -24,7 +24,6 @@ class CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
-  Singleton singleton = Singleton();
   final TextEditingController _captionController = TextEditingController();
   File? _postMedia;
   String mediaType = '';
@@ -44,9 +43,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  void setGroups() {
+  void setGroups(List<Map<String, dynamic>> groupData) {
     groups.clear();
-    List<Map<String, dynamic>> groupData = singleton.groupData;
     for (var group in groupData) {
       groups.add(Pair(key: group['groupID'], value: group['name']));
     }
@@ -54,26 +52,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
-    super.dispose();
+    _captionController.dispose();
     if (mediaType == 'video') _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (singleton.imageFile != null) {
-      _postMedia = singleton.imageFile;
-      mediaType = 'image';
-    } else if (singleton.videoFile != null) {
-      _postMedia = singleton.videoFile;
-      mediaType = 'video';
-      initVideoPlayer();
-    }
-    singleton.imageFile = null;
-    singleton.videoFile = null;
+    final provider = Provider.of<UserProvider>(context);
 
-    setGroups();
-    print("CREATING POST: ${singleton.groupData}");
+    // Get media from provider on first build
+    if (_postMedia == null) {
+      if (provider.imageFile != null) {
+        _postMedia = provider.imageFile;
+        mediaType = 'image';
+        provider.imageFile = null;
+      } else if (provider.videoFile != null) {
+        _postMedia = provider.videoFile;
+        mediaType = 'video';
+        initVideoPlayer();
+        provider.videoFile = null;
+      }
+    }
+
+    setGroups(provider.groups);
     return Scaffold(
         appBar: AppBar(
           title: Text(
@@ -83,7 +85,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
             },
           ),
         ),
@@ -93,34 +95,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Consumer<Singleton>(
-                builder: (context, singleton, child) {
-                  return Container(
-                      color: Colors.grey,
-                      height: SizeConfig.blockSizeVertical! * 40,
-                      width: SizeConfig.blockSizeHorizontal! * 90,
-                      child: Center(
-                        child: (_postMedia != null && mediaType == 'image')
+              Container(
+                  color: Colors.grey,
+                  height: SizeConfig.blockSizeVertical! * 40,
+                  width: SizeConfig.blockSizeHorizontal! * 90,
+                  child: Center(
+                    child: (_postMedia != null && mediaType == 'image')
+                        ? SizedBox(
+                            height: SizeConfig.blockSizeVertical! * 40,
+                            width: SizeConfig.blockSizeHorizontal! * 90,
+                            child: Image.file(
+                              _postMedia!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : (_postMedia != null && mediaType == 'video')
                             ? SizedBox(
                                 height: SizeConfig.blockSizeVertical! * 40,
                                 width: SizeConfig.blockSizeHorizontal! * 90,
-                                child: Image.file(
-                                  _postMedia!,
-                                  fit: BoxFit.cover,
-                                ),
+                                child: VideoPlayer(_controller),
                               )
-                            : (_postMedia != null && mediaType == 'video')
-                                ? SizedBox(
-                                    height: SizeConfig.blockSizeVertical! * 40,
-                                    width: SizeConfig.blockSizeHorizontal! * 90,
-                                    child: VideoPlayer(_controller),
-                                  )
-                                : const Center(
-                                    child: Text('No Image Selected',
-                                        style: TextStyle(fontSize: 20))),
-                      ));
-                },
-              ),
+                            : const Center(
+                                child: Text('No Image Selected',
+                                    style: TextStyle(fontSize: 20))),
+                  )),
               ElevatedButton(
                 onPressed: () async {
                   await ImagePicker()

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/size_config.dart';
-import 'package:provider/provider.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
+import 'package:memories_through_lenses/services/streams.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 
@@ -14,48 +13,77 @@ class JoinGroupScreen extends StatefulWidget {
 }
 
 class _JoinGroupScreenState extends State<JoinGroupScreen> {
-  final Singleton singleton = Singleton();
+  List<GroupCard> searchedGroups = [];
+  List<GroupCard> pendingGroups = [];
+  String? userSchool;
 
-  List<GroupCard> searchedGroups = [
-    // GroupCard(name: 'Group 1', groupID: '1', type: GroupCardType.request),
-    // GroupCard(name: 'Group 2', groupID: '2', type: GroupCardType.request),
-    // GroupCard(name: 'Group 3', groupID: '3', type: GroupCardType.request),
-    // GroupCard(name: 'Group 4', groupID: '4', type: GroupCardType.request),
-    // GroupCard(name: 'Group 5', groupID: '5', type: GroupCardType.request),
-  ];
-  List<GroupCard> pendingGroups = [
-    // GroupCard(name: 'Group 6', groupID: '6', type: GroupCardType.invite),
-    // GroupCard(name: 'Group 7', groupID: '7', type: GroupCardType.invite),
-    // GroupCard(name: 'Group 8', groupID: '8', type: GroupCardType.invite),
-    // GroupCard(name: 'Group 9', groupID: '9', type: GroupCardType.invite),
-    // GroupCard(name: 'Group 10', groupID: '10', type: GroupCardType.invite),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    loadUserSchool();
+    getGroupRequests();
+  }
+
+  Future<void> loadUserSchool() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(Auth().user!.uid)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        setState(() {
+          userSchool = userDoc.data()?['school'];
+        });
+        if (userSchool != null) {
+          getGroupsCollection();
+        }
+      }
+    } catch (e) {
+      print('Error loading user school: $e');
+    }
+  }
 
   Future<void> getGroupsCollection() async {
-    searchedGroups.clear(); // Clear the existing groups
-    // Fetch groups from Firestore
-    print('|'+ singleton.userData['school']+ '|');
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('groups')
-        .where('school', isEqualTo: singleton.userData['school'])
-        .get();
-    print('*' * 50);
-    print(snapshot.docs);
-    List<GroupCard> fetchedGroups = [];
-    for (var doc in snapshot.docs) {
-      // check that user is not owner of the group
-      if (doc['owner'] != Auth().user!.uid &&
-          !singleton.userData['group_requests'].contains(doc.id)) {
-        fetchedGroups.add(GroupCard(
-          name: doc['name'],
-          groupID: doc.id,
-          type: GroupCardType.request,
-        ));
+    if (userSchool == null) return;
+
+    try {
+      searchedGroups.clear();
+
+      // Get user data for group_requests
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(Auth().user!.uid)
+          .get();
+
+      List<dynamic> groupRequests = userDoc.data()?['group_requests'] ?? [];
+
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('groups')
+          .where('school', isEqualTo: userSchool)
+          .get();
+
+      List<GroupCard> fetchedGroups = [];
+      for (var doc in snapshot.docs) {
+        // check that user is not owner of the group
+        if (doc['owner'] != Auth().user!.uid &&
+            !groupRequests.contains(doc.id)) {
+          fetchedGroups.add(GroupCard(
+            name: doc['name'],
+            groupID: doc.id,
+            type: GroupCardType.request,
+          ));
+        }
       }
+
+      if (mounted) {
+        setState(() {
+          searchedGroups = fetchedGroups;
+        });
+      }
+    } catch (e) {
+      print('Error loading groups: $e');
     }
-    setState(() {
-      searchedGroups = fetchedGroups;
-    });
   }
 
   Future<void> search(String query) async {
@@ -72,33 +100,38 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     }
   }
 
-  void getGroupRequests() {
-    pendingGroups.clear(); // Clear the existing groups
-    // Fetch group requests from the user data in singleton
-    singleton.userData['group_requests'].forEach((value) {
-      // get the group data from the group collection (the value is the groupID)
-      FirebaseFirestore.instance
-          .collection('groups')
-          .doc(value)
-          .get()
-          .then((groupDoc) {
-        if (groupDoc.exists) {
+  Future<void> getGroupRequests() async {
+    try {
+      pendingGroups.clear();
+
+      // Fetch group requests from the user data
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(Auth().user!.uid)
+          .get();
+
+      List<dynamic> groupRequests = userDoc.data()?['group_requests'] ?? [];
+
+      for (var groupID in groupRequests) {
+        final groupDoc = await FirebaseFirestore.instance
+            .collection('groups')
+            .doc(groupID)
+            .get();
+
+        if (groupDoc.exists && mounted) {
           Map<String, dynamic> groupData =
               groupDoc.data() as Map<String, dynamic>;
-          pendingGroups.add(GroupCard(
-              name: groupData['name'],
-              groupID: value,
-              type: GroupCardType.invite));
-          setState(() {}); // Update the UI
+          setState(() {
+            pendingGroups.add(GroupCard(
+                name: groupData['name'],
+                groupID: groupID,
+                type: GroupCardType.invite));
+          });
         }
-      });
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    getGroupsCollection();
+      }
+    } catch (e) {
+      print('Error loading group requests: $e');
+    }
   }
 
   @override
@@ -109,36 +142,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         ),
         body: Center(
           child: SingleChildScrollView(
-            child: Consumer<Singleton>(
-              builder: (context, _singleton, child) {
-                // List<Widget> searchedGroups = [];
-                // List<Widget> pendingGroups = [];
-
-                // Map<String, dynamic> requests =
-                //     singleton.userData['outgoing_requests'];
-                // Map<String, dynamic> friends = singleton.userData['friends'];
-
-                // requests.forEach((key, value) {
-                //   outgoingRequests.add(FriendCard(
-                //     type: FriendCardType.addFriend,
-                //     name: value['name'],
-                //     uid: key,
-                //   ));
-                // });
-
-                // print("populating current friends list");
-                // friends.forEach((key, value) {
-                //   print("key: $key, value: $value");
-                //   currentFriends.add(FriendCard(
-                //     type: FriendCardType.currentFriend,
-                //     name: value['name'],
-                //     uid: key,
-                //   ));
-                // });
-                // print("current friends list: $currentFriends");
-                getGroupRequests(); // Fetch group requests when building the widget
-
-                return Column(
+            child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -179,9 +183,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                       height: SizeConfig.blockSizeVertical! * 2,
                     ),
                   ],
-                );
-              },
-            ),
+                ),
           ),
         ));
   }

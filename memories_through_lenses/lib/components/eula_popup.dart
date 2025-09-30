@@ -100,7 +100,7 @@ class EulaPopup extends StatelessWidget {
           onPressed: () {
             Navigator.of(context).pop();
             // Add any logic for declining the EULA if necessary
-            Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
           },
         ),
       ],

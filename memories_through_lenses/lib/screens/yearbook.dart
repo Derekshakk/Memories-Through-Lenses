@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/screens/home.dart';
 import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/size_config.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/components/small_post.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class YearbookScreen extends StatefulWidget {
   const YearbookScreen({super.key});
@@ -16,7 +17,6 @@ class YearbookScreen extends StatefulWidget {
 class _YearbookScreenState extends State<YearbookScreen> {
   List<DropdownMenuItem> years = [];
   String selectedYear = '2021';
-  Singleton singleton = Singleton();
   List<PostData> posts = [];
 
   @override
@@ -43,58 +43,59 @@ class _YearbookScreenState extends State<YearbookScreen> {
   }
 
   Future<void> getPosts() async {
-    // get list of all groups a user is part of from their userData
+    try {
+      // Get current user data
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(Auth().user!.uid)
+          .get();
 
-    List<dynamic> yearbookList = [];
-    if (singleton.userData.containsKey('yearbook') &&
-        singleton.userData['yearbook'] != null) {
-      yearbookList = singleton.userData['yearbook'];
-    }
-    print(yearbookList);
-    List<dynamic> blockedUsers = (singleton.userData['blocked'] != null)
-        ? singleton.userData['blocked']
-        : [];
-    List<dynamic> groups = singleton.userData['groups'];
-    List<PostData> temp = [];
-    for (var postID in yearbookList) {
-      print("Post ID: $postID");
-      Map<String, dynamic>? post = await Database().getPost(postID);
-      if (post == null ||
-          blockedUsers.contains(post['user_id']) ||
-          !groups.contains(post['group_id'])) {
-        continue;
+      if (!userDoc.exists) return;
+
+      final userData = userDoc.data()!;
+      List<dynamic> yearbookList = userData['yearbook'] ?? [];
+      List<dynamic> blockedUsers = userData['blocked'] ?? [];
+      List<dynamic> groups = userData['groups'] ?? [];
+
+      List<PostData> temp = [];
+      for (var postID in yearbookList) {
+        Map<String, dynamic>? post = await Database().getPost(postID);
+        if (post == null ||
+            blockedUsers.contains(post['user_id']) ||
+            !groups.contains(post['group_id'])) {
+          continue;
+        }
+
+        // check if the created_at date is in the selected year
+        DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(
+            post['created_at'].seconds * 1000);
+        if (createdAt.year.toString() != selectedYear) {
+          continue;
+        }
+        temp.add(PostData(
+          id: post['id'],
+          creator: post['user_id'],
+          mediaURL: post['image_url'],
+          mediaType: 'image',
+          caption: post['caption'],
+          likes: post['likes'].length,
+          dislikes: post['dislikes'].length,
+          created_at: DateTime.fromMillisecondsSinceEpoch(
+              post['created_at'].seconds * 1000),
+        ));
       }
+      temp = temp
+          .where((element) => element.created_at.year.toString() == selectedYear)
+          .toList();
 
-      // check if the created_at date is in the selected year
-      DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(
-          post['created_at'].seconds * 1000);
-      if (createdAt.year.toString() != selectedYear) {
-        print(
-            "Skipping post with id ${post['id']} because it is not in the selected year");
-        print("Selected year: $selectedYear");
-        print("Post year: ${createdAt.year}");
-        continue;
+      if (mounted) {
+        setState(() {
+          posts = temp;
+        });
       }
-      temp.add(PostData(
-        id: post['id'],
-        creator: post['user_id'],
-        mediaURL: post['image_url'],
-        mediaType: 'image',
-        caption: post['caption'],
-        likes: post['likes'].length,
-        dislikes: post['dislikes'].length,
-        // Timestamp to datetime
-        created_at: DateTime.fromMillisecondsSinceEpoch(
-            post['created_at'].seconds * 1000),
-      ));
+    } catch (e) {
+      print('Error loading yearbook posts: $e');
     }
-    temp = temp
-        .where((element) => element.created_at.year.toString() == selectedYear)
-        .toList();
-
-    setState(() {
-      posts = temp;
-    });
   }
 
   // void getPosts() {

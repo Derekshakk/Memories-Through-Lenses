@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/toggle_row.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class User {
   final String name;
@@ -21,23 +22,39 @@ class CreateGroupScreen extends StatefulWidget {
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   List<User> users = [];
-  Singleton singleton = Singleton();
   TextEditingController groupNameController = TextEditingController();
   TextEditingController groupDescriptionController = TextEditingController();
   bool isPrivate = false;
 
-  void setUsers() {
-    users.clear();
-    Map<String, dynamic> friends = singleton.userData['friends'];
+  @override
+  void initState() {
+    super.initState();
+    loadFriends();
+  }
 
-    for (var key in friends.keys) {
-      users.add(User(name: friends[key]['name'], uid: key));
+  Future<void> loadFriends() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(Auth().user!.uid)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        Map<String, dynamic> friends = userDoc.data()?['friends'] ?? {};
+        setState(() {
+          users.clear();
+          for (var key in friends.keys) {
+            users.add(User(name: friends[key]['name'], uid: key));
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading friends: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    setUsers();
     return Scaffold(
         appBar: AppBar(),
         body: SafeArea(
