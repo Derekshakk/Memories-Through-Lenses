@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -23,8 +24,6 @@ class _CameraScreenState extends State<CameraScreen> {
   bool isPlaying = false;
   XFile? imageFile;
   String cameraMode = "photo";
-
-  final Singleton singleton = Singleton();
 
   int _selectedCameraIndex = 0;
 
@@ -179,11 +178,10 @@ class _CameraScreenState extends State<CameraScreen> {
                               final image = await controller!.takePicture();
                               imageFile = image;
                               print(image.path);
+                              final provider = Provider.of<UserProvider>(context, listen: false);
+                              provider.setImageFile(File(imageFile!.path));
+                              provider.setVideoFile(null);
                               setState(() {
-                                singleton.imageFile = File(imageFile!.path);
-                                singleton.videoFile = null;
-                                // singleton.notifyListenersDelayed(
-                                //     Duration(seconds: 1));
                                 // Navigator.pop(context);
                                 Navigator.pushNamed(context, '/create');
                               });
@@ -200,9 +198,10 @@ class _CameraScreenState extends State<CameraScreen> {
                                 // print(video.path);
                                 videoFile = video;
                                 setupVideoplayer();
+                                final provider = Provider.of<UserProvider>(context, listen: false);
+                                provider.setVideoFile(File(videoFile!.path));
+                                provider.setImageFile(null);
                                 setState(() {
-                                  singleton.videoFile = File(videoFile!.path);
-                                  singleton.imageFile = null;
                                   // singleton.notifyListenersSafe();
                                 });
                               }
@@ -274,9 +273,9 @@ class _CameraScreenState extends State<CameraScreen> {
                           color: Colors.white,
                           icon: Icon(Icons.check_circle),
                           onPressed: () {
-                            singleton.videoFile = File(videoFile!.path);
-                            singleton.imageFile = null;
-                            singleton.notifyListenersSafe();
+                            final provider = Provider.of<UserProvider>(context, listen: false);
+                            provider.setVideoFile(File(videoFile!.path));
+                            provider.setImageFile(null);
                             Navigator.pushNamed(context, '/create');
                           },
                         )

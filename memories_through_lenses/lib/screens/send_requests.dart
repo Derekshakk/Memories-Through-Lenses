@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/friend_card.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:provider/provider.dart';
 
@@ -15,7 +15,6 @@ class SentScreen extends StatefulWidget {
 }
 
 class _SentScreenState extends State<SentScreen> {
-  final Singleton singleton = Singleton();
   TextEditingController _controller = TextEditingController();
   List<Map<String, dynamic>> users = [];
   List<Map<String, dynamic>> searchResults = [];
@@ -57,14 +56,14 @@ class _SentScreenState extends State<SentScreen> {
                   GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
         ),
         body: Center(
-          child: Consumer<Singleton>(
-            builder: (context, _singleton, child) {
+          child: Consumer<UserProvider>(
+            builder: (context, provider, child) {
               List<Widget> outgoingRequests = [];
               List<Widget> currentFriends = [];
 
               Map<String, dynamic> requests =
-                  singleton.userData['outgoing_requests'];
-              Map<String, dynamic> friends = singleton.userData['friends'];
+                  provider.userData?['outgoing_requests'] ?? {};
+              Map<String, dynamic> friends = provider.userData?['friends'] ?? {};
 
               requests.forEach((key, value) {
                 outgoingRequests.add(FriendCard(

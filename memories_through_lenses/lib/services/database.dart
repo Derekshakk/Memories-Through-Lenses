@@ -6,12 +6,14 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
 
 class Database {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Auth _auth = Auth();
-  final Singleton _singleton = Singleton();
+  final UserProvider? _userProvider;
+
+  Database([this._userProvider]);
 
   Future<List<Map<String, dynamic>>> getSchools() async {
     var schools = await _firestore.collection('schools').get();
@@ -37,7 +39,7 @@ class Database {
       'member_count': 1,
       'owner': _auth.user!.uid,
       'join_requests': [],
-      'school': _singleton.userData['school'],
+      'school': _userProvider?.userData?['school'] ?? '',
     });
 
     _firestore.collection('users').doc(_auth.user!.uid).update({
@@ -236,10 +238,10 @@ class Database {
   }
 
   Future<List<Map<String, dynamic>>> getYearBook() {
-    // get every post in the posts collection whose id is in the yearbook array of the user's data from singleton
+    // get every post in the posts collection whose id is in the yearbook array of the user's data from provider
     return _firestore
         .collection('posts')
-        .where(FieldPath.documentId, whereIn: _singleton.userData['yearbook'])
+        .where(FieldPath.documentId, whereIn: _userProvider?.userData?['yearbook'] ?? [])
         .get()
         .then((value) {
       var posts_list = value.docs.map((e) => e.data()).toList();
@@ -275,7 +277,7 @@ class Database {
       'description': comment,
       'date': DateTime.now(),
       'likes': [],
-      'username': _singleton.userData['name'],
+      'username': _userProvider?.userData?['name'] ?? '',
       'profilePic': _auth.user!.photoURL
     });
   }

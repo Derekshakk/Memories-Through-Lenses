@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/friend_card.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
 class ReceivedScreen extends StatefulWidget {
   const ReceivedScreen({super.key});
@@ -14,10 +15,10 @@ class ReceivedScreen extends StatefulWidget {
 class _ReceivedScreenState extends State<ReceivedScreen> {
   @override
   Widget build(BuildContext context) {
-    Singleton singleton = Singleton();
+    final provider = Provider.of<UserProvider>(context, listen: false);
     List<Widget> requestCards = [];
 
-    Map<String, dynamic> requests = singleton.userData['friend_requests'];
+    Map<String, dynamic> requests = provider.userData?['friend_requests'] ?? {};
 
     for (var key in requests.keys) {
       requestCards.add(FriendCard(

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
-import 'package:memories_through_lenses/shared/singleton.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key});
@@ -12,7 +13,6 @@ class GroupScreen extends StatefulWidget {
 }
 
 class _GroupScreenState extends State<GroupScreen> {
-  final Singleton singleton = Singleton();
   List<GroupCard> groups = [
     GroupCard(name: 'Group 1', groupID: '1', type: GroupCardType.notification),
     GroupCard(name: 'Group 2', groupID: '2', type: GroupCardType.notification),
@@ -22,15 +22,15 @@ class _GroupScreenState extends State<GroupScreen> {
     GroupCard(name: 'Group 5', groupID: '5', type: GroupCardType.notification),
   ];
 
-  void getGroupRequests() {
+  void getGroupRequests(UserProvider provider) {
     groups.clear(); // Clear the existing groups
-    // Fetch group requests from the user data in singleton
-    print("TESTING: ${singleton.userData['group_invites']}");
-    if (singleton.userData['group_invites'] == null ||
-        singleton.userData['group_invites'].isEmpty) {
+    // Fetch group requests from the user data in provider
+    print("TESTING: ${provider.userData?['group_invites']}");
+    if (provider.userData?['group_invites'] == null ||
+        provider.userData!['group_invites'].isEmpty) {
       return;
     }
-    singleton.userData['group_invites'].forEach((key, value) {
+    provider.userData!['group_invites'].forEach((key, value) {
       groups.add(GroupCard(
           name: value, groupID: key, type: GroupCardType.notification));
     });
@@ -38,7 +38,8 @@ class _GroupScreenState extends State<GroupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    getGroupRequests(); // Fetch group requests when building the widget
+    final provider = Provider.of<UserProvider>(context, listen: false);
+    getGroupRequests(provider); // Fetch group requests when building the widget
     return Scaffold(
         appBar: AppBar(
           title: Text('Manage Groups',
