@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/services/streams.dart';
@@ -16,6 +17,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   List<GroupCard> searchedGroups = [];
   List<GroupCard> pendingGroups = [];
   String? userSchool;
+  bool isLoadingGroups = true;
+  bool isLoadingPending = true;
 
   @override
   void initState() {
@@ -48,6 +51,10 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     if (userSchool == null) return;
 
     try {
+      setState(() {
+        isLoadingGroups = true;
+      });
+
       searchedGroups.clear();
 
       // Get user data for group_requests
@@ -79,10 +86,16 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       if (mounted) {
         setState(() {
           searchedGroups = fetchedGroups;
+          isLoadingGroups = false;
         });
       }
     } catch (e) {
       print('Error loading groups: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingGroups = false;
+        });
+      }
     }
   }
 
@@ -102,6 +115,10 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
 
   Future<void> getGroupRequests() async {
     try {
+      setState(() {
+        isLoadingPending = true;
+      });
+
       pendingGroups.clear();
 
       // Fetch group requests from the user data
@@ -129,62 +146,236 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           });
         }
       }
+
+      if (mounted) {
+        setState(() {
+          isLoadingPending = false;
+        });
+      }
     } catch (e) {
       print('Error loading group requests: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingPending = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    SizeConfig().init(context);
+
     return Scaffold(
-        appBar: AppBar(
-          title: Text("Join Group"),
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        elevation: 0,
+        title: Text(
+          'Join Group',
+          style: GoogleFonts.poppins(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
-        body: Center(
-          child: SingleChildScrollView(
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
             child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Search Field
+                Text(
+                  'Search Groups',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  onChanged: (value) {
+                    search(value);
+                  },
+                  style: GoogleFonts.poppins(),
+                  decoration: InputDecoration(
+                    hintText: 'Search for a group to join...',
+                    hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.blue, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Available Groups Section
+                Text(
+                  'Available Groups',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[300]!),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  height: SizeConfig.blockSizeVertical! * 35,
+                  child: isLoadingGroups
+                      ? const Center(child: CircularProgressIndicator())
+                      : searchedGroups.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.groups_outlined,
+                                    size: 64,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No Groups Found',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try searching for a different group',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: searchedGroups.length,
+                              separatorBuilder: (context, index) => const Divider(height: 1),
+                              itemBuilder: (context, index) => searchedGroups[index],
+                            ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Pending Requests Section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    SizedBox(
-                      width: SizeConfig.blockSizeHorizontal! * 80,
-                      child: TextField(
-                        onChanged: (value) {
-                          search(value);
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Search for Group to join',
-                        ),
+                    Text(
+                      'Pending Requests',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
                       ),
                     ),
-                    SizedBox(
-                        width: SizeConfig.blockSizeHorizontal! * 80,
-                        height: SizeConfig.blockSizeVertical! * 30,
-                        child: Card(
-                            color: Colors.blue,
-                            child: ListView.builder(
-                                itemCount: searchedGroups.length,
-                                itemBuilder: (context, index) =>
-                                    searchedGroups[index]))),
-                    SizedBox(
-                      height: SizeConfig.blockSizeVertical! * 2,
-                    ),
-                    Text("Pending Group Invites you sent"),
-                    SizedBox(
-                        width: SizeConfig.blockSizeHorizontal! * 80,
-                        height: SizeConfig.blockSizeVertical! * 30,
-                        child: Card(
-                            color: Colors.blue,
-                            child: ListView.builder(
-                                itemCount: pendingGroups.length,
-                                itemBuilder: (context, index) =>
-                                    pendingGroups[index]))),
-                    SizedBox(
-                      height: SizeConfig.blockSizeVertical! * 2,
-                    ),
+                    if (pendingGroups.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${pendingGroups.length}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[300]!),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  height: SizeConfig.blockSizeVertical! * 25,
+                  child: isLoadingPending
+                      ? const Center(child: CircularProgressIndicator())
+                      : pendingGroups.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.pending_outlined,
+                                    size: 48,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No Pending Requests',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: pendingGroups.length,
+                              separatorBuilder: (context, index) => const Divider(height: 1),
+                              itemBuilder: (context, index) => pendingGroups[index],
+                            ),
+                ),
+              ],
+            ),
           ),
-        ));
+        ),
+      ),
+    );
   }
 }

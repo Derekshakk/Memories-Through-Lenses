@@ -201,7 +201,7 @@ class _PostCardState extends State<PostCard> {
             width: SizeConfig.blockSizeHorizontal! * 90,
             height: SizeConfig.blockSizeHorizontal! * 90,
             child: Card(
-              color: Colors.blue,
+              color: Colors.blueGrey[50],
               child: Stack(
                 children: [
                   ClipRRect(
@@ -226,8 +226,8 @@ class _PostCardState extends State<PostCard> {
                             child: Image.network(
                               widget.mediaURL,
                               width: double.infinity,
-                              height: double.infinity,
-                              fit: BoxFit.cover,
+                              height: MediaQuery.of(context).size.height*0.4,
+                              fit: BoxFit.fitHeight,
                               errorBuilder: (BuildContext context, Object error,
                                   StackTrace? stackTrace) {
                                 return const Center(

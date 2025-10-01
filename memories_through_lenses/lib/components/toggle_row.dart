@@ -16,11 +16,16 @@ class ToggleRow extends StatefulWidget {
 }
 
 class _ToggleRowState extends State<ToggleRow> {
-  bool isSwitched = false;
+  late bool isSwitched;
+
+  @override
+  void initState() {
+    super.initState();
+    isSwitched = widget.initialValue;
+  }
 
   @override
   Widget build(BuildContext context) {
-    isSwitched = widget.initialValue;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

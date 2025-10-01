@@ -24,26 +24,50 @@ class _CameraScreenState extends State<CameraScreen> {
   bool isPlaying = false;
   XFile? imageFile;
   String cameraMode = "photo";
+  String? _errorMessage;
+  bool _isInitializing = true;
 
   int _selectedCameraIndex = 0;
 
   Future<void> initCamera() async {
-    cameras = await availableCameras();
-    if (kDebugMode) print(cameras);
+    try {
+      setState(() {
+        _isInitializing = true;
+        _errorMessage = null;
+      });
 
-    if (cameras.isEmpty) {
-      if (kDebugMode) print("No cameras found");
-      return;
-    }
+      cameras = await availableCameras();
+      if (kDebugMode) print(cameras);
 
-    controller = CameraController(cameras[0], ResolutionPreset.high);
-    controller!.initialize().then((_) {
-      if (!mounted) {
+      if (cameras.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = "No cameras found on this device";
+            _isInitializing = false;
+          });
+        }
         return;
       }
-      setState(() {});
-    });
-    await controller!.lockCaptureOrientation();
+
+      controller = CameraController(cameras[0], ResolutionPreset.high);
+      await controller!.initialize();
+
+      if (!mounted) return;
+
+      await controller!.lockCaptureOrientation();
+
+      setState(() {
+        _isInitializing = false;
+      });
+    } catch (e) {
+      if (kDebugMode) print("Camera initialization error: $e");
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Camera access denied or unavailable. Please grant camera permission in settings.";
+          _isInitializing = false;
+        });
+      }
+    }
   }
 
   // Method to switch between cameras.
@@ -79,24 +103,68 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
+    SizeConfig().init(context);
+
     return Scaffold(
       body: (videoFile == null)
           ? Stack(
               children: [
-                (controller != null)
-                    ? SizedBox(
-                        width: SizeConfig.blockSizeHorizontal! * 100,
-                        height: SizeConfig.blockSizeVertical! * 100,
-                        child: AspectRatio(
-                            aspectRatio: controller!.value.aspectRatio,
-                            child: CameraPreview(controller!)))
-                    : Container(
-                        color: Colors.black,
-                        width: SizeConfig.blockSizeHorizontal! * 100,
-                        height: SizeConfig.blockSizeVertical! * 100,
-                        child: const Center(
-                          child: CircularProgressIndicator(),
-                        )),
+                if (_errorMessage != null)
+                  Container(
+                    color: Colors.black,
+                    width: SizeConfig.blockSizeHorizontal! * 100,
+                    height: SizeConfig.blockSizeVertical! * 100,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.camera_alt_outlined,
+                              size: 80,
+                              color: Colors.white54,
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Go Back'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else if (controller != null && controller!.value.isInitialized)
+                  SizedBox(
+                      width: SizeConfig.blockSizeHorizontal! * 100,
+                      height: SizeConfig.blockSizeVertical! * 100,
+                      child: AspectRatio(
+                          aspectRatio: controller!.value.aspectRatio,
+                          child: CameraPreview(controller!)))
+                else
+                  Container(
+                      color: Colors.black,
+                      width: SizeConfig.blockSizeHorizontal! * 100,
+                      height: SizeConfig.blockSizeVertical! * 100,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )),
                 // back button in the top-left corner.
                 Positioned(
                   top: SizeConfig.blockSizeVertical! * 5,

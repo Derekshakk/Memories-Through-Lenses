@@ -138,8 +138,8 @@ class _CommentScreenState extends State<CommentScreen> {
                       ? Image.network(
                           widget.mediaURL,
                           width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
+                          height: MediaQuery.of(context).size.height * 0.4,
+                          fit: BoxFit.fitHeight,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: Colors.grey[300],

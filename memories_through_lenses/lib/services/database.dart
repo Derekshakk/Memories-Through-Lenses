@@ -53,7 +53,57 @@ class Database {
         {'name': name, 'description': description, 'private': isPrivate});
   }
 
-  Future<void> deleteGroup() async {}
+  Future<void> deleteGroup(String groupId) async {
+    try {
+      // Get the group data first to find all members
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+
+      if (!groupDoc.exists) {
+        print('Group does not exist');
+        return;
+      }
+
+      final groupData = groupDoc.data();
+      final List<dynamic> members = groupData?['members'] ?? [];
+
+      // Remove group from all members' groups array
+      for (String memberId in members) {
+        await _firestore.collection('users').doc(memberId).update({
+          'groups': FieldValue.arrayRemove([groupId])
+        });
+      }
+
+      // Delete all posts in this group
+      final postsSnapshot = await _firestore
+          .collection('posts')
+          .where('group', isEqualTo: groupId)
+          .get();
+
+      for (var postDoc in postsSnapshot.docs) {
+        // Delete all comments in each post
+        final commentsSnapshot = await _firestore
+            .collection('posts')
+            .doc(postDoc.id)
+            .collection('comments')
+            .get();
+
+        for (var commentDoc in commentsSnapshot.docs) {
+          await commentDoc.reference.delete();
+        }
+
+        // Delete the post
+        await postDoc.reference.delete();
+      }
+
+      // Finally, delete the group document
+      await _firestore.collection('groups').doc(groupId).delete();
+
+      print('Group deleted successfully');
+    } catch (e) {
+      print('Error deleting group: $e');
+      rethrow;
+    }
+  }
 
   Future<void> leaveGroup() async {}
 

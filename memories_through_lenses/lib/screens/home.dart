@@ -430,11 +430,12 @@ class _HomePageState extends State<HomePage> {
                                       fontSize: 20, color: Colors.white),
                                   onPressed: () async {
                                     try {
+                                      // Clear provider data first
+                                      final provider = Provider.of<UserProvider>(context, listen: false);
+                                      provider.clear();
+
+                                      // Then logout - StreamBuilder will handle navigation
                                       await Auth().logout();
-                                      if (mounted) {
-                                        Navigator.pushReplacementNamed(
-                                            context, '/');
-                                      }
                                     } catch (e) {
                                       print('Error during logout: $e');
                                       if (mounted) {
