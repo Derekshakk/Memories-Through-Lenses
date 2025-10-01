@@ -55,7 +55,7 @@ class Database {
 
   Future<void> deleteGroup(String groupId) async {
     try {
-      // Get the group data first to find all members
+      // Get the group data first to find all members and invites
       final groupDoc = await _firestore.collection('groups').doc(groupId).get();
 
       if (!groupDoc.exists) {
@@ -65,6 +65,7 @@ class Database {
 
       final groupData = groupDoc.data();
       final List<dynamic> members = groupData?['members'] ?? [];
+      final List<dynamic> joinRequests = groupData?['join_requests'] ?? [];
 
       // Remove group from all members' groups array
       for (String memberId in members) {
@@ -73,10 +74,29 @@ class Database {
         });
       }
 
+      // Remove group invites from users who were invited
+      final usersSnapshot = await _firestore
+          .collection('users')
+          .where('group_invites.$groupId', isNull: false)
+          .get();
+
+      for (var userDoc in usersSnapshot.docs) {
+        await _firestore.collection('users').doc(userDoc.id).update({
+          'group_invites.$groupId': FieldValue.delete()
+        });
+      }
+
+      // Remove group from users who sent join requests
+      for (String userId in joinRequests) {
+        await _firestore.collection('users').doc(userId).update({
+          'group_requests': FieldValue.arrayRemove([groupId])
+        });
+      }
+
       // Delete all posts in this group
       final postsSnapshot = await _firestore
           .collection('posts')
-          .where('group', isEqualTo: groupId)
+          .where('group_id', isEqualTo: groupId)
           .get();
 
       for (var postDoc in postsSnapshot.docs) {
@@ -306,17 +326,262 @@ class Database {
   }
 
   Future<void> reportPost(String postId, String postCreator) async {
-    _firestore.collection('reports').add({
-      'post_id': postId,
-      'post_creator': postCreator,
-      'user_id': _auth.user!.uid,
-      'created_at': DateTime.now()
-    });
+    try {
+      // Get the post to find the group_id
+      final postDoc = await _firestore.collection('posts').doc(postId).get();
+      final groupId = postDoc.data()?['group_id'] ?? '';
 
-    // record the post in the user's reported posts
-    _firestore.collection('users').doc(_auth.user!.uid).update({
-      'reported_posts': FieldValue.arrayUnion([postId])
-    });
+      await _firestore.collection('reports').add({
+        'post_id': postId,
+        'post_creator': postCreator,
+        'group_id': groupId,
+        'reporter_id': _auth.user!.uid,
+        'created_at': Timestamp.now(),
+        'status': 'pending', // pending, approved, rejected
+      });
+
+      // record the post in the user's reported posts
+      await _firestore.collection('users').doc(_auth.user!.uid).update({
+        'reported_posts': FieldValue.arrayUnion([postId])
+      });
+    } catch (e) {
+      print('Error reporting post: $e');
+      rethrow;
+    }
+  }
+
+  // Get reports for groups owned by the current user
+  Future<List<Map<String, dynamic>>> getReportsForMyGroups() async {
+    try {
+      print('Getting reports for my groups...');
+
+      // Get all groups owned by current user
+      final groupsSnapshot = await _firestore
+          .collection('groups')
+          .where('owner', isEqualTo: _auth.user!.uid)
+          .get();
+
+      List<String> myGroupIds = groupsSnapshot.docs.map((doc) => doc.id).toList();
+      print('Found ${myGroupIds.length} groups owned by user');
+
+      if (myGroupIds.isEmpty) {
+        return [];
+      }
+
+      // Get all pending reports for these groups (without orderBy to avoid index requirement)
+      final reportsSnapshot = await _firestore
+          .collection('reports')
+          .where('group_id', whereIn: myGroupIds)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      print('Found ${reportsSnapshot.docs.length} pending reports');
+
+      List<Map<String, dynamic>> reports = [];
+      for (var doc in reportsSnapshot.docs) {
+        Map<String, dynamic> report = doc.data();
+        report['id'] = doc.id;
+
+        // Get post details
+        final postDoc = await _firestore.collection('posts').doc(report['post_id']).get();
+        if (postDoc.exists) {
+          report['post_data'] = postDoc.data();
+        } else {
+          print('Post not found for report: ${doc.id}');
+        }
+
+        // Get reporter details
+        final reporterDoc = await _firestore.collection('users').doc(report['reporter_id']).get();
+        if (reporterDoc.exists) {
+          report['reporter_name'] = reporterDoc.data()?['name'] ?? 'Unknown';
+        } else {
+          report['reporter_name'] = 'Unknown';
+        }
+
+        reports.add(report);
+      }
+
+      // Sort by created_at descending (client-side)
+      reports.sort((a, b) {
+        final aTime = a['created_at'] as Timestamp?;
+        final bTime = b['created_at'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+
+      print('Returning ${reports.length} reports');
+      return reports;
+    } catch (e) {
+      print('Error getting reports: $e');
+      return [];
+    }
+  }
+
+  // Approve report and delete the post
+  Future<void> approveReport(String reportId, String postId) async {
+    try {
+      // Update report status
+      await _firestore.collection('reports').doc(reportId).update({
+        'status': 'approved',
+        'reviewed_at': DateTime.now(),
+        'reviewed_by': _auth.user!.uid,
+      });
+
+      // Delete the post and its comments
+      final commentsSnapshot = await _firestore
+          .collection('posts')
+          .doc(postId)
+          .collection('comments')
+          .get();
+
+      for (var commentDoc in commentsSnapshot.docs) {
+        await commentDoc.reference.delete();
+      }
+
+      await _firestore.collection('posts').doc(postId).delete();
+    } catch (e) {
+      print('Error approving report: $e');
+      rethrow;
+    }
+  }
+
+  // Reject report and keep the post
+  Future<void> rejectReport(String reportId) async {
+    try {
+      print('Rejecting report: $reportId');
+
+      // Get the report to find the reporter and post
+      final reportDoc = await _firestore.collection('reports').doc(reportId).get();
+      final reportData = reportDoc.data();
+
+      if (reportData != null) {
+        final postId = reportData['post_id'];
+        print('Post ID: $postId');
+
+        // Get all users who have this post in their reported_posts list
+        final usersSnapshot = await _firestore
+            .collection('users')
+            .where('reported_posts', arrayContains: postId)
+            .get();
+
+        print('Found ${usersSnapshot.docs.length} users with this post in reported_posts');
+
+        // Remove post from all these users' reported_posts lists
+        for (var userDoc in usersSnapshot.docs) {
+          print('Removing post from user: ${userDoc.id}');
+          await _firestore.collection('users').doc(userDoc.id).update({
+            'reported_posts': FieldValue.arrayRemove([postId])
+          });
+        }
+      }
+
+      // Update report status
+      await _firestore.collection('reports').doc(reportId).update({
+        'status': 'rejected',
+        'reviewed_at': Timestamp.now(),
+        'reviewed_by': _auth.user!.uid,
+      });
+
+      print('Report rejected successfully');
+    } catch (e) {
+      print('Error rejecting report: $e');
+      rethrow;
+    }
+  }
+
+  // Get join requests for groups owned by current user
+  Future<List<Map<String, dynamic>>> getJoinRequestsForMyGroups() async {
+    try {
+      final currentUserId = _auth.user?.uid;
+      if (currentUserId == null) {
+        print('getJoinRequestsForMyGroups: No current user');
+        return [];
+      }
+
+      print('========== JOIN REQUESTS DEBUG ==========');
+      print('Current User ID: $currentUserId');
+
+      // Get all groups owned by current user
+      final groupsSnapshot = await _firestore
+          .collection('groups')
+          .where('owner', isEqualTo: currentUserId)
+          .get();
+
+      print('Found ${groupsSnapshot.docs.length} groups owned by current user');
+
+      List<Map<String, dynamic>> allRequests = [];
+
+      // For each group, get the join requests
+      for (var groupDoc in groupsSnapshot.docs) {
+        final groupData = groupDoc.data();
+        final joinRequests = groupData['join_requests'] as List<dynamic>? ?? [];
+
+        print('Group: ${groupData['name']} (${groupDoc.id})');
+        print('  Join requests: $joinRequests');
+
+        // For each user in join_requests, get their info
+        for (var userId in joinRequests) {
+          print('  Fetching user data for: $userId');
+          final userDoc = await _firestore.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            allRequests.add({
+              'user_id': userId,
+              'user_name': userData?['name'] ?? 'Unknown User',
+              'user_email': userData?['email'] ?? '',
+              'profile_image': userData?['profile_image'],
+              'group_id': groupDoc.id,
+              'group_name': groupData['name'] ?? 'Unknown Group',
+            });
+            print('  Added request from: ${userData?['name']}');
+          }
+        }
+      }
+
+      print('Total join requests found: ${allRequests.length}');
+      return allRequests;
+    } catch (e) {
+      print('Error getting join requests: $e');
+      return [];
+    }
+  }
+
+  // Approve a join request
+  Future<void> approveJoinRequest(String userId, String groupId) async {
+    try {
+      // Add user to group members
+      await _firestore.collection('groups').doc(groupId).update({
+        'members': FieldValue.arrayUnion([userId]),
+        'join_requests': FieldValue.arrayRemove([userId]),
+      });
+
+      // Add group to user's groups
+      await _firestore.collection('users').doc(userId).update({
+        'groups': FieldValue.arrayUnion([groupId]),
+        'group_requests': FieldValue.arrayRemove([groupId]),
+      });
+    } catch (e) {
+      print('Error approving join request: $e');
+      rethrow;
+    }
+  }
+
+  // Reject a join request
+  Future<void> rejectJoinRequest(String userId, String groupId) async {
+    try {
+      // Remove user from group's join_requests
+      await _firestore.collection('groups').doc(groupId).update({
+        'join_requests': FieldValue.arrayRemove([userId]),
+      });
+
+      // Remove group from user's group_requests
+      await _firestore.collection('users').doc(userId).update({
+        'group_requests': FieldValue.arrayRemove([groupId]),
+      });
+    } catch (e) {
+      print('Error rejecting join request: $e');
+      rethrow;
+    }
   }
 
   // create a comment on a post

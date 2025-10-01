@@ -40,10 +40,29 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         });
         if (userSchool != null) {
           getGroupsCollection();
+        } else {
+          // No school assigned, stop loading
+          if (mounted) {
+            setState(() {
+              isLoadingGroups = false;
+            });
+          }
+        }
+      } else {
+        // User doc doesn't exist, stop loading
+        if (mounted) {
+          setState(() {
+            isLoadingGroups = false;
+          });
         }
       }
     } catch (e) {
       print('Error loading user school: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingGroups = false;
+        });
+      }
     }
   }
 

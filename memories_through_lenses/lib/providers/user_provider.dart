@@ -23,6 +23,9 @@ class UserProvider extends ChangeNotifier {
       final uid = Auth().user?.uid;
       if (uid == null) return;
 
+      print('========== USERPROVIDER DEBUG ==========');
+      print('Loading user data for UID: $uid');
+
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -30,7 +33,10 @@ class UserProvider extends ChangeNotifier {
 
       if (userDoc.exists) {
         _userData = userDoc.data();
+        print('User data loaded successfully');
+        print('Reported posts: ${_userData?['reported_posts']}');
         notifyListeners();
+        print('notifyListeners() called');
       }
     } catch (e) {
       debugPrint('Error loading user data: $e');

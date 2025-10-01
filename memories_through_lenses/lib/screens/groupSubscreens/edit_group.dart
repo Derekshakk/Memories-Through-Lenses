@@ -10,8 +10,9 @@ import 'package:memories_through_lenses/size_config.dart';
 class User {
   final String name;
   final String uid;
+  final String? profileImage;
 
-  User({required this.name, required this.uid});
+  User({required this.name, required this.uid, this.profileImage});
 }
 
 class Group {
@@ -46,35 +47,65 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
   bool isPrivate = false;
   String? currentGroup;
   String? currentGroupName;
+  bool isLoadingMembers = false;
 
   @override
   void initState() {
     super.initState();
-    loadData();
+    loadGroups();
   }
 
-  Future<void> loadData() async {
-    await Future.wait([loadFriends(), loadGroups()]);
-  }
+  Future<void> loadGroupMembers(String groupId) async {
+    setState(() {
+      isLoadingMembers = true;
+      users.clear();
+    });
 
-  Future<void> loadFriends() async {
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(Auth().user!.uid)
+      // Get the group document
+      final groupDoc = await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(groupId)
           .get();
 
-      if (userDoc.exists && mounted) {
-        Map<String, dynamic> friends = userDoc.data()?['friends'] ?? {};
-        setState(() {
-          users.clear();
-          for (var key in friends.keys) {
-            users.add(User(name: friends[key]['name'], uid: key));
+      if (groupDoc.exists && mounted) {
+        List<dynamic> memberIds = groupDoc.data()?['members'] ?? [];
+        String ownerId = groupDoc.data()?['owner'] ?? '';
+
+        print('Loading ${memberIds.length} members for group $groupId');
+
+        // Fetch each member's data (excluding the owner)
+        for (var memberId in memberIds) {
+          // Skip the owner
+          if (memberId == ownerId) {
+            continue;
           }
-        });
+
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(memberId)
+              .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            setState(() {
+              users.add(User(
+                name: userData?['name'] ?? 'Unknown User',
+                uid: memberId,
+                profileImage: userData?['profile_image'],
+              ));
+            });
+          }
+        }
       }
     } catch (e) {
-      print('Error loading friends: $e');
+      print('Error loading group members: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingMembers = false;
+        });
+      }
     }
   }
 
@@ -173,7 +204,7 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                             ),
                           );
                         }).toList(),
-                        onChanged: (value) {
+                        onChanged: (value) async {
                           setState(() {
                             currentGroup = value.toString();
                             for (Group group in groups) {
@@ -187,6 +218,10 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                               }
                             }
                           });
+                          // Load members for the selected group
+                          if (value != null) {
+                            await loadGroupMembers(value);
+                          }
                         },
                       ),
                     ),
@@ -298,24 +333,26 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                         ],
                       ),
                       height: SizeConfig.blockSizeVertical! * 35,
-                      child: users.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'No friends to add',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                    ),
+                      child: isLoadingMembers
+                          ? const Center(child: CircularProgressIndicator())
+                          : users.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No members in this group',
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.grey[600],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
+                                )
+                              : ListView.builder(
                               padding: const EdgeInsets.all(8),
                               itemCount: users.length,
                               itemBuilder: (context, index) {
@@ -325,6 +362,7 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                                   groupID: currentGroup!,
                                   groupName: currentGroupName!,
                                   mode: 'edit',
+                                  profileImage: users[index].profileImage,
                                 );
                               },
                             ),

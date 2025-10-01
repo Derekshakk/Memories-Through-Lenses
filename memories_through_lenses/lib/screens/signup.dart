@@ -144,7 +144,7 @@ class _SignupPageState extends State<SignupPage> {
         _emailController.text.trim(),
         _passwordController.text,
         "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}",
-        "Sage Hill School",
+        "bkuv1JQ2R3HSkfs2Aotg",
       );
 
       if (!mounted) return;

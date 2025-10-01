@@ -180,11 +180,19 @@ class _HomePageState extends State<HomePage> {
       List<dynamic> blockedPosts = userData?['reported_posts'] ?? [];
       String currentUserId = Auth().user?.uid ?? '';
 
+      print('========== HOME SCREEN DEBUG ==========');
+      print('Current User ID: $currentUserId');
+      print('Blocked Posts (reported_posts): $blockedPosts');
+      print('Total posts from database: ${value.length}');
+
       for (var element in value) {
+        print('Checking post: ${element['id']}');
         if (blockedUsers.contains(element['user_id']) ||
             blockedPosts.contains(element['id'])) {
+          print('  -> BLOCKED (reported or user blocked)');
           continue;
         }
+        print('  -> ADDED to feed');
 
         String userOpinion = "none";
         if (element['likes']?.contains(currentUserId) ?? false) {
@@ -257,6 +265,16 @@ class _HomePageState extends State<HomePage> {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: AppStreams.userDataStream,
       builder: (context, userSnapshot) {
+        // Check if user is authenticated
+        if (Auth().user == null) {
+          // User logged out, return empty container while auth state changes
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         // Get user data from stream
         Map<String, dynamic>? userData;
         if (userSnapshot.hasData && userSnapshot.data!.exists) {

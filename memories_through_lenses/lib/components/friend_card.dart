@@ -15,8 +15,8 @@ enum FriendCardType {
   addFriend,
 }
 
-class FriendCard extends StatelessWidget {
-  FriendCard(
+class FriendCard extends StatefulWidget {
+  const FriendCard(
       {super.key,
       required this.type,
       required this.name,
@@ -27,6 +27,47 @@ class FriendCard extends StatelessWidget {
   final String name;
   final String uid;
   final Function onPressed;
+
+  @override
+  State<FriendCard> createState() => _FriendCardState();
+}
+
+class _FriendCardState extends State<FriendCard> {
+  String? _profileImage;
+  String? _currentName;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        final userData = userDoc.data();
+        setState(() {
+          _profileImage = userData?['profile_image'];
+          _currentName = userData?['name'] ?? widget.name;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+      if (mounted) {
+        setState(() {
+          _currentName = widget.name;
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,26 +81,32 @@ class FriendCard extends StatelessWidget {
           SizedBox(
             width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
             height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
-            child: ElevatedButton(
-                onPressed: () {},
-                style: ButtonStyle(
-                  padding: WidgetStateProperty.all(EdgeInsets.zero),
-                  backgroundColor: WidgetStateProperty.all(Colors.grey),
-                  shape: WidgetStateProperty.all(const CircleBorder()),
-                ),
-                child: const Icon(Icons.person, color: Colors.white)),
+            child: CircleAvatar(
+              radius: min(SizeConfig.blockSizeHorizontal! * 5, 37.5),
+              backgroundColor: Colors.grey[300],
+              backgroundImage: _profileImage != null
+                  ? NetworkImage(_profileImage!)
+                  : null,
+              child: _profileImage == null
+                  ? Icon(Icons.person, color: Colors.grey[600])
+                  : null,
+            ),
           ),
           SizedBox(width: SizeConfig.blockSizeHorizontal! * 2),
-          Expanded(child: Text(name, style: const TextStyle(fontSize: 20))),
+          Expanded(
+            child: _isLoading
+                ? const Text('Loading...', style: TextStyle(fontSize: 20))
+                : Text(_currentName ?? widget.name, style: const TextStyle(fontSize: 20)),
+          ),
 
-          if (type == FriendCardType.request)
+          if (widget.type == FriendCardType.request)
             SizedBox(
               width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
               height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
               child: ElevatedButton(
                   onPressed: () {
                     // determine database path depending on type
-                    String path = (type == FriendCardType.request)
+                    String path = (widget.type == FriendCardType.request)
                         ? 'friend_requests'
                         : 'friends';
 
@@ -68,12 +115,12 @@ class FriendCard extends StatelessWidget {
                         .collection('users')
                         .doc(Auth().user!.uid)
                         .update({
-                      '$path.$uid': FieldValue.delete(),
+                      '$path.${widget.uid}': FieldValue.delete(),
                     }).catchError((error) {
                       print('Failed to delete friend request: $error');
                     }).then((value) {
-                      Database().blockUser(uid).then((value) {
-                        onPressed();
+                      Database().blockUser(widget.uid).then((value) {
+                        widget.onPressed();
                       });
                     });
                   },
@@ -89,15 +136,15 @@ class FriendCard extends StatelessWidget {
 
           // ternary expression
           // (expression) ? (if true) : (if false)
-          (type != FriendCardType.sentRequest &&
-                  type != FriendCardType.addFriend)
+          (widget.type != FriendCardType.sentRequest &&
+                  widget.type != FriendCardType.addFriend)
               ? SizedBox(
                   width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   child: ElevatedButton(
                       onPressed: () {
                         // determine database path depending on type
-                        String path = (type == FriendCardType.request)
+                        String path = (widget.type == FriendCardType.request)
                             ? 'friend_requests'
                             : 'friends';
 
@@ -106,11 +153,11 @@ class FriendCard extends StatelessWidget {
                             .collection('users')
                             .doc(Auth().user!.uid)
                             .update({
-                          '$path.$uid': FieldValue.delete(),
+                          '$path.${widget.uid}': FieldValue.delete(),
                         }).catchError((error) {
                           print('Failed to delete friend request: $error');
                         }).then((value) {
-                          onPressed();
+                          widget.onPressed();
                         });
                       },
                       style: ButtonStyle(
@@ -121,7 +168,7 @@ class FriendCard extends StatelessWidget {
                       child: const Icon(Icons.cancel, color: Colors.white)),
                 )
               : Container(),
-          (type == FriendCardType.addFriend)
+          (widget.type == FriendCardType.addFriend)
               ? SizedBox(
                   width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
@@ -132,14 +179,14 @@ class FriendCard extends StatelessWidget {
                             .collection('users')
                             .doc(Auth().user!.uid)
                             .update({
-                          'outgoing_requests.$uid': {'name': name},
+                          'outgoing_requests.${widget.uid}': {'name': _currentName ?? widget.name},
                         }).catchError((error) {
                           print('Failed to add friend request: $error');
                         }).then((value) {
                           // write request on receiver's side
                           FirebaseFirestore.instance
                               .collection('users')
-                              .doc(uid)
+                              .doc(widget.uid)
                               .update({
                             'friend_requests.${Auth().user!.uid}': {
                               'name': provider.userData?['name'] ?? ''
@@ -147,7 +194,7 @@ class FriendCard extends StatelessWidget {
                           }).catchError((error) {
                             print('Failed to add outgoing request: $error');
                           }).then((value) {
-                            onPressed();
+                            widget.onPressed();
                           });
                         });
                       },
@@ -159,12 +206,12 @@ class FriendCard extends StatelessWidget {
                       child: const Icon(Icons.person_add, color: Colors.white)),
                 )
               : Container(),
-          (type != FriendCardType.currentFriend &&
-                  type != FriendCardType.addFriend)
+          (widget.type != FriendCardType.currentFriend &&
+                  widget.type != FriendCardType.addFriend)
               ? SizedBox(width: SizeConfig.blockSizeHorizontal! * 2)
               : Container(),
-          (type != FriendCardType.currentFriend &&
-                  type != FriendCardType.addFriend)
+          (widget.type != FriendCardType.currentFriend &&
+                  widget.type != FriendCardType.addFriend)
               ? SizedBox(
                   width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
@@ -175,15 +222,15 @@ class FriendCard extends StatelessWidget {
                             .collection('users')
                             .doc(Auth().user!.uid)
                             .update({
-                          'friends.$uid': {'name': name},
-                          'friend_requests.$uid': FieldValue.delete(),
+                          'friends.${widget.uid}': {'name': _currentName ?? widget.name},
+                          'friend_requests.${widget.uid}': FieldValue.delete(),
                         }).catchError((error) {
                           print('Failed to add friend: $error');
                         }).then((value) {
                           // add user as friend of value Auth().user!.uid at users/$uid/friends/Auth().user!.uid
                           FirebaseFirestore.instance
                               .collection('users')
-                              .doc(uid)
+                              .doc(widget.uid)
                               .update({
                             'friends.${Auth().user!.uid}': {
                               'name': provider.userData?['name'] ?? ''
@@ -193,7 +240,7 @@ class FriendCard extends StatelessWidget {
                           }).catchError((error) {
                             print('Failed to add friend: $error');
                           }).then((value) {
-                            onPressed();
+                            widget.onPressed();
                           });
                         });
                       },

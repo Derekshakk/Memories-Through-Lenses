@@ -9,7 +9,8 @@ class AppStreams {
   static Stream<DocumentSnapshot<Map<String, dynamic>>> get userDataStream {
     final uid = Auth().user?.uid;
     if (uid == null) {
-      throw Exception('User not authenticated');
+      // Return an empty stream instead of throwing exception
+      return Stream.empty();
     }
     return _firestore.collection('users').doc(uid).snapshots();
   }
@@ -18,7 +19,8 @@ class AppStreams {
   static Stream<QuerySnapshot<Map<String, dynamic>>> get userGroupsStream {
     final uid = Auth().user?.uid;
     if (uid == null) {
-      throw Exception('User not authenticated');
+      // Return an empty stream instead of throwing exception
+      return Stream.empty();
     }
     return _firestore
         .collection('groups')
@@ -68,7 +70,8 @@ class AppStreams {
   static Stream<DocumentSnapshot<Map<String, dynamic>>> get friendRequestsStream {
     final uid = Auth().user?.uid;
     if (uid == null) {
-      throw Exception('User not authenticated');
+      // Return an empty stream instead of throwing exception
+      return Stream.empty();
     }
     return _firestore.collection('users').doc(uid).snapshots();
   }
@@ -87,7 +90,8 @@ class AppStreams {
   static Stream<QuerySnapshot<Map<String, dynamic>>> get ownedGroupsStream {
     final uid = Auth().user?.uid;
     if (uid == null) {
-      throw Exception('User not authenticated');
+      // Return an empty stream instead of throwing exception
+      return Stream.empty();
     }
     return _firestore
         .collection('groups')

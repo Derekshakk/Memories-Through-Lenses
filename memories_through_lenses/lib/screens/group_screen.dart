@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:memories_through_lenses/services/database.dart';
 import 'package:provider/provider.dart';
 
 class GroupScreen extends StatefulWidget {
@@ -13,14 +14,102 @@ class GroupScreen extends StatefulWidget {
 }
 
 class _GroupScreenState extends State<GroupScreen> {
-  List<GroupCard> groups = [
-    GroupCard(name: 'Group 1', groupID: '1', type: GroupCardType.notification),
-    GroupCard(name: 'Group 2', groupID: '2', type: GroupCardType.notification),
-    GroupCard(
-        name: 'Group Derek', groupID: '3', type: GroupCardType.notification),
-    GroupCard(name: 'Group 4', groupID: '4', type: GroupCardType.notification),
-    GroupCard(name: 'Group 5', groupID: '5', type: GroupCardType.notification),
-  ];
+  List<GroupCard> groups = [];
+  List<Map<String, dynamic>> joinRequests = [];
+  bool isLoadingJoinRequests = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadJoinRequests();
+  }
+
+  Future<void> loadJoinRequests() async {
+    setState(() {
+      isLoadingJoinRequests = true;
+    });
+
+    try {
+      final requests = await Database().getJoinRequestsForMyGroups();
+      if (mounted) {
+        setState(() {
+          joinRequests = requests;
+          isLoadingJoinRequests = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading join requests: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingJoinRequests = false;
+        });
+      }
+    }
+  }
+
+  Future<void> handleApprove(String userId, String groupId, int index) async {
+    try {
+      await Database().approveJoinRequest(userId, groupId);
+      if (mounted) {
+        setState(() {
+          joinRequests.removeAt(index);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'User added to group!',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error approving request: ${e.toString()}',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> handleReject(String userId, String groupId, int index) async {
+    try {
+      await Database().rejectJoinRequest(userId, groupId);
+      if (mounted) {
+        setState(() {
+          joinRequests.removeAt(index);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Request rejected',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error rejecting request: ${e.toString()}',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   void getGroupRequests(UserProvider provider) {
     groups.clear(); // Clear the existing groups
@@ -103,6 +192,165 @@ class _GroupScreenState extends State<GroupScreen> {
                   description: 'Manage your existing groups',
                   color: Colors.orange,
                   onTap: () => Navigator.pushNamed(context, '/edit_group'),
+                ),
+                const SizedBox(height: 12),
+
+                _buildActionCard(
+                  context,
+                  icon: Icons.flag,
+                  title: 'Review Reports',
+                  description: 'Review reported posts in your groups',
+                  color: Colors.red,
+                  onTap: () => Navigator.pushNamed(context, '/review_reports'),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Join Requests Section (for group owners)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Join Requests',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    if (joinRequests.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${joinRequests.length}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[300]!),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  constraints: BoxConstraints(
+                    maxHeight: SizeConfig.blockSizeVertical! * 40,
+                  ),
+                  child: isLoadingJoinRequests
+                      ? const Center(child: CircularProgressIndicator())
+                      : joinRequests.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.people_outline,
+                                      size: 64,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No Join Requests',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No one has requested to join your groups',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: loadJoinRequests,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.all(12),
+                                itemCount: joinRequests.length,
+                                separatorBuilder: (context, index) => const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final request = joinRequests[index];
+                                  return ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    leading: CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: Colors.grey[300],
+                                      backgroundImage: request['profile_image'] != null
+                                          ? NetworkImage(request['profile_image'])
+                                          : null,
+                                      child: request['profile_image'] == null
+                                          ? Icon(Icons.person, color: Colors.grey[600])
+                                          : null,
+                                    ),
+                                    title: Text(
+                                      request['user_name'],
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Wants to join ${request['group_name']}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                                          onPressed: () => handleApprove(
+                                            request['user_id'],
+                                            request['group_id'],
+                                            index,
+                                          ),
+                                          tooltip: 'Approve',
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.cancel, color: Colors.red),
+                                          onPressed: () => handleReject(
+                                            request['user_id'],
+                                            request['group_id'],
+                                            index,
+                                          ),
+                                          tooltip: 'Reject',
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                 ),
 
                 const SizedBox(height: 32),
