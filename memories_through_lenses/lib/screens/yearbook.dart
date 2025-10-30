@@ -16,7 +16,7 @@ class YearbookScreen extends StatefulWidget {
 
 class _YearbookScreenState extends State<YearbookScreen> {
   List<DropdownMenuItem> years = [];
-  String selectedYear = '2021';
+  String selectedYear = '2025';
   List<PostData> posts = [];
 
   @override
@@ -33,7 +33,7 @@ class _YearbookScreenState extends State<YearbookScreen> {
   List<DropdownMenuItem> getYears() {
     List<DropdownMenuItem> items = [];
     int currentYear = DateTime.now().year;
-    for (int i = 2021; i <= currentYear; i++) {
+    for (int i = 2024; i <= currentYear; i++) {
       items.add(DropdownMenuItem(
         value: i.toString(),
         child: Text(i.toString()),
