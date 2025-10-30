@@ -329,10 +329,14 @@ class _PostCardState extends State<PostCard> {
                             Icons.thumb_up,
                             color: Colors.white,
                           ),
-                          onPressed: () {
+                          onPressed: () async {
+                            // Store previous state for rollback on error
+                            final prevLikes = widget.likes;
+                            final prevDislikes = widget.dislikes;
+                            final prevOpinion = widget.userOpinion;
+
+                            // Optimistically update UI
                             setState(() {
-                              // widget.likes++;
-                              // if the user has already liked the post, then remove the like
                               if (widget.userOpinion == "like") {
                                 widget.likes--;
                                 widget.userOpinion = "none";
@@ -344,9 +348,28 @@ class _PostCardState extends State<PostCard> {
                                 widget.userOpinion = "like";
                                 widget.likes++;
                               }
-
-                              Database().likePost(widget.id);
                             });
+
+                            // Perform database operation
+                            try {
+                              await Database().likePost(widget.id);
+                            } catch (e) {
+                              print('Error liking post: $e');
+                              // Rollback UI on error
+                              if (mounted) {
+                                setState(() {
+                                  widget.likes = prevLikes;
+                                  widget.dislikes = prevDislikes;
+                                  widget.userOpinion = prevOpinion;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to like post. Please try again.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                       ),
@@ -370,11 +393,14 @@ class _PostCardState extends State<PostCard> {
                             Icons.thumb_down,
                             color: Colors.white,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              // widget.dislikes++;
+                          onPressed: () async {
+                            // Store previous state for rollback on error
+                            final prevLikes = widget.likes;
+                            final prevDislikes = widget.dislikes;
+                            final prevOpinion = widget.userOpinion;
 
-                              // if the user has already disliked the post, then remove the dislike
+                            // Optimistically update UI
+                            setState(() {
                               if (widget.userOpinion == "dislike") {
                                 widget.dislikes--;
                                 widget.userOpinion = "none";
@@ -386,9 +412,28 @@ class _PostCardState extends State<PostCard> {
                                 widget.userOpinion = "dislike";
                                 widget.dislikes++;
                               }
-
-                              Database().dislikePost(widget.id);
                             });
+
+                            // Perform database operation
+                            try {
+                              await Database().dislikePost(widget.id);
+                            } catch (e) {
+                              print('Error disliking post: $e');
+                              // Rollback UI on error
+                              if (mounted) {
+                                setState(() {
+                                  widget.likes = prevLikes;
+                                  widget.dislikes = prevDislikes;
+                                  widget.userOpinion = prevOpinion;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to dislike post. Please try again.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                       ),
@@ -516,7 +561,36 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                 child: const Text("Report"),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () async {
+                  setState(() {
+                    isReporting = true;
+                  });
+
+                  try {
+                    await Database().reportAndBlockUser(widget.postId, widget.postCreator);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('User blocked and post reported successfully'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      setState(() {
+                        isReporting = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error blocking user: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
                 child: const Text("Block User"),
               )
             ],

@@ -23,6 +23,7 @@ class CreateGroupScreen extends StatefulWidget {
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   List<User> users = [];
+  Set<String> selectedMembers = {};
   TextEditingController groupNameController = TextEditingController();
   TextEditingController groupDescriptionController = TextEditingController();
   bool isPrivate = false;
@@ -217,6 +218,15 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                           return GroupFriendCard(
                             name: users[index].name,
                             uid: users[index].uid,
+                            onSelectionChanged: (uid, selected) {
+                              setState(() {
+                                if (selected) {
+                                  selectedMembers.add(uid);
+                                } else {
+                                  selectedMembers.remove(uid);
+                                }
+                              });
+                            },
                           );
                         },
                       ),
@@ -235,6 +245,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 ),
                 child: ToggleRow(
                   title: 'Private Group',
+                  value: isPrivate,
                   onToggled: (value) {
                     setState(() {
                       isPrivate = value;
@@ -286,15 +297,19 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       return;
                     }
 
-                    // Check for duplicate group name
+                    // Check for duplicate group name (case-insensitive)
                     try {
                       final groupsSnapshot = await FirebaseFirestore.instance
                           .collection('groups')
-                          .where('name',
-                              isEqualTo: groupNameController.text.trim())
                           .get();
 
-                      if (groupsSnapshot.docs.isNotEmpty) {
+                      final groupName = groupNameController.text.trim().toLowerCase();
+                      bool nameExists = groupsSnapshot.docs.any((doc) {
+                        final existingName = (doc.data()['name'] as String? ?? '').toLowerCase();
+                        return existingName == groupName;
+                      });
+
+                      if (nameExists) {
                         if (mounted) {
                           showDialog(
                             context: context,
@@ -332,11 +347,25 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       }
 
                       // Create the group if no duplicate found
-                      await Database().createGroup(
-                        groupNameController.text,
-                        groupDescriptionController.text,
+                      final groupId = await Database().createGroup(
+                        groupNameController.text.trim(),
+                        groupDescriptionController.text.trim(),
                         isPrivate,
                       );
+
+                      // Send invites to selected members
+                      if (selectedMembers.isNotEmpty) {
+                        for (String memberId in selectedMembers) {
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(memberId)
+                              .update({
+                            'group_invites.$groupId': {
+                              'name': groupNameController.text.trim(),
+                            }
+                          });
+                        }
+                      }
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -351,7 +380,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         Navigator.pop(context);
                       }
                     } catch (e) {
-                      print('Error checking for duplicate group: $e');
+                      print('Error creating group: $e');
                       if (mounted) {
                         showDialog(
                           context: context,

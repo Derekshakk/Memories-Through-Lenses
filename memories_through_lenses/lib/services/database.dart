@@ -1,12 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:memories_through_lenses/services/auth.dart';
-import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 
 class Database {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,10 +28,10 @@ class Database {
     return result;
   }
 
-  Future<void> createGroup(
+  Future<String> createGroup(
       String name, String description, bool private) async {
     var ref = _firestore.collection('groups').doc();
-    ref.set({
+    await ref.set({
       'name': name,
       'description': description,
       'private': private,
@@ -39,12 +39,14 @@ class Database {
       'member_count': 1,
       'owner': _auth.user!.uid,
       'join_requests': [],
-      'school': _userProvider?.userData?['school'] ?? '',
+      'school': 'bkuv1JQ2R3HSkfs2Aotg',
     });
 
-    _firestore.collection('users').doc(_auth.user!.uid).update({
+    await _firestore.collection('users').doc(_auth.user!.uid).update({
       'groups': FieldValue.arrayUnion([ref.id])
     });
+
+    return ref.id;
   }
 
   Future<void> updateGroup(
@@ -81,9 +83,10 @@ class Database {
           .get();
 
       for (var userDoc in usersSnapshot.docs) {
-        await _firestore.collection('users').doc(userDoc.id).update({
-          'group_invites.$groupId': FieldValue.delete()
-        });
+        await _firestore
+            .collection('users')
+            .doc(userDoc.id)
+            .update({'group_invites.$groupId': FieldValue.delete()});
       }
 
       // Remove group from users who sent join requests
@@ -227,16 +230,16 @@ class Database {
     var post = await _firestore.collection('posts').doc(postId).get();
     var dislikes = post.data()!['dislikes'];
     if (dislikes.contains(_auth.user!.uid)) {
-      removeDislikePost(postId);
+      await removeDislikePost(postId);
     }
 
-    _firestore.collection('posts').doc(postId).update({
+    await _firestore.collection('posts').doc(postId).update({
       'likes': FieldValue.arrayUnion([_auth.user!.uid])
     });
   }
 
   Future<void> removeLikePost(String postId) async {
-    _firestore.collection('posts').doc(postId).update({
+    await _firestore.collection('posts').doc(postId).update({
       'likes': FieldValue.arrayRemove([_auth.user!.uid])
     });
   }
@@ -246,16 +249,16 @@ class Database {
     var post = await _firestore.collection('posts').doc(postId).get();
     var likes = post.data()!['likes'];
     if (likes.contains(_auth.user!.uid)) {
-      removeLikePost(postId);
+      await removeLikePost(postId);
     }
 
-    _firestore.collection('posts').doc(postId).update({
+    await _firestore.collection('posts').doc(postId).update({
       'dislikes': FieldValue.arrayUnion([_auth.user!.uid])
     });
   }
 
   Future<void> removeDislikePost(String postId) async {
-    _firestore.collection('posts').doc(postId).update({
+    await _firestore.collection('posts').doc(postId).update({
       'dislikes': FieldValue.arrayRemove([_auth.user!.uid])
     });
   }
@@ -311,7 +314,8 @@ class Database {
     // get every post in the posts collection whose id is in the yearbook array of the user's data from provider
     return _firestore
         .collection('posts')
-        .where(FieldPath.documentId, whereIn: _userProvider?.userData?['yearbook'] ?? [])
+        .where(FieldPath.documentId,
+            whereIn: _userProvider?.userData?['yearbook'] ?? [])
         .get()
         .then((value) {
       var posts_list = value.docs.map((e) => e.data()).toList();
@@ -361,7 +365,8 @@ class Database {
           .where('owner', isEqualTo: _auth.user!.uid)
           .get();
 
-      List<String> myGroupIds = groupsSnapshot.docs.map((doc) => doc.id).toList();
+      List<String> myGroupIds =
+          groupsSnapshot.docs.map((doc) => doc.id).toList();
       print('Found ${myGroupIds.length} groups owned by user');
 
       if (myGroupIds.isEmpty) {
@@ -383,7 +388,8 @@ class Database {
         report['id'] = doc.id;
 
         // Get post details
-        final postDoc = await _firestore.collection('posts').doc(report['post_id']).get();
+        final postDoc =
+            await _firestore.collection('posts').doc(report['post_id']).get();
         if (postDoc.exists) {
           report['post_data'] = postDoc.data();
         } else {
@@ -391,7 +397,10 @@ class Database {
         }
 
         // Get reporter details
-        final reporterDoc = await _firestore.collection('users').doc(report['reporter_id']).get();
+        final reporterDoc = await _firestore
+            .collection('users')
+            .doc(report['reporter_id'])
+            .get();
         if (reporterDoc.exists) {
           report['reporter_name'] = reporterDoc.data()?['name'] ?? 'Unknown';
         } else {
@@ -451,7 +460,8 @@ class Database {
       print('Rejecting report: $reportId');
 
       // Get the report to find the reporter and post
-      final reportDoc = await _firestore.collection('reports').doc(reportId).get();
+      final reportDoc =
+          await _firestore.collection('reports').doc(reportId).get();
       final reportData = reportDoc.data();
 
       if (reportData != null) {
@@ -464,7 +474,8 @@ class Database {
             .where('reported_posts', arrayContains: postId)
             .get();
 
-        print('Found ${usersSnapshot.docs.length} users with this post in reported_posts');
+        print(
+            'Found ${usersSnapshot.docs.length} users with this post in reported_posts');
 
         // Remove post from all these users' reported_posts lists
         for (var userDoc in usersSnapshot.docs) {
@@ -522,7 +533,8 @@ class Database {
         // For each user in join_requests, get their info
         for (var userId in joinRequests) {
           print('  Fetching user data for: $userId');
-          final userDoc = await _firestore.collection('users').doc(userId).get();
+          final userDoc =
+              await _firestore.collection('users').doc(userId).get();
           if (userDoc.exists) {
             final userData = userDoc.data();
             allRequests.add({

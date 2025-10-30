@@ -380,7 +380,7 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                       ),
                       child: ToggleRow(
                         title: 'Private Group',
-                        initialValue: isPrivate,
+                        value: isPrivate,
                         onToggled: (value) {
                           setState(() {
                             isPrivate = value;

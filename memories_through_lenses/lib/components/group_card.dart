@@ -184,13 +184,15 @@ class GroupFriendCard extends StatefulWidget {
       this.groupID = '',
       this.groupName = '',
       this.mode = 'create',
-      this.profileImage});
+      this.profileImage,
+      this.onSelectionChanged});
   final String name;
   final String uid;
   final String groupID;
   final String groupName;
   final String mode;
   final String? profileImage;
+  final Function(String uid, bool selected)? onSelectionChanged;
 
   @override
   State<GroupFriendCard> createState() => _GroupFriendCardState();
@@ -206,7 +208,10 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
           onTap: () {
             setState(() {
               _selected = !_selected;
-              // print(_selected);
+              // Notify parent of selection change
+              if (widget.onSelectionChanged != null) {
+                widget.onSelectionChanged!(widget.uid, _selected);
+              }
             });
           },
           child: Card(
@@ -240,12 +245,19 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                         height: SizeConfig.blockSizeHorizontal! * 10,
                         child: (widget.mode == 'create')
                             ? ElevatedButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  setState(() {
+                                    _selected = !_selected;
+                                    if (widget.onSelectionChanged != null) {
+                                      widget.onSelectionChanged!(widget.uid, _selected);
+                                    }
+                                  });
+                                },
                                 style: ButtonStyle(
                                   padding:
                                       WidgetStateProperty.all(EdgeInsets.zero),
                                   backgroundColor:
-                                      WidgetStateProperty.all(Colors.grey),
+                                      WidgetStateProperty.all(Colors.green),
                                   shape: WidgetStateProperty.all(
                                       const CircleBorder()),
                                 ),
@@ -258,7 +270,14 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                             width: SizeConfig.blockSizeHorizontal! * 10,
                             height: SizeConfig.blockSizeHorizontal! * 10,
                             child: ElevatedButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  setState(() {
+                                    _selected = !_selected;
+                                    if (widget.onSelectionChanged != null) {
+                                      widget.onSelectionChanged!(widget.uid, _selected);
+                                    }
+                                  });
+                                },
                                 style: ButtonStyle(
                                   padding:
                                       WidgetStateProperty.all(EdgeInsets.zero),

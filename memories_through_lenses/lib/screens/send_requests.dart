@@ -70,8 +70,12 @@ class _SentScreenState extends State<SentScreen> {
                   type: FriendCardType.sentRequest,
                   name: value['name'],
                   uid: key,
-                  onPressed: () {
-                    setState(() {});
+                  onPressed: () async {
+                    // Refresh provider data after action
+                    await provider.loadUserData();
+                    if (mounted) {
+                      setState(() {});
+                    }
                   },
                 ));
               });
@@ -83,14 +87,18 @@ class _SentScreenState extends State<SentScreen> {
                   type: FriendCardType.currentFriend,
                   name: value['name'],
                   uid: key,
-                  onPressed: () {
-                    setState(() {});
+                  onPressed: () async {
+                    // Refresh provider data after action
+                    await provider.loadUserData();
+                    if (mounted) {
+                      setState(() {});
+                    }
                   },
                 ));
               });
               print("current friends list: $currentFriends");
 
-              // for the combined list, add both the earch results and the outgoing requests
+              // Build search results list (excluding current friends and outgoing requests)
               combined.clear();
 
               for (var element in searchResults) {
@@ -136,12 +144,15 @@ class _SentScreenState extends State<SentScreen> {
                   type: FriendCardType.addFriend,
                   name: element['name'],
                   uid: element['uid'],
-                  onPressed: () {
-                    setState(() {});
+                  onPressed: () async {
+                    // Refresh provider data after action
+                    await provider.loadUserData();
+                    if (mounted) {
+                      setState(() {});
+                    }
                   },
                 ));
               }
-              combined.addAll(outgoingRequests);
 
               return SingleChildScrollView(
                 child: Column(
@@ -172,13 +183,50 @@ class _SentScreenState extends State<SentScreen> {
                     ),
                     SizedBox(
                         width: SizeConfig.blockSizeHorizontal! * 80,
-                        height: SizeConfig.blockSizeVertical! * 30,
+                        height: SizeConfig.blockSizeVertical! * 20,
                         child: Card(
                             color: Colors.blue,
-                            child: ListView.builder(
-                                itemCount: combined.length,
-                                itemBuilder: (context, index) =>
-                                    combined[index]))),
+                            child: combined.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      "No users found",
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: combined.length,
+                                    itemBuilder: (context, index) =>
+                                        combined[index]))),
+                    SizedBox(
+                      height: SizeConfig.blockSizeVertical! * 2,
+                    ),
+                    const Text(
+                      "Pending Friend Requests",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(
+                        width: SizeConfig.blockSizeHorizontal! * 80,
+                        height: SizeConfig.blockSizeVertical! * 20,
+                        child: Card(
+                            color: Colors.orange,
+                            child: outgoingRequests.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      "No pending requests",
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: outgoingRequests.length,
+                                    itemBuilder: (context, index) =>
+                                        outgoingRequests[index]))),
                     SizedBox(
                       height: SizeConfig.blockSizeVertical! * 2,
                     ),
@@ -189,13 +237,23 @@ class _SentScreenState extends State<SentScreen> {
                     ),
                     SizedBox(
                         width: SizeConfig.blockSizeHorizontal! * 80,
-                        height: SizeConfig.blockSizeVertical! * 30,
+                        height: SizeConfig.blockSizeVertical! * 20,
                         child: Card(
-                            color: Colors.blue,
-                            child: ListView.builder(
-                                itemCount: currentFriends.length,
-                                itemBuilder: (context, index) =>
-                                    currentFriends[index]))),
+                            color: Colors.green,
+                            child: currentFriends.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      "No friends yet",
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: currentFriends.length,
+                                    itemBuilder: (context, index) =>
+                                        currentFriends[index]))),
                     SizedBox(
                       height: SizeConfig.blockSizeVertical! * 2,
                     ),

@@ -120,8 +120,10 @@ class _GroupScreenState extends State<GroupScreen> {
       return;
     }
     provider.userData!['group_invites'].forEach((key, value) {
+      // value is a Map<String, dynamic> with a 'name' key
+      String groupName = (value is Map) ? (value['name'] ?? 'Unknown Group') : value.toString();
       groups.add(GroupCard(
-          name: value, groupID: key, type: GroupCardType.notification));
+          name: groupName, groupID: key, type: GroupCardType.notification));
     });
   }
 

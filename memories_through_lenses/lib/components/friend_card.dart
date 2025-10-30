@@ -136,8 +136,7 @@ class _FriendCardState extends State<FriendCard> {
 
           // ternary expression
           // (expression) ? (if true) : (if false)
-          (widget.type != FriendCardType.sentRequest &&
-                  widget.type != FriendCardType.addFriend)
+          (widget.type != FriendCardType.addFriend)
               ? SizedBox(
                   width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
@@ -146,19 +145,55 @@ class _FriendCardState extends State<FriendCard> {
                         // determine database path depending on type
                         String path = (widget.type == FriendCardType.request)
                             ? 'friend_requests'
-                            : 'friends';
+                            : (widget.type == FriendCardType.sentRequest)
+                                ? 'outgoing_requests'
+                                : 'friends';
 
-                        // remove friend request or friend at users/{uid}/friend_requests/uid or users/{uid}/friends/uid
-                        FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(Auth().user!.uid)
-                            .update({
-                          '$path.${widget.uid}': FieldValue.delete(),
-                        }).catchError((error) {
-                          print('Failed to delete friend request: $error');
-                        }).then((value) {
-                          widget.onPressed();
-                        });
+                        // For sent requests, also remove from the receiver's friend_requests
+                        if (widget.type == FriendCardType.sentRequest) {
+                          // Remove from receiver's friend_requests
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(widget.uid)
+                              .update({
+                            'friend_requests.${Auth().user!.uid}': FieldValue.delete(),
+                          }).catchError((error) {
+                            print('Failed to delete friend request from receiver: $error');
+                          });
+
+                          // Remove from sender's outgoing_requests
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(Auth().user!.uid)
+                              .update({
+                            'outgoing_requests.${widget.uid}': FieldValue.delete(),
+                          }).catchError((error) {
+                            print('Failed to delete outgoing request: $error');
+                          }).then((value) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Friend request unsent'),
+                                  backgroundColor: Colors.orange,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                            widget.onPressed();
+                          });
+                        } else {
+                          // remove friend request or friend at users/{uid}/friend_requests/uid or users/{uid}/friends/uid
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(Auth().user!.uid)
+                              .update({
+                            '$path.${widget.uid}': FieldValue.delete(),
+                          }).catchError((error) {
+                            print('Failed to delete friend request: $error');
+                          }).then((value) {
+                            widget.onPressed();
+                          });
+                        }
                       },
                       style: ButtonStyle(
                         padding: WidgetStateProperty.all(EdgeInsets.zero),
@@ -174,6 +209,17 @@ class _FriendCardState extends State<FriendCard> {
                   height: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   child: ElevatedButton(
                       onPressed: () {
+                        // Check if trying to send friend request to yourself
+                        if (widget.uid == Auth().user!.uid) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('You cannot send a friend request to yourself'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
                         // add friend request at users/{uid}/friend_requests/$uid
                         FirebaseFirestore.instance
                             .collection('users')
@@ -206,12 +252,10 @@ class _FriendCardState extends State<FriendCard> {
                       child: const Icon(Icons.person_add, color: Colors.white)),
                 )
               : Container(),
-          (widget.type != FriendCardType.currentFriend &&
-                  widget.type != FriendCardType.addFriend)
+          (widget.type == FriendCardType.request)
               ? SizedBox(width: SizeConfig.blockSizeHorizontal! * 2)
               : Container(),
-          (widget.type != FriendCardType.currentFriend &&
-                  widget.type != FriendCardType.addFriend)
+          (widget.type == FriendCardType.request)
               ? SizedBox(
                   width: min(SizeConfig.blockSizeHorizontal! * 10, 75),
                   height: min(SizeConfig.blockSizeHorizontal! * 10, 75),

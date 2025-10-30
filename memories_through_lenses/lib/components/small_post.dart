@@ -174,36 +174,109 @@ class _SmallPostCardState extends State<SmallPostCard> {
 }
 
 // report post popup
-class ReportPostPopup extends StatelessWidget {
+class ReportPostPopup extends StatefulWidget {
   const ReportPostPopup(
       {super.key, required this.postId, required this.postCreator});
   final String postId;
   final String postCreator;
 
   @override
+  State<ReportPostPopup> createState() => _ReportPostPopupState();
+}
+
+class _ReportPostPopupState extends State<ReportPostPopup> {
+  bool isReporting = false;
+
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text("Report Post"),
-      content: const Text("Are you sure you want to report this post?"),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: const Text("Cancel"),
-        ),
-        TextButton(
-          onPressed: () {
-            Database().reportPost(postId, postCreator);
-            Navigator.of(context).pop();
-          },
-          child: const Text("Report"),
-        ),
-        TextButton(
-          onPressed: () {},
-          child: Text("Block User"),
-        )
-      ],
+      content: isReporting
+          ? const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Processing..."),
+              ],
+            )
+          : const Text("Are you sure you want to report this post?"),
+      actions: isReporting
+          ? []
+          : [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  setState(() {
+                    isReporting = true;
+                  });
+
+                  try {
+                    await Database().reportPost(widget.postId, widget.postCreator);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Post reported successfully'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      setState(() {
+                        isReporting = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error reporting post: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text("Report"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  setState(() {
+                    isReporting = true;
+                  });
+
+                  try {
+                    await Database().reportAndBlockUser(widget.postId, widget.postCreator);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('User blocked and post reported successfully'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      setState(() {
+                        isReporting = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error blocking user: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text("Block User"),
+              )
+            ],
     );
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
-import 'package:memories_through_lenses/services/streams.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 
@@ -38,24 +37,11 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         setState(() {
           userSchool = userDoc.data()?['school'];
         });
-        if (userSchool != null) {
-          getGroupsCollection();
-        } else {
-          // No school assigned, stop loading
-          if (mounted) {
-            setState(() {
-              isLoadingGroups = false;
-            });
-          }
-        }
-      } else {
-        // User doc doesn't exist, stop loading
-        if (mounted) {
-          setState(() {
-            isLoadingGroups = false;
-          });
-        }
       }
+
+      // Load groups regardless of whether school is set
+      // If no school, will show all public groups
+      await getGroupsCollection();
     } catch (e) {
       print('Error loading user school: $e');
       if (mounted) {
@@ -67,8 +53,6 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   }
 
   Future<void> getGroupsCollection() async {
-    if (userSchool == null) return;
-
     try {
       setState(() {
         isLoadingGroups = true;
@@ -76,24 +60,57 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
 
       searchedGroups.clear();
 
-      // Get user data for group_requests
+      // Get user data for group_requests and current groups
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(Auth().user!.uid)
           .get();
 
-      List<dynamic> groupRequests = userDoc.data()?['group_requests'] ?? [];
+      // group_requests might be an array or a map
+      var groupRequestsData = userDoc.data()?['group_requests'];
+      List<String> groupRequests = [];
 
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      if (groupRequestsData is List) {
+        groupRequests = List<String>.from(groupRequestsData);
+      } else if (groupRequestsData is Map) {
+        groupRequests = List<String>.from((groupRequestsData as Map).keys);
+      }
+
+      List<dynamic> userGroups = userDoc.data()?['groups'] ?? [];
+
+      print('==================== JOIN GROUP DEBUG ====================');
+      print('User school: $userSchool');
+      print('User group requests type: ${groupRequestsData.runtimeType}');
+      print('User group requests: $groupRequests');
+      print('User groups: $userGroups');
+      print('User ID: ${Auth().user!.uid}');
+
+      // Fetch all public groups (or by school if available)
+      Query query = FirebaseFirestore.instance
           .collection('groups')
-          .where('school', isEqualTo: userSchool)
-          .get();
+          .where('private', isEqualTo: false);
+
+      // Only filter by school if user has a school assigned
+      if (userSchool != null && userSchool!.isNotEmpty) {
+        query = query.where('school', isEqualTo: userSchool);
+      }
+
+      QuerySnapshot snapshot = await query.get();
+
+      print('Total public groups found: ${snapshot.docs.length}');
 
       List<GroupCard> fetchedGroups = [];
       for (var doc in snapshot.docs) {
-        // check that user is not owner of the group
-        if (doc['owner'] != Auth().user!.uid &&
-            !groupRequests.contains(doc.id)) {
+        // check that user is not owner of the group and not already a member
+        List<dynamic> members = doc['members'] ?? [];
+
+        bool isOwner = doc['owner'] == Auth().user!.uid;
+        bool hasPendingRequest = groupRequests.contains(doc.id);
+        bool isMember = members.contains(Auth().user!.uid) || userGroups.contains(doc.id);
+        bool isPrivate = doc['private'] ?? false;
+
+
+        if (!isOwner && !isMember) {
           fetchedGroups.add(GroupCard(
             name: doc['name'],
             groupID: doc.id,
@@ -101,6 +118,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           ));
         }
       }
+
 
       if (mounted) {
         setState(() {
@@ -287,7 +305,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'No Groups Found',
+                                    'No Groups Available',
                                     style: GoogleFonts.poppins(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -295,11 +313,15 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    'Try searching for a different group',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: Colors.grey[500],
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Text(
+                                      'You are already a member of all available public groups, or all groups are private',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
                                     ),
                                   ),
                                 ],

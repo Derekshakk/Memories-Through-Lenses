@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:memories_through_lenses/size_config.dart';
-import 'package:memories_through_lenses/components/toggle_row.dart';
+import 'package:memories_through_lenses/providers/theme_provider.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/screens/edit_profile.dart';
+import 'package:memories_through_lenses/screens/change_password.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,134 +15,280 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool isSwitched = false;
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Settings',
-            style: GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: 0,
+        title: Text(
+          'Settings',
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // SizedBox(
-              //   width: SizeConfig.blockSizeHorizontal! * 90,
-              //   // height: SizeConfig.blockSizeVertical! * 40,
-              //   child: const Card(
-              //     color: Colors.grey,
-              //     child: Padding(
-              //       padding: EdgeInsets.all(16.0),
-              //       child: Column(
-              //         children: [
-              //           Text("Notification Settings",
-              //               style: TextStyle(fontSize: 20)),
-              //           ToggleRow(title: "Disable All Notifications"),
-              //           ToggleRow(title: "New Uploads in Groups"),
-              //           ToggleRow(title: "Comments on Posts"),
-              //           ToggleRow(title: "Likes on Posts"),
-              //           ToggleRow(title: "New Group Invitations"),
-              //           ToggleRow(title: "Friend Requests"),
-              //           // ToggleRow(title: "Admin Announcements"),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
-              // SizedBox(
-              //   width: SizeConfig.blockSizeHorizontal! * 90,
-              //   // height: SizeConfig.blockSizeVertical! * 40,
-              //   child: const Card(
-              //     color: Colors.grey,
-              //     child: Padding(
-              //       padding: EdgeInsets.all(16.0),
-              //       child: Column(
-              //         children: [
-              //           Text("Privacy Settings",
-              //               style: TextStyle(fontSize: 20)),
-              //           ToggleRow(title: "Private Account"),
-              //           ToggleRow(title: "Hide Profile from Search"),
-              //           ToggleRow(title: "Hide Friends List"),
-              //           ToggleRow(title: "Hide Groups"),
-              //           ToggleRow(title: "Hide Posts"),
-              //           ToggleRow(title: "Hide Comments"),
-              //           ToggleRow(title: "Hide Likes"),
-              //           ToggleRow(title: "Hide Groups"),
-              //           ToggleRow(title: "Hide Posts"),
-              //           ToggleRow(title: "Hide Comments"),
-              //           ToggleRow(title: "Hide Likes"),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
-              // SizedBox(
-              //   width: SizeConfig.blockSizeHorizontal! * 90,
-              //   height: SizeConfig.blockSizeVertical! * 20,
-              //   child: Card(
-              //     color: Colors.grey,
-              //     child: ListWheelScrollView(
-              //       itemExtent: 50,
-              //       children: [
-              //         ListTile(
-              //           tileColor: Colors.white,
-              //           title: Text("English"),
-              //           onTap: () {},
-              //         ),
-              //         ListTile(
-              //           tileColor: Colors.white,
-              //           title: Text("Spanish"),
-              //           onTap: () {},
-              //         ),
-              //         ListTile(
-              //           tileColor: Colors.white,
-              //           title: Text("Japanese"),
-              //           onTap: () {},
-              //         ),
-              //         ListTile(
-              //           tileColor: Colors.white,
-              //           title: Text("Chinese"),
-              //           onTap: () {},
-              //         ),
-              //         ListTile(
-              //           tileColor: Colors.white,
-              //           title: Text("Korean"),
-              //           onTap: () {},
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-              // ),
-              SizedBox(
-                height: SizeConfig.blockSizeVertical! * 10,
-              ),
-              Center(
-                  child:
-                      Icon(Icons.delete_forever, size: 100, color: Colors.red)),
-              SizedBox(
-                height: SizeConfig.blockSizeVertical! * 5,
-              ),
-              Center(
-                child: ElevatedButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return const DeleteAccountPopup();
-                        },
-                      );
-                    },
-                    child:
-                        Text("Delete Account", style: TextStyle(fontSize: 20))),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Appearance Section
+
+                // Account Section
+                _buildSectionTitle(context, 'Account'),
+                const SizedBox(height: 12),
+                _buildSettingsCard(
+                  context,
+                  children: [
+                    _buildActionTile(
+                      context,
+                      icon: Icons.person_outline,
+                      title: 'Edit Profile',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EditProfileScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    _buildActionTile(
+                      context,
+                      icon: Icons.lock_outline,
+                      title: 'Change Password',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ChangePasswordScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    _buildActionTile(
+                      context,
+                      icon: Icons.logout,
+                      title: 'Logout',
+                      onTap: () {
+                        _showLogoutDialog(context);
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+
+                // Danger Zone
+                _buildSectionTitle(context, 'Danger Zone', color: Colors.red),
+                const SizedBox(height: 12),
+                _buildSettingsCard(
+                  context,
+                  children: [
+                    _buildActionTile(
+                      context,
+                      icon: Icons.delete_forever,
+                      title: 'Delete Account',
+                      titleColor: Colors.red,
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return const DeleteAccountPopup();
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title,
+      {Color? color}) {
+    return Text(
+      title,
+      style: GoogleFonts.poppins(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: color ?? Theme.of(context).textTheme.headlineSmall?.color,
+      ),
+    );
+  }
+
+  Widget _buildSettingsCard(BuildContext context,
+      {required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[800]!
+              : Colors.grey[300]!,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+    Color? titleColor,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+      leading: Icon(
+        icon,
+        color: titleColor ?? Theme.of(context).iconTheme.color,
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          color: titleColor ?? Theme.of(context).textTheme.bodyLarge?.color,
+        ),
+      ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            )
+          : null,
+      trailing: onTap != null
+          ? Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).iconTheme.color,
+            )
+          : null,
+      onTap: onTap,
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Logout',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                // Close dialog
+                Navigator.of(dialogContext).pop();
+
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return WillPopScope(
+                      onWillPop: () async => false,
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  },
+                );
+
+                try {
+                  // Clear user provider data
+                  final userProvider = Provider.of<UserProvider>(context, listen: false);
+                  userProvider.clear();
+
+                  // Perform logout
+                  await Auth().logout();
+
+                  // The StreamBuilder in main.dart will automatically
+                  // navigate to LoginPage when auth state changes
+                } catch (e) {
+                  // Close loading dialog
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+
+                    // Show error
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Logout failed: ${e.toString()}',
+                          style: GoogleFonts.poppins(),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(
+                'Logout',
+                style: GoogleFonts.poppins(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -150,16 +299,34 @@ class DeleteAccountPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text("Delete Account"),
-      content: Text("Are you sure you want to delete your account?"),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Text(
+        "Delete Account",
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.w600,
+          color: Colors.red,
+        ),
+      ),
+      content: Text(
+        "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.",
+        style: GoogleFonts.poppins(),
+      ),
       actions: [
         TextButton(
           onPressed: () {
             Navigator.of(context).pop();
           },
-          child: Text("Cancel"),
+          child: Text(
+            "Cancel",
+            style: GoogleFonts.poppins(color: Colors.grey),
+          ),
         ),
         TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+          ),
           onPressed: () {
             // Add delete account logic here
             Auth().deleteUser().then(
@@ -169,7 +336,13 @@ class DeleteAccountPopup extends StatelessWidget {
               },
             );
           },
-          child: Text("Delete"),
+          child: Text(
+            "Delete",
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.red,
+            ),
+          ),
         ),
       ],
     );

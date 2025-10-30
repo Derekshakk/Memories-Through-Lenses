@@ -180,11 +180,6 @@ class _HomePageState extends State<HomePage> {
       List<dynamic> blockedPosts = userData?['reported_posts'] ?? [];
       String currentUserId = Auth().user?.uid ?? '';
 
-      print('========== HOME SCREEN DEBUG ==========');
-      print('Current User ID: $currentUserId');
-      print('Blocked Posts (reported_posts): $blockedPosts');
-      print('Total posts from database: ${value.length}');
-
       for (var element in value) {
         print('Checking post: ${element['id']}');
         if (blockedUsers.contains(element['user_id']) ||
