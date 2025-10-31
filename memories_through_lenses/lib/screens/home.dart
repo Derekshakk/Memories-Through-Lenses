@@ -581,13 +581,14 @@ class _HomePageState extends State<HomePage> {
                           ),
                           SizedBox(
                             width: SizeConfig.blockSizeHorizontal! * 90,
-                            height: SizeConfig.blockSizeVertical! * 5,
+                            height: SizeConfig.blockSizeVertical! * 7,
                             child: SegmentedButton(
+                              selectedIcon: selected == ContentType.recent ? Icon(CupertinoIcons.star) : Icon(CupertinoIcons.flame),
                               segments: <ButtonSegment<ContentType>>[
                                 ButtonSegment<ContentType>(
                                   value: ContentType.recent,
                                   label: Container(
-                                    height: SizeConfig.blockSizeVertical! * 4,
+                                    height: SizeConfig.blockSizeVertical! * 3,
                                     alignment: Alignment.center,
                                     child: const Text('Recent',
                                         style: TextStyle(fontSize: 20)),
@@ -597,7 +598,7 @@ class _HomePageState extends State<HomePage> {
                                 ButtonSegment<ContentType>(
                                   value: ContentType.popular,
                                   label: Container(
-                                    height: SizeConfig.blockSizeVertical! * 4,
+                                    height: SizeConfig.blockSizeVertical! * 3,
                                     alignment: Alignment.center,
                                     child: const Text('Popular',
                                         style: TextStyle(fontSize: 20)),
@@ -609,6 +610,7 @@ class _HomePageState extends State<HomePage> {
                               onSelectionChanged: (value) {
                                 setState(() {
                                   selected = value.first;
+                                  print(selected);
                                 });
 
                                 if (dropdownValue != null) {
