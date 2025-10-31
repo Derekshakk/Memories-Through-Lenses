@@ -149,21 +149,19 @@ class _SmallPostCardState extends State<SmallPostCard> {
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Center(
-                        child: MarkdownBody(
-                          data: widget.caption,
-                          styleSheet: MarkdownStyleSheet(
-                            textAlign: WrapAlignment.center,
-                            p: const TextStyle(
-                              fontSize: 12,
-                            ),
-                          ),
+                        child: Text(
+                        widget.caption,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 3,
+
+    )
                         ),
                       ),
                       // child: Text(
                       //   widget.caption,
                       //   textAlign: TextAlign.center,
                       // ),
-                    )),
+                    ),
               ],
             ),
           ),
