@@ -6,7 +6,8 @@
       "Bash(flutter pub:*)",
       "Bash(findstr:*)",
       "Bash(dart analyze:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(flutter clean:*)"
     ],
     "deny": [],
     "ask": []

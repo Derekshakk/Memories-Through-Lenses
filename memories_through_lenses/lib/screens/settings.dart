@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/providers/theme_provider.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
-import 'package:memories_through_lenses/services/auth.dart';
-import 'package:memories_through_lenses/screens/edit_profile.dart';
 import 'package:memories_through_lenses/screens/change_password.dart';
+import 'package:memories_through_lenses/screens/edit_profile.dart';
+import 'package:memories_through_lenses/services/auth.dart';
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -81,15 +81,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                    const Divider(height: 1),
-                    _buildActionTile(
-                      context,
-                      icon: Icons.logout,
-                      title: 'Logout',
-                      onTap: () {
-                        _showLogoutDialog(context);
-                      },
-                    ),
+                    // const Divider(height: 1),
+                    // _buildActionTile(
+                    //   context,
+                    //   icon: Icons.logout,
+                    //   title: 'Logout',
+                    //   onTap: () {
+                    //     _showLogoutDialog(context);
+                    //   },
+                    // ),
                   ],
                 ),
 
@@ -251,28 +251,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
 
                 try {
-                  // Clear user provider data
-                  final userProvider = Provider.of<UserProvider>(context, listen: false);
-                  userProvider.clear();
+                  // Clear provider data first
+                  final provider =
+                      Provider.of<UserProvider>(context, listen: false);
+                  provider.clear();
 
-                  // Perform logout
+                  // Then logout - StreamBuilder will handle navigation
                   await Auth().logout();
-
-                  // The StreamBuilder in main.dart will automatically
-                  // navigate to LoginPage when auth state changes
                 } catch (e) {
-                  // Close loading dialog
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-
-                    // Show error
+                  print('Error during logout: $e');
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Logout failed: ${e.toString()}',
-                          style: GoogleFonts.poppins(),
-                        ),
-                        backgroundColor: Colors.red,
+                      const SnackBar(
+                        content: Text('Error logging out. Please try again.'),
                       ),
                     );
                   }
