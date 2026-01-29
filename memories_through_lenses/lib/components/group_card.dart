@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
 enum GroupCardType {
-  request, // request to join group (red only)
-  invite, // invite to join group (green only)
-  notification // show both accept and reject buttons
+  request, // request to join group (green button to send request)
+  invite, // invite to join group (green accept, red reject)
+  notification, // show both accept and reject buttons
+  pendingRequest // pending request sent by user (red button to cancel)
 }
 
 class GroupCard extends StatelessWidget {
@@ -28,148 +31,175 @@ class GroupCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           Expanded(child: Text(name)),
-          // ternary expression
-          // (type == GroupCardType.invite) ? (if true) : (if false)
-          (type != GroupCardType.invite)
-              ? SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 10,
-                  height: SizeConfig.blockSizeHorizontal! * 10,
-                  child: ElevatedButton(
-                      onPressed: () async {
-                        if (type == GroupCardType.request) {
-                          // Send join request for public groups
-                          final userRef = FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(Auth().user!.uid);
+          // Green button for request and notification types
+          if (type == GroupCardType.request || type == GroupCardType.notification)
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 10,
+              height: SizeConfig.blockSizeHorizontal! * 10,
+              child: ElevatedButton(
+                  onPressed: () async {
+                    if (type == GroupCardType.request) {
+                      // Send join request for public groups
+                      final userRef = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(Auth().user!.uid);
 
-                          // Add groupID to user's group_requests list
-                          await userRef.update({
-                            'group_requests': FieldValue.arrayUnion([groupID]),
-                          });
+                      // Add groupID to user's group_requests list
+                      await userRef.update({
+                        'group_requests': FieldValue.arrayUnion([groupID]),
+                      });
 
-                          // Add user to group's join_requests list
-                          final groupRef = FirebaseFirestore.instance
-                              .collection('groups')
-                              .doc(groupID);
-                          await groupRef.update({
-                            'join_requests':
-                                FieldValue.arrayUnion([Auth().user!.uid])
-                          });
+                      // Add user to group's join_requests list
+                      final groupRef = FirebaseFirestore.instance
+                          .collection('groups')
+                          .doc(groupID);
+                      await groupRef.update({
+                        'join_requests':
+                            FieldValue.arrayUnion([Auth().user!.uid])
+                      });
 
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Join request sent!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                            Navigator.pop(context);
-                          }
-                        } else {
-                          // Accept invite (GroupCardType.notification)
-                          final userRef = FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(Auth().user!.uid);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Join request sent!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                        Navigator.pop(context);
+                      }
+                    } else {
+                      // Accept invite (GroupCardType.notification)
+                      final userRef = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(Auth().user!.uid);
 
-                          // Add groupID to user's groups list
-                          await userRef.update({
-                            'groups': FieldValue.arrayUnion([groupID]),
-                          });
+                      // Add groupID to user's groups list
+                      await userRef.update({
+                        'groups': FieldValue.arrayUnion([groupID]),
+                      });
 
-                          // Get the current 'group_invites' map and remove the groupID from it
-                          final doc = await userRef.get();
-                          if (doc.exists) {
-                            Map<String, dynamic> groupInvites =
-                                doc['group_invites'] ?? {};
-                            groupInvites.remove(groupID);
+                      // Get the current 'group_invites' map and remove the groupID from it
+                      final doc = await userRef.get();
+                      if (doc.exists) {
+                        Map<String, dynamic> groupInvites =
+                            doc['group_invites'] ?? {};
+                        groupInvites.remove(groupID);
 
-                            // Update the user's document with the modified map
-                            await userRef.update({
-                              'group_invites': groupInvites,
-                            });
-                          }
-
-                          // Add user to group's members list
-                          final groupRef = FirebaseFirestore.instance
-                              .collection('groups')
-                              .doc(groupID);
-                          await groupRef.update({
-                            'members': FieldValue.arrayUnion([Auth().user!.uid])
-                          });
-
-                          if (context.mounted) {
-                            Navigator.pushNamedAndRemoveUntil(
-                                context, '/home', (route) => false);
-                          }
-                        }
-                      },
-                      style: ButtonStyle(
-                        padding: WidgetStateProperty.all(EdgeInsets.zero),
-                        backgroundColor: WidgetStateProperty.all(Colors.green),
-                        shape: WidgetStateProperty.all(const CircleBorder()),
-                      ),
-                      child: const Icon(Icons.add_circle_outline,
-                          color: Colors.white)),
-                )
-              : Container(),
-          (type != GroupCardType.request)
-              ? SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 2,
-                )
-              : Container(),
-          (type != GroupCardType.request)
-              ? SizedBox(
-                  width: SizeConfig.blockSizeHorizontal! * 10,
-                  height: SizeConfig.blockSizeHorizontal! * 10,
-                  child: ElevatedButton(
-                      onPressed: () {
-                        // remove user from group's join_requests list
-
-                        // get firestore ref of the group
-                        final groupRef = FirebaseFirestore.instance
-                            .collection('groups')
-                            .doc(groupID);
-                        // remove user from the join_requests list
-                        groupRef.update({
-                          'join_requests':
-                              FieldValue.arrayRemove([Auth().user!.uid])
+                        // Update the user's document with the modified map
+                        await userRef.update({
+                          'group_invites': groupInvites,
                         });
+                      }
 
-                        // show snackbar
+                      // Add user to group's members list
+                      final groupRef = FirebaseFirestore.instance
+                          .collection('groups')
+                          .doc(groupID);
+                      await groupRef.update({
+                        'members': FieldValue.arrayUnion([Auth().user!.uid])
+                      });
+
+                      if (context.mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                            context, '/home', (route) => false);
+                      }
+                    }
+                  },
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+                    backgroundColor: WidgetStateProperty.all(Colors.green),
+                    shape: WidgetStateProperty.all(const CircleBorder()),
+                  ),
+                  child: const Icon(Icons.add_circle_outline,
+                      color: Colors.white)),
+            ),
+          // Spacing for types with red button
+          if (type == GroupCardType.invite || type == GroupCardType.notification || type == GroupCardType.pendingRequest)
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 2,
+            ),
+          // Red button for invite, notification, and pendingRequest types
+          if (type == GroupCardType.invite || type == GroupCardType.notification || type == GroupCardType.pendingRequest)
+            SizedBox(
+              width: SizeConfig.blockSizeHorizontal! * 10,
+              height: SizeConfig.blockSizeHorizontal! * 10,
+              child: ElevatedButton(
+                  onPressed: () async {
+                    if (type == GroupCardType.pendingRequest) {
+                      // Cancel a pending request the user sent
+                      final userRef = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(Auth().user!.uid);
+
+                      // Remove groupID from user's group_requests list
+                      await userRef.update({
+                        'group_requests': FieldValue.arrayRemove([groupID]),
+                      });
+
+                      // Remove user from group's join_requests list
+                      final groupRef = FirebaseFirestore.instance
+                          .collection('groups')
+                          .doc(groupID);
+                      await groupRef.update({
+                        'join_requests': FieldValue.arrayRemove([Auth().user!.uid])
+                      });
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Request cancelled!'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        Navigator.pop(context);
+                      }
+                    } else {
+                      // Reject invite (GroupCardType.invite or notification)
+                      // remove user from group's join_requests list
+                      final groupRef = FirebaseFirestore.instance
+                          .collection('groups')
+                          .doc(groupID);
+                      await groupRef.update({
+                        'join_requests':
+                            FieldValue.arrayRemove([Auth().user!.uid])
+                      });
+
+                      // show snackbar
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Invite rejected!'),
                           ),
                         );
+                      }
 
-                        // remove group id from user's group_invites map
-                        final userRef = FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(Auth().user!.uid);
+                      // remove group id from user's group_invites map
+                      final userRef = FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(Auth().user!.uid);
 
-                        // Get the current 'group_invites' map and remove the key manually
-                        userRef.get().then((doc) {
-                          if (doc.exists) {
-                            Map<String, dynamic> groupInvites =
-                                doc['group_invites'] ?? {};
-                            groupInvites.remove(groupID);
+                      // Get the current 'group_invites' map and remove the key manually
+                      final doc = await userRef.get();
+                      if (doc.exists) {
+                        Map<String, dynamic> groupInvites =
+                            doc['group_invites'] ?? {};
+                        groupInvites.remove(groupID);
 
-                            // Update the user's document with the modified map
-                            userRef.update({
-                              'group_invites': groupInvites,
-                            });
-                          }
+                        // Update the user's document with the modified map
+                        await userRef.update({
+                          'group_invites': groupInvites,
                         });
-                      },
-                      style: ButtonStyle(
-                        padding: WidgetStateProperty.all(EdgeInsets.zero),
-                        backgroundColor: WidgetStateProperty.all(Colors.red),
-                        shape: WidgetStateProperty.all(const CircleBorder()),
-                      ),
-                      child: const Icon(Icons.cancel_outlined,
-                          color: Colors.white)),
-                )
-              : Container()
+                      }
+                    }
+                  },
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+                    backgroundColor: WidgetStateProperty.all(Colors.red),
+                    shape: WidgetStateProperty.all(const CircleBorder()),
+                  ),
+                  child: const Icon(Icons.cancel_outlined,
+                      color: Colors.white)),
+            ),
         ],
       ),
     ));
@@ -548,7 +578,11 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                 }
                               });
 
+                              // Refresh the user provider to update pending requests
                               if (context.mounted) {
+                                final provider = Provider.of<UserProvider>(context, listen: false);
+                                await provider.loadUserData();
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Friend request sent!'),
