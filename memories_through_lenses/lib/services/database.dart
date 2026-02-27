@@ -179,7 +179,9 @@ class Database {
       body: jsonEncode(validationData),
     );
 
-    if (response.statusCode == 200) {
+    print('Status code: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       print('Image processed successfully');
 
       var message = jsonDecode(response.body);
