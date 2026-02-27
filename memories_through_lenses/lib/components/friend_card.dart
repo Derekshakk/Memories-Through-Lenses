@@ -52,6 +52,13 @@ class _FriendCardState extends State<FriendCard> {
     if (widget.type == FriendCardType.addFriend) {
       _isProcessing = false;
     }
+    // Re-fetch user data if the uid changed
+    if (oldWidget.uid != widget.uid) {
+      _profileImage = null;
+      _currentName = null;
+      _isLoading = true;
+      _fetchUserData();
+    }
   }
 
   Future<void> _fetchUserData() async {

@@ -230,6 +230,50 @@ class GroupFriendCard extends StatefulWidget {
 
 class _GroupFriendCardState extends State<GroupFriendCard> {
   bool _selected = false;
+  bool _isFriend = false;
+  bool _isPendingRequest = false;
+  bool _isLoadingStatus = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFriendshipStatus();
+  }
+
+  Future<void> _checkFriendshipStatus() async {
+    final currentUserId = Auth().user?.uid;
+    if (currentUserId == null || widget.uid == currentUserId) return;
+
+    setState(() {
+      _isLoadingStatus = true;
+    });
+
+    try {
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+
+      final currentUserData = currentUserDoc.data();
+      final friends = currentUserData?['friends'] ?? {};
+      final outgoingRequests = currentUserData?['outgoing_requests'] ?? {};
+
+      if (mounted) {
+        setState(() {
+          _isFriend = friends.containsKey(widget.uid);
+          _isPendingRequest = outgoingRequests.containsKey(widget.uid);
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -476,125 +520,185 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        SizedBox(
-                          width: SizeConfig.blockSizeHorizontal! * 90,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.person_add, size: 20),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              elevation: 2,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          onPressed: () async {
-                            final currentUserId = Auth().user!.uid;
+                        // Only show if not the current user
+                        if (widget.uid != Auth().user?.uid)
+                          SizedBox(
+                            width: SizeConfig.blockSizeHorizontal! * 90,
+                            child: _isLoadingStatus
+                                ? const Center(child: CircularProgressIndicator())
+                                : ElevatedButton.icon(
+                                    icon: Icon(
+                                      _isFriend
+                                          ? Icons.people
+                                          : _isPendingRequest
+                                              ? Icons.cancel_outlined
+                                              : Icons.person_add,
+                                      size: 20,
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _isFriend
+                                          ? Colors.green
+                                          : _isPendingRequest
+                                              ? Colors.orange
+                                              : Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      elevation: 2,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    onPressed: _isFriend
+                                        ? null
+                                        : () async {
+                                            final currentUserId = Auth().user!.uid;
 
-                            // Check if trying to send to yourself
-                            if (widget.uid == currentUserId) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('You cannot send a friend request to yourself'),
-                                  backgroundColor: Colors.orange,
-                                ),
-                              );
-                              return;
-                            }
+                                            if (_isPendingRequest) {
+                                              // Cancel pending request
+                                              final confirmed = await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) => AlertDialog(
+                                                  title: const Text('Cancel Friend Request'),
+                                                  content: Text('Cancel your friend request to this user?'),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(context, false),
+                                                      child: const Text('No'),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(context, true),
+                                                      child: const Text(
+                                                        'Cancel Request',
+                                                        style: TextStyle(color: Colors.red),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
 
-                            // Check if already friends
-                            final currentUserDoc = await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(currentUserId)
-                                .get();
+                                              if (confirmed == true) {
+                                                // Remove from target user's friend_requests
+                                                final targetUserRef = FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(widget.uid);
 
-                            final currentUserData = currentUserDoc.data();
-                            final friends = currentUserData?['friends'] ?? {};
-                            final outgoingRequests = currentUserData?['outgoing_requests'] ?? {};
+                                                final targetDoc = await targetUserRef.get();
+                                                if (targetDoc.exists) {
+                                                  Map<String, dynamic> friendRequests =
+                                                      Map<String, dynamic>.from(targetDoc.data()?['friend_requests'] ?? {});
+                                                  friendRequests.remove(currentUserId);
+                                                  await targetUserRef.update({'friend_requests': friendRequests});
+                                                }
 
-                            if (friends.containsKey(widget.uid)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('This user is already your friend'),
-                                  backgroundColor: Colors.orange,
-                                ),
-                              );
-                              return;
-                            }
+                                                // Remove from current user's outgoing_requests
+                                                final currentUserRef = FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(currentUserId);
 
-                            if (outgoingRequests.containsKey(widget.uid)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Friend request already sent to this user'),
-                                  backgroundColor: Colors.orange,
-                                ),
-                              );
-                              return;
-                            }
+                                                final currentDoc = await currentUserRef.get();
+                                                if (currentDoc.exists) {
+                                                  Map<String, dynamic> outgoingRequests =
+                                                      Map<String, dynamic>.from(currentDoc.data()?['outgoing_requests'] ?? {});
+                                                  outgoingRequests.remove(widget.uid);
+                                                  await currentUserRef.update({'outgoing_requests': outgoingRequests});
+                                                }
 
-                            // Show confirmation dialog
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Send Friend Request'),
-                                content: Text('Send a friend request to this user?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
+                                                // Refresh the user provider and local state
+                                                if (context.mounted) {
+                                                  final provider = Provider.of<UserProvider>(context, listen: false);
+                                                  await provider.loadUserData();
+
+                                                  setState(() {
+                                                    _isPendingRequest = false;
+                                                  });
+
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('Friend request cancelled'),
+                                                      backgroundColor: Colors.orange,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            } else {
+                                              // Send friend request
+                                              final confirmed = await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) => AlertDialog(
+                                                  title: const Text('Send Friend Request'),
+                                                  content: Text('Send a friend request to this user?'),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(context, false),
+                                                      child: const Text('Cancel'),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(context, true),
+                                                      child: const Text('Send Request'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+
+                                              if (confirmed == true) {
+                                                // Get current user data for name
+                                                final currentUserDoc = await FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(currentUserId)
+                                                    .get();
+                                                final currentUserData = currentUserDoc.data();
+                                                final currentUserName = currentUserData?['name'] ?? 'Unknown';
+
+                                                // Add to target user's friend_requests
+                                                final targetUserRef = FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(widget.uid);
+
+                                                await targetUserRef.update({
+                                                  'friend_requests.$currentUserId': {
+                                                    'name': currentUserName,
+                                                  }
+                                                });
+
+                                                // Add to current user's outgoing_requests
+                                                final currentUserRef = FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(currentUserId);
+
+                                                await currentUserRef.update({
+                                                  'outgoing_requests.${widget.uid}': {
+                                                    'name': widget.name,
+                                                  }
+                                                });
+
+                                                // Refresh the user provider and local state
+                                                if (context.mounted) {
+                                                  final provider = Provider.of<UserProvider>(context, listen: false);
+                                                  await provider.loadUserData();
+
+                                                  setState(() {
+                                                    _isPendingRequest = true;
+                                                  });
+
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('Friend request sent!'),
+                                                      backgroundColor: Colors.green,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          },
+                                    label: Text(
+                                      _isFriend
+                                          ? 'Already Friends'
+                                          : _isPendingRequest
+                                              ? 'Cancel Request'
+                                              : 'Send Friend Request',
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Send Request'),
-                                  ),
-                                ],
-                              ),
-                            );
-
-                            if (confirmed == true) {
-                              // Send friend request
-                              final currentUserName = currentUserData?['name'] ?? 'Unknown';
-
-                              // Add to target user's friend_requests
-                              final targetUserRef = FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(widget.uid);
-
-                              await targetUserRef.update({
-                                'friend_requests.$currentUserId': {
-                                  'name': currentUserName,
-                                }
-                              });
-
-                              // Add to current user's outgoing_requests
-                              final currentUserRef = FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(currentUserId);
-
-                              await currentUserRef.update({
-                                'outgoing_requests.${widget.uid}': {
-                                  'name': widget.name,
-                                }
-                              });
-
-                              // Refresh the user provider to update pending requests
-                              if (context.mounted) {
-                                final provider = Provider.of<UserProvider>(context, listen: false);
-                                await provider.loadUserData();
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Friend request sent!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                            label: const Text('Send Friend Request'),
                           ),
-                        ),
                       ],
                     ),
                   ),

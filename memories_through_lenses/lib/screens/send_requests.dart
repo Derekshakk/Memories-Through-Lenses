@@ -70,6 +70,7 @@ class _SentScreenState extends State<SentScreen> {
 
               requests.forEach((key, value) {
                 outgoingRequests.add(FriendCard(
+                  key: ValueKey('sent_$key'),
                   type: FriendCardType.sentRequest,
                   name: value['name'],
                   uid: key,
@@ -85,6 +86,7 @@ class _SentScreenState extends State<SentScreen> {
               friends.forEach((key, value) {
                 print("key: $key, value: $value");
                 currentFriends.add(FriendCard(
+                  key: ValueKey('friend_$key'),
                   type: FriendCardType.currentFriend,
                   name: value['name'],
                   uid: key,
@@ -146,6 +148,7 @@ class _SentScreenState extends State<SentScreen> {
                 }
 
                 combined.add(FriendCard(
+                  key: ValueKey('add_${element['uid']}'),
                   type: FriendCardType.addFriend,
                   name: element['name'],
                   uid: element['uid'],
