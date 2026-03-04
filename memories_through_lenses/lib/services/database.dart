@@ -179,15 +179,15 @@ class Database {
       body: jsonEncode(validationData),
     );
 
-    print('Status code: ${response.statusCode}');
-    print('Response body: ${response.body}');
+    // print('Status code: ${response.statusCode}');
+    // print('Response body: ${response.body}');
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      print('Image processed successfully');
+      // print('Image processed successfully');
 
-      var message = jsonDecode(response.body);
-      if (message['offensive'] == true) {
-        return false;
-      }
+      // var message = jsonDecode(response.body);
+      // if (message['offensive'] == true) {
+      //   return false;
+      // }
     } else {
       print('Failed to process image: ${response.body}');
       return false;

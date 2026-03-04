@@ -395,7 +395,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                 setState(() {
                                   uploading = false;
                                   _message =
-                                      'Error uploading post. Image is classified as inappropriate';
+                                      'Failed to process image. Please try again';
                                 });
                               } else {
                                 Navigator.pushNamedAndRemoveUntil(
