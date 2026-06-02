@@ -336,7 +336,8 @@ class _HomePageState extends State<HomePage> {
                                       placeholder: (context, url) =>
                                           const CircularProgressIndicator(),
                                       errorWidget: (context, url, error) =>
-                                          Image.asset("assets/generic_profile.png"),
+                                          Image.asset(
+                                              "assets/generic_profile.png"),
                                     )),
                               )
                             : SizedBox(
@@ -449,7 +450,9 @@ class _HomePageState extends State<HomePage> {
                                   onPressed: () async {
                                     try {
                                       // Clear provider data first
-                                      final provider = Provider.of<UserProvider>(context, listen: false);
+                                      final provider =
+                                          Provider.of<UserProvider>(context,
+                                              listen: false);
                                       provider.clear();
 
                                       // Then logout - StreamBuilder will handle navigation
@@ -493,10 +496,10 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Expanded(
                           child: userData == null ||
-                                      (userData['friends']
-                                              as Map<String, dynamic>?)!
-                                          .isEmpty ??
-                                  true
+                                  ((userData['friends']
+                                              as Map<String, dynamic>?)
+                                          ?.isEmpty ??
+                                      true)
                               ? const Center(
                                   child: Text(
                                     'No friends yet',
@@ -588,7 +591,9 @@ class _HomePageState extends State<HomePage> {
                             width: SizeConfig.blockSizeHorizontal! * 90,
                             height: SizeConfig.blockSizeVertical! * 7,
                             child: SegmentedButton(
-                              selectedIcon: selected == ContentType.recent ? Icon(CupertinoIcons.star) : Icon(CupertinoIcons.flame),
+                              selectedIcon: selected == ContentType.recent
+                                  ? Icon(CupertinoIcons.star)
+                                  : Icon(CupertinoIcons.flame),
                               segments: <ButtonSegment<ContentType>>[
                                 ButtonSegment<ContentType>(
                                   value: ContentType.recent,

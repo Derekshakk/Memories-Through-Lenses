@@ -34,7 +34,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "com.derek.memories_through_lenses"
     compileSdk flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
+    ndkVersion "26.1.10909125"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

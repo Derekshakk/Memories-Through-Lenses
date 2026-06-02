@@ -23,7 +23,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -135,9 +136,13 @@ class _LoginPageState extends State<LoginPage> {
             ),
             ElevatedButton(
               onPressed: () async {
+                // Capture context-dependent objects before the async gap.
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(dialogContext);
+
                 final email = resetEmailController.text.trim();
                 if (email.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text(
                         'Please enter your email address',
@@ -149,33 +154,21 @@ class _LoginPageState extends State<LoginPage> {
                   return;
                 }
 
-                try {
-                  await Auth().forgotPassword(email);
-                  Navigator.of(dialogContext).pop();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
+                // Returns null only when Firebase accepts the request;
+                // otherwise a user-friendly error message.
+                final errorMessage = await Auth().forgotPassword(email);
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      errorMessage ??
                           'Password reset email sent! Check your inbox.',
-                          style: GoogleFonts.poppins(),
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Error: ${e.toString()}',
-                          style: GoogleFonts.poppins(),
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
+                      style: GoogleFonts.poppins(),
+                    ),
+                    backgroundColor:
+                        errorMessage == null ? Colors.green : Colors.red,
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -252,7 +245,8 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: InputDecoration(
                       hintText: 'Email',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.email_outlined, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.email_outlined, color: Colors.blue),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -265,7 +259,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),
@@ -279,10 +274,13 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: InputDecoration(
                       hintText: 'Password',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.lock_outline, color: Colors.blue),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          _isObscured
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: Colors.grey[600],
                         ),
                         onPressed: () {
@@ -303,7 +301,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),

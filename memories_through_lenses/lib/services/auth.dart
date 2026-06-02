@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class Auth {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -63,7 +64,7 @@ class Auth {
           .where('email', isEqualTo: email)
           .limit(1)
           .get();
-      
+
       if (querySnapshot.docs.isNotEmpty) {
         return 'An account with this email already exists. Please use a different email or try logging in.';
       }
@@ -93,8 +94,39 @@ class Auth {
     await user!.updateDisplayName(displayName);
   }
 
-  Future<void> forgotPassword(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+  /// Sends a Firebase password-reset email.
+  ///
+  /// Returns `null` if Firebase accepted the request, otherwise a
+  /// user-friendly error message. The exact Firebase error code and message
+  /// are logged to aid diagnosis. No passwords or credentials are logged.
+  Future<String?> forgotPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return null; // Firebase accepted the request.
+    } on FirebaseAuthException catch (e) {
+      // Surface the exact code/message for debugging. The password-reset
+      // flow involves no passwords, so nothing sensitive is logged here.
+      debugPrint('Password reset failed [code=${e.code}]: ${e.message}');
+      switch (e.code) {
+        case 'invalid-email':
+          return 'Please enter a valid email address.';
+        case 'user-not-found':
+          return 'No account was found with that email address.';
+        case 'too-many-requests':
+          return 'Too many attempts. Please wait a moment and try again.';
+        case 'operation-not-allowed':
+          return 'Password reset via email is not enabled for this app. '
+              'Please contact support.';
+        case 'network-request-failed':
+          return 'Network error. Please check your connection and try again.';
+        default:
+          return 'Could not send the reset email (${e.code}). '
+              'Please try again.';
+      }
+    } catch (e) {
+      debugPrint('Unexpected password reset error: $e');
+      return 'An unexpected error occurred. Please try again.';
+    }
   }
 
   Future<void> deleteUser() async {
