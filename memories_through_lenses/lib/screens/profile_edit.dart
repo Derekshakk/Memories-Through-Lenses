@@ -235,6 +235,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                               size: 24,
                             ),
                           ),
+<<<<<<< Updated upstream
                         ),
                       ),
                     ],
@@ -247,6 +248,82 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
+=======
+                          ListTile(
+                            title: const Text('Gallery'),
+                            onTap: () async {
+                              try {
+                                final image = await ImagePicker()
+                                    .pickImage(source: ImageSource.gallery);
+                                if (image != null) {
+                                  setState(() {
+                                    _profileImage = File(image.path);
+                                  });
+                                }
+                                Navigator.pop(context);
+                              } catch (e) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Gallery error: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      );
+                    });
+              },
+              child: SizedBox(
+                  height: SizeConfig.blockSizeHorizontal! * 25,
+                  width: SizeConfig.blockSizeHorizontal! * 25,
+                  child: _singleton.userData['profile_image'] != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(100),
+                          child: Image.network(
+                              _singleton.userData['profile_image'],
+                              fit: BoxFit.cover))
+                      : (_profileImage == null)
+                          ? Image.asset("assets/generic_profile.png")
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(100),
+                              child: Image.file(_profileImage!,
+                                  fit: BoxFit.cover))),
+            ),
+            // Padding(
+            //   padding: const EdgeInsets.all(8.0),
+            //   child: TextField(
+            //     controller: nameController,
+            //     decoration: const InputDecoration(
+            //       labelText: 'Display Name',
+            //     ),
+            //   ),
+            // ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: usernameController,
+                maxLength: 35,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  hintText: 'Enter username (max 35 characters)',
+                  counterText: '$_usernameLength/35',
+                  counterStyle: TextStyle(
+                    color: _usernameLength > 30 ? Colors.red : 
+                           _usernameLength > 25 ? Colors.orange : Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                      color: _usernameLength > 30 ? Colors.red : Colors.blue,
+                      width: 2.0,
+>>>>>>> Stashed changes
                     ),
                   ),
                   const SizedBox(height: 8),
