@@ -166,7 +166,8 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                             ),
                             const SizedBox(height: 12),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 48),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 48),
                               child: Text(
                                 'When someone sends you a friend request, it will appear here',
                                 textAlign: TextAlign.center,

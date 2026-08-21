@@ -63,7 +63,8 @@ class _CameraScreenState extends State<CameraScreen> {
       if (kDebugMode) print("Camera initialization error: $e");
       if (mounted) {
         setState(() {
-          _errorMessage = "Camera access denied or unavailable. Please grant camera permission in settings.";
+          _errorMessage =
+              "Camera access denied or unavailable. Please grant camera permission in settings.";
           _isInitializing = false;
         });
       }
@@ -246,7 +247,9 @@ class _CameraScreenState extends State<CameraScreen> {
                               final image = await controller!.takePicture();
                               imageFile = image;
                               print(image.path);
-                              final provider = Provider.of<UserProvider>(context, listen: false);
+                              final provider = Provider.of<UserProvider>(
+                                  context,
+                                  listen: false);
                               provider.setImageFile(File(imageFile!.path));
                               provider.setVideoFile(null);
                               setState(() {
@@ -266,7 +269,9 @@ class _CameraScreenState extends State<CameraScreen> {
                                 // print(video.path);
                                 videoFile = video;
                                 setupVideoplayer();
-                                final provider = Provider.of<UserProvider>(context, listen: false);
+                                final provider = Provider.of<UserProvider>(
+                                    context,
+                                    listen: false);
                                 provider.setVideoFile(File(videoFile!.path));
                                 provider.setImageFile(null);
                                 setState(() {
@@ -341,7 +346,8 @@ class _CameraScreenState extends State<CameraScreen> {
                           color: Colors.white,
                           icon: Icon(Icons.check_circle),
                           onPressed: () {
-                            final provider = Provider.of<UserProvider>(context, listen: false);
+                            final provider = Provider.of<UserProvider>(context,
+                                listen: false);
                             provider.setVideoFile(File(videoFile!.path));
                             provider.setImageFile(null);
                             Navigator.pushNamed(context, '/create');

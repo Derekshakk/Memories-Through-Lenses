@@ -121,7 +121,9 @@ class _GroupScreenState extends State<GroupScreen> {
     }
     provider.userData!['group_invites'].forEach((key, value) {
       // value is a Map<String, dynamic> with a 'name' key
-      String groupName = (value is Map) ? (value['name'] ?? 'Unknown Group') : value.toString();
+      String groupName = (value is Map)
+          ? (value['name'] ?? 'Unknown Group')
+          : value.toString();
       groups.add(GroupCard(
           name: groupName, groupID: key, type: GroupCardType.notification));
     });
@@ -222,7 +224,8 @@ class _GroupScreenState extends State<GroupScreen> {
                     ),
                     if (joinRequests.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.orange,
                           borderRadius: BorderRadius.circular(12),
@@ -297,19 +300,24 @@ class _GroupScreenState extends State<GroupScreen> {
                               child: ListView.separated(
                                 padding: const EdgeInsets.all(12),
                                 itemCount: joinRequests.length,
-                                separatorBuilder: (context, index) => const Divider(height: 1),
+                                separatorBuilder: (context, index) =>
+                                    const Divider(height: 1),
                                 itemBuilder: (context, index) {
                                   final request = joinRequests[index];
                                   return ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
                                     leading: CircleAvatar(
                                       radius: 24,
                                       backgroundColor: Colors.grey[300],
-                                      backgroundImage: request['profile_image'] != null
-                                          ? NetworkImage(request['profile_image'])
-                                          : null,
+                                      backgroundImage:
+                                          request['profile_image'] != null
+                                              ? NetworkImage(
+                                                  request['profile_image'])
+                                              : null,
                                       child: request['profile_image'] == null
-                                          ? Icon(Icons.person, color: Colors.grey[600])
+                                          ? Icon(Icons.person,
+                                              color: Colors.grey[600])
                                           : null,
                                     ),
                                     title: Text(
@@ -330,7 +338,8 @@ class _GroupScreenState extends State<GroupScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         IconButton(
-                                          icon: const Icon(Icons.check_circle, color: Colors.green),
+                                          icon: const Icon(Icons.check_circle,
+                                              color: Colors.green),
                                           onPressed: () => handleApprove(
                                             request['user_id'],
                                             request['group_id'],
@@ -339,7 +348,8 @@ class _GroupScreenState extends State<GroupScreen> {
                                           tooltip: 'Approve',
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.cancel, color: Colors.red),
+                                          icon: const Icon(Icons.cancel,
+                                              color: Colors.red),
                                           onPressed: () => handleReject(
                                             request['user_id'],
                                             request['group_id'],
@@ -371,7 +381,8 @@ class _GroupScreenState extends State<GroupScreen> {
                     ),
                     if (groups.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.blue,
                           borderRadius: BorderRadius.circular(12),
@@ -436,7 +447,8 @@ class _GroupScreenState extends State<GroupScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.all(12),
                           itemCount: groups.length,
-                          separatorBuilder: (context, index) => const Divider(height: 1),
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1),
                           itemBuilder: (context, index) {
                             return groups[index];
                           },

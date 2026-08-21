@@ -64,7 +64,8 @@ class _SentScreenState extends State<SentScreen> {
 
               Map<String, dynamic> requests =
                   provider.userData?['outgoing_requests'] ?? {};
-              Map<String, dynamic> friends = provider.userData?['friends'] ?? {};
+              Map<String, dynamic> friends =
+                  provider.userData?['friends'] ?? {};
               Map<String, dynamic> incomingRequests =
                   provider.userData?['friend_requests'] ?? {};
 

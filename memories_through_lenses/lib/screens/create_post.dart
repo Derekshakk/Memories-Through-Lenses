@@ -112,7 +112,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/home', (route) => false);
           },
         ),
       ),
@@ -264,7 +265,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blue, width: 2),
+                      borderSide:
+                          const BorderSide(color: Colors.blue, width: 2),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -332,7 +334,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.all(8),
                           itemCount: groups.length,
-                          separatorBuilder: (context, index) => const Divider(height: 1),
+                          separatorBuilder: (context, index) =>
+                              const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final group = groups[index];
                             final isSelected = _selectedGroup == group.key;
@@ -340,7 +343,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              tileColor: isSelected ? Colors.blue.withOpacity(0.1) : null,
+                              tileColor: isSelected
+                                  ? Colors.blue.withOpacity(0.1)
+                                  : null,
                               leading: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
@@ -351,19 +356,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                 ),
                                 child: Icon(
                                   Icons.group,
-                                  color: isSelected ? Colors.white : Colors.grey[600],
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey[600],
                                   size: 20,
                                 ),
                               ),
                               title: Text(
                                 group.value,
                                 style: GoogleFonts.poppins(
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                  color: isSelected ? Colors.blue : Colors.grey[800],
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? Colors.blue
+                                      : Colors.grey[800],
                                 ),
                               ),
                               trailing: isSelected
-                                  ? const Icon(Icons.check_circle, color: Colors.blue)
+                                  ? const Icon(Icons.check_circle,
+                                      color: Colors.blue)
                                   : null,
                               onTap: () {
                                 setState(() {
@@ -381,7 +393,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: (_postMedia != null && _selectedGroup != '' && !uploading)
+                    onPressed: (_postMedia != null &&
+                            _selectedGroup != '' &&
+                            !uploading)
                         ? () {
                             setState(() {
                               uploading = true;
@@ -423,7 +437,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -457,7 +472,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                        Icon(Icons.error_outline,
+                            color: Colors.red[700], size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(

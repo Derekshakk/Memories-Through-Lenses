@@ -32,7 +32,8 @@ class GroupCard extends StatelessWidget {
         children: [
           Expanded(child: Text(name)),
           // Green button for request and notification types
-          if (type == GroupCardType.request || type == GroupCardType.notification)
+          if (type == GroupCardType.request ||
+              type == GroupCardType.notification)
             SizedBox(
               width: SizeConfig.blockSizeHorizontal! * 10,
               height: SizeConfig.blockSizeHorizontal! * 10,
@@ -114,12 +115,16 @@ class GroupCard extends StatelessWidget {
                       color: Colors.white)),
             ),
           // Spacing for types with red button
-          if (type == GroupCardType.invite || type == GroupCardType.notification || type == GroupCardType.pendingRequest)
+          if (type == GroupCardType.invite ||
+              type == GroupCardType.notification ||
+              type == GroupCardType.pendingRequest)
             SizedBox(
               width: SizeConfig.blockSizeHorizontal! * 2,
             ),
           // Red button for invite, notification, and pendingRequest types
-          if (type == GroupCardType.invite || type == GroupCardType.notification || type == GroupCardType.pendingRequest)
+          if (type == GroupCardType.invite ||
+              type == GroupCardType.notification ||
+              type == GroupCardType.pendingRequest)
             SizedBox(
               width: SizeConfig.blockSizeHorizontal! * 10,
               height: SizeConfig.blockSizeHorizontal! * 10,
@@ -141,7 +146,8 @@ class GroupCard extends StatelessWidget {
                           .collection('groups')
                           .doc(groupID);
                       await groupRef.update({
-                        'join_requests': FieldValue.arrayRemove([Auth().user!.uid])
+                        'join_requests':
+                            FieldValue.arrayRemove([Auth().user!.uid])
                       });
 
                       if (context.mounted) {
@@ -197,8 +203,8 @@ class GroupCard extends StatelessWidget {
                     backgroundColor: WidgetStateProperty.all(Colors.red),
                     shape: WidgetStateProperty.all(const CircleBorder()),
                   ),
-                  child: const Icon(Icons.cancel_outlined,
-                      color: Colors.white)),
+                  child:
+                      const Icon(Icons.cancel_outlined, color: Colors.white)),
             ),
         ],
       ),
@@ -323,7 +329,8 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                   setState(() {
                                     _selected = !_selected;
                                     if (widget.onSelectionChanged != null) {
-                                      widget.onSelectionChanged!(widget.uid, _selected);
+                                      widget.onSelectionChanged!(
+                                          widget.uid, _selected);
                                     }
                                   });
                                 },
@@ -348,7 +355,8 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                   setState(() {
                                     _selected = !_selected;
                                     if (widget.onSelectionChanged != null) {
-                                      widget.onSelectionChanged!(widget.uid, _selected);
+                                      widget.onSelectionChanged!(
+                                          widget.uid, _selected);
                                     }
                                   });
                                 },
@@ -402,53 +410,56 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                          onPressed: () async {
-                            // Show confirmation dialog
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Transfer Ownership'),
-                                content: Text(
-                                  'Are you sure you want to transfer ownership of this group? You will no longer be the owner and cannot undo this action.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
+                            onPressed: () async {
+                              // Show confirmation dialog
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Transfer Ownership'),
+                                  content: Text(
+                                    'Are you sure you want to transfer ownership of this group? You will no longer be the owner and cannot undo this action.',
                                   ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text(
-                                      'Transfer',
-                                      style: TextStyle(
-                                        color: Colors.orange,
-                                        fontWeight: FontWeight.bold,
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text(
+                                        'Transfer',
+                                        style: TextStyle(
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
+                                  ],
+                                ),
+                              );
 
-                            if (confirmed == true) {
-                              // transfer ownership of group to user with uid
-                              final groupRef = FirebaseFirestore.instance
-                                  .collection('groups')
-                                  .doc(widget.groupID);
-                              await groupRef.update({'owner': widget.uid});
+                              if (confirmed == true) {
+                                // transfer ownership of group to user with uid
+                                final groupRef = FirebaseFirestore.instance
+                                    .collection('groups')
+                                    .doc(widget.groupID);
+                                await groupRef.update({'owner': widget.uid});
 
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Ownership transferred successfully'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                                Navigator.pushNamedAndRemoveUntil(
-                                    context, '/group', (route) => false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Ownership transferred successfully'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  Navigator.pushNamedAndRemoveUntil(
+                                      context, '/group', (route) => false);
+                                }
                               }
-                            }
-                          },
+                            },
                             label: const Text('Transfer Ownership'),
                           ),
                         ),
@@ -466,56 +477,62 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                          onPressed: () async {
-                            // Show confirmation dialog
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Kick Member'),
-                                content: Text('Are you sure you want to remove this member from the group?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Kick', style: TextStyle(color: Colors.red)),
-                                  ),
-                                ],
-                              ),
-                            );
+                            onPressed: () async {
+                              // Show confirmation dialog
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Kick Member'),
+                                  content: Text(
+                                      'Are you sure you want to remove this member from the group?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Kick',
+                                          style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              );
 
-                            if (confirmed == true) {
-                              // remove user from group's members list
-                              final groupRef = FirebaseFirestore.instance
-                                  .collection('groups')
-                                  .doc(widget.groupID);
-                              await groupRef.update({
-                                'members': FieldValue.arrayRemove([widget.uid])
-                              });
+                              if (confirmed == true) {
+                                // remove user from group's members list
+                                final groupRef = FirebaseFirestore.instance
+                                    .collection('groups')
+                                    .doc(widget.groupID);
+                                await groupRef.update({
+                                  'members':
+                                      FieldValue.arrayRemove([widget.uid])
+                                });
 
-                              // remove group from user's groups list
-                              final userRef = FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(widget.uid);
-                              await userRef.update({
-                                'groups': FieldValue.arrayRemove([widget.groupID])
-                              });
+                                // remove group from user's groups list
+                                final userRef = FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(widget.uid);
+                                await userRef.update({
+                                  'groups':
+                                      FieldValue.arrayRemove([widget.groupID])
+                                });
 
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Member kicked from group'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                                // Navigate back to refresh the list
-                                Navigator.pushNamedAndRemoveUntil(
-                                    context, '/group', (route) => false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Member kicked from group'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  // Navigate back to refresh the list
+                                  Navigator.pushNamedAndRemoveUntil(
+                                      context, '/group', (route) => false);
+                                }
                               }
-                            }
-                          },
+                            },
                             label: const Text('Kick'),
                           ),
                         ),
@@ -525,7 +542,8 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                           SizedBox(
                             width: SizeConfig.blockSizeHorizontal! * 90,
                             child: _isLoadingStatus
-                                ? const Center(child: CircularProgressIndicator())
+                                ? const Center(
+                                    child: CircularProgressIndicator())
                                 : ElevatedButton.icon(
                                     icon: Icon(
                                       _isFriend
@@ -543,7 +561,8 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                               : Colors.blue,
                                       foregroundColor: Colors.white,
                                       elevation: 2,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -551,25 +570,35 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                     onPressed: _isFriend
                                         ? null
                                         : () async {
-                                            final currentUserId = Auth().user!.uid;
+                                            final currentUserId =
+                                                Auth().user!.uid;
 
                                             if (_isPendingRequest) {
                                               // Cancel pending request
-                                              final confirmed = await showDialog<bool>(
+                                              final confirmed =
+                                                  await showDialog<bool>(
                                                 context: context,
-                                                builder: (context) => AlertDialog(
-                                                  title: const Text('Cancel Friend Request'),
-                                                  content: Text('Cancel your friend request to this user?'),
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                  title: const Text(
+                                                      'Cancel Friend Request'),
+                                                  content: Text(
+                                                      'Cancel your friend request to this user?'),
                                                   actions: [
                                                     TextButton(
-                                                      onPressed: () => Navigator.pop(context, false),
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, false),
                                                       child: const Text('No'),
                                                     ),
                                                     TextButton(
-                                                      onPressed: () => Navigator.pop(context, true),
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, true),
                                                       child: const Text(
                                                         'Cancel Request',
-                                                        style: TextStyle(color: Colors.red),
+                                                        style: TextStyle(
+                                                            color: Colors.red),
                                                       ),
                                                     ),
                                                   ],
@@ -578,63 +607,101 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
 
                                               if (confirmed == true) {
                                                 // Remove from target user's friend_requests
-                                                final targetUserRef = FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(widget.uid);
+                                                final targetUserRef =
+                                                    FirebaseFirestore.instance
+                                                        .collection('users')
+                                                        .doc(widget.uid);
 
-                                                final targetDoc = await targetUserRef.get();
+                                                final targetDoc =
+                                                    await targetUserRef.get();
                                                 if (targetDoc.exists) {
-                                                  Map<String, dynamic> friendRequests =
-                                                      Map<String, dynamic>.from(targetDoc.data()?['friend_requests'] ?? {});
-                                                  friendRequests.remove(currentUserId);
-                                                  await targetUserRef.update({'friend_requests': friendRequests});
+                                                  Map<String, dynamic>
+                                                      friendRequests = Map<
+                                                          String,
+                                                          dynamic>.from(targetDoc
+                                                                  .data()?[
+                                                              'friend_requests'] ??
+                                                          {});
+                                                  friendRequests
+                                                      .remove(currentUserId);
+                                                  await targetUserRef.update({
+                                                    'friend_requests':
+                                                        friendRequests
+                                                  });
                                                 }
 
                                                 // Remove from current user's outgoing_requests
-                                                final currentUserRef = FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(currentUserId);
+                                                final currentUserRef =
+                                                    FirebaseFirestore.instance
+                                                        .collection('users')
+                                                        .doc(currentUserId);
 
-                                                final currentDoc = await currentUserRef.get();
+                                                final currentDoc =
+                                                    await currentUserRef.get();
                                                 if (currentDoc.exists) {
-                                                  Map<String, dynamic> outgoingRequests =
-                                                      Map<String, dynamic>.from(currentDoc.data()?['outgoing_requests'] ?? {});
-                                                  outgoingRequests.remove(widget.uid);
-                                                  await currentUserRef.update({'outgoing_requests': outgoingRequests});
+                                                  Map<String, dynamic>
+                                                      outgoingRequests = Map<
+                                                          String,
+                                                          dynamic>.from(currentDoc
+                                                                  .data()?[
+                                                              'outgoing_requests'] ??
+                                                          {});
+                                                  outgoingRequests
+                                                      .remove(widget.uid);
+                                                  await currentUserRef.update({
+                                                    'outgoing_requests':
+                                                        outgoingRequests
+                                                  });
                                                 }
 
                                                 // Refresh the user provider and local state
                                                 if (context.mounted) {
-                                                  final provider = Provider.of<UserProvider>(context, listen: false);
+                                                  final provider =
+                                                      Provider.of<UserProvider>(
+                                                          context,
+                                                          listen: false);
                                                   await provider.loadUserData();
 
                                                   setState(() {
                                                     _isPendingRequest = false;
                                                   });
 
-                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
                                                     const SnackBar(
-                                                      content: Text('Friend request cancelled'),
-                                                      backgroundColor: Colors.orange,
+                                                      content: Text(
+                                                          'Friend request cancelled'),
+                                                      backgroundColor:
+                                                          Colors.orange,
                                                     ),
                                                   );
                                                 }
                                               }
                                             } else {
                                               // Send friend request
-                                              final confirmed = await showDialog<bool>(
+                                              final confirmed =
+                                                  await showDialog<bool>(
                                                 context: context,
-                                                builder: (context) => AlertDialog(
-                                                  title: const Text('Send Friend Request'),
-                                                  content: Text('Send a friend request to this user?'),
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                  title: const Text(
+                                                      'Send Friend Request'),
+                                                  content: Text(
+                                                      'Send a friend request to this user?'),
                                                   actions: [
                                                     TextButton(
-                                                      onPressed: () => Navigator.pop(context, false),
-                                                      child: const Text('Cancel'),
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, false),
+                                                      child:
+                                                          const Text('Cancel'),
                                                     ),
                                                     TextButton(
-                                                      onPressed: () => Navigator.pop(context, true),
-                                                      child: const Text('Send Request'),
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context, true),
+                                                      child: const Text(
+                                                          'Send Request'),
                                                     ),
                                                   ],
                                                 ),
@@ -642,48 +709,63 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
 
                                               if (confirmed == true) {
                                                 // Get current user data for name
-                                                final currentUserDoc = await FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(currentUserId)
-                                                    .get();
-                                                final currentUserData = currentUserDoc.data();
-                                                final currentUserName = currentUserData?['name'] ?? 'Unknown';
+                                                final currentUserDoc =
+                                                    await FirebaseFirestore
+                                                        .instance
+                                                        .collection('users')
+                                                        .doc(currentUserId)
+                                                        .get();
+                                                final currentUserData =
+                                                    currentUserDoc.data();
+                                                final currentUserName =
+                                                    currentUserData?['name'] ??
+                                                        'Unknown';
 
                                                 // Add to target user's friend_requests
-                                                final targetUserRef = FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(widget.uid);
+                                                final targetUserRef =
+                                                    FirebaseFirestore.instance
+                                                        .collection('users')
+                                                        .doc(widget.uid);
 
                                                 await targetUserRef.update({
-                                                  'friend_requests.$currentUserId': {
+                                                  'friend_requests.$currentUserId':
+                                                      {
                                                     'name': currentUserName,
                                                   }
                                                 });
 
                                                 // Add to current user's outgoing_requests
-                                                final currentUserRef = FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(currentUserId);
+                                                final currentUserRef =
+                                                    FirebaseFirestore.instance
+                                                        .collection('users')
+                                                        .doc(currentUserId);
 
                                                 await currentUserRef.update({
-                                                  'outgoing_requests.${widget.uid}': {
+                                                  'outgoing_requests.${widget.uid}':
+                                                      {
                                                     'name': widget.name,
                                                   }
                                                 });
 
                                                 // Refresh the user provider and local state
                                                 if (context.mounted) {
-                                                  final provider = Provider.of<UserProvider>(context, listen: false);
+                                                  final provider =
+                                                      Provider.of<UserProvider>(
+                                                          context,
+                                                          listen: false);
                                                   await provider.loadUserData();
 
                                                   setState(() {
                                                     _isPendingRequest = true;
                                                   });
 
-                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
                                                     const SnackBar(
-                                                      content: Text('Friend request sent!'),
-                                                      backgroundColor: Colors.green,
+                                                      content: Text(
+                                                          'Friend request sent!'),
+                                                      backgroundColor:
+                                                          Colors.green,
                                                     ),
                                                   );
                                                 }

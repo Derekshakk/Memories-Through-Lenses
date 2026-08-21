@@ -106,9 +106,9 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
 
         bool isOwner = doc['owner'] == Auth().user!.uid;
         bool hasPendingRequest = groupRequests.contains(doc.id);
-        bool isMember = members.contains(Auth().user!.uid) || userGroups.contains(doc.id);
+        bool isMember =
+            members.contains(Auth().user!.uid) || userGroups.contains(doc.id);
         bool isPrivate = doc['private'] ?? false;
-
 
         if (!isOwner && !isMember) {
           fetchedGroups.add(GroupCard(
@@ -118,7 +118,6 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           ));
         }
       }
-
 
       if (mounted) {
         setState(() {
@@ -256,7 +255,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blue, width: 2),
+                      borderSide:
+                          const BorderSide(color: Colors.blue, width: 2),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -314,7 +314,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24),
                                     child: Text(
                                       'You are already a member of all available public groups, or all groups are private',
                                       textAlign: TextAlign.center,
@@ -330,8 +331,10 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                           : ListView.separated(
                               padding: const EdgeInsets.all(12),
                               itemCount: searchedGroups.length,
-                              separatorBuilder: (context, index) => const Divider(height: 1),
-                              itemBuilder: (context, index) => searchedGroups[index],
+                              separatorBuilder: (context, index) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) =>
+                                  searchedGroups[index],
                             ),
                 ),
 
@@ -351,7 +354,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                     ),
                     if (pendingGroups.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.orange,
                           borderRadius: BorderRadius.circular(12),
@@ -408,8 +412,10 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                           : ListView.separated(
                               padding: const EdgeInsets.all(12),
                               itemCount: pendingGroups.length,
-                              separatorBuilder: (context, index) => const Divider(height: 1),
-                              itemBuilder: (context, index) => pendingGroups[index],
+                              separatorBuilder: (context, index) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) =>
+                                  pendingGroups[index],
                             ),
                 ),
               ],

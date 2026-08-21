@@ -222,7 +222,8 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Reported by ${report['reporter_name']}',
@@ -233,7 +234,8 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                             ),
                                           ),
                                           Text(
-                                            _formatDateTime(report['created_at']),
+                                            _formatDateTime(
+                                                report['created_at']),
                                             style: GoogleFonts.poppins(
                                               fontSize: 12,
                                               color: Colors.grey[600],
@@ -306,12 +308,14 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                           height: 200,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
                                             return Container(
                                               height: 200,
                                               color: Colors.grey[300],
                                               child: const Center(
-                                                child: Icon(Icons.broken_image, size: 50),
+                                                child: Icon(Icons.broken_image,
+                                                    size: 50),
                                               ),
                                             );
                                           },
@@ -366,16 +370,19 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: () async {
-                                          final confirmed = await showDialog<bool>(
+                                          final confirmed =
+                                              await showDialog<bool>(
                                             context: context,
                                             builder: (context) => AlertDialog(
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(16),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                               ),
                                               title: Text(
                                                 'Delete Post?',
                                                 style: GoogleFonts.poppins(
-                                                    fontWeight: FontWeight.w600),
+                                                    fontWeight:
+                                                        FontWeight.w600),
                                               ),
                                               content: Text(
                                                 'This will permanently delete the reported post. This action cannot be undone.',
@@ -384,7 +391,8 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                               actions: [
                                                 TextButton(
                                                   onPressed: () =>
-                                                      Navigator.pop(context, false),
+                                                      Navigator.pop(
+                                                          context, false),
                                                   child: Text(
                                                     'Cancel',
                                                     style: GoogleFonts.poppins(
@@ -393,12 +401,14 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                                 ),
                                                 TextButton(
                                                   onPressed: () =>
-                                                      Navigator.pop(context, true),
+                                                      Navigator.pop(
+                                                          context, true),
                                                   child: Text(
                                                     'Delete',
                                                     style: GoogleFonts.poppins(
                                                         color: Colors.red,
-                                                        fontWeight: FontWeight.w600),
+                                                        fontWeight:
+                                                            FontWeight.w600),
                                                   ),
                                                 ),
                                               ],
@@ -406,21 +416,25 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                           );
 
                                           if (confirmed == true) {
-                                            await handleApprove(
-                                                report['id'], report['post_id'], index);
+                                            await handleApprove(report['id'],
+                                                report['post_id'], index);
                                           }
                                         },
-                                        icon: const Icon(Icons.delete, size: 18),
+                                        icon:
+                                            const Icon(Icons.delete, size: 18),
                                         label: Text(
                                           'Delete Post',
-                                          style: GoogleFonts.poppins(fontSize: 14),
+                                          style:
+                                              GoogleFonts.poppins(fontSize: 14),
                                         ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.red,
                                           foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
                                         ),
                                       ),
@@ -429,19 +443,23 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: () async {
-                                          await handleReject(report['id'], index);
+                                          await handleReject(
+                                              report['id'], index);
                                         },
                                         icon: const Icon(Icons.check, size: 18),
                                         label: Text(
                                           'Keep Post',
-                                          style: GoogleFonts.poppins(fontSize: 14),
+                                          style:
+                                              GoogleFonts.poppins(fontSize: 14),
                                         ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green,
                                           foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
                                         ),
                                       ),

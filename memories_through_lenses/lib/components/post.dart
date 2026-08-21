@@ -169,9 +169,9 @@ class _PostCardState extends State<PostCard> {
                                       const CircularProgressIndicator(),
                                   errorWidget: (context, url, error) =>
                                       Image.asset(
-                                        "assets/generic_profile.png",
-                                        fit: BoxFit.cover,
-                                      ),
+                                    "assets/generic_profile.png",
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
                               : Image.asset(
                                   "assets/generic_profile.png",
@@ -333,9 +333,7 @@ class _PostCardState extends State<PostCard> {
                         height: SizeConfig.blockSizeHorizontal! * 10,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Colors.green,
-
+                              backgroundColor: Colors.green,
                               padding: EdgeInsets.all(0.0)),
                           child: Icon(
                             currentUserOpinion == "like"
@@ -344,11 +342,11 @@ class _PostCardState extends State<PostCard> {
                             color: currentUserOpinion == "like"
                                 ? Colors.white
                                 : Colors.black54,
-
                           ),
                           onPressed: () async {
                             print('=== LIKE BUTTON PRESSED ===');
-                            print('Before - Likes: $currentLikes, Dislikes: $currentDislikes, Opinion: $currentUserOpinion');
+                            print(
+                                'Before - Likes: $currentLikes, Dislikes: $currentDislikes, Opinion: $currentUserOpinion');
 
                             // Store previous state for rollback on error
                             final prevLikes = currentLikes;
@@ -373,7 +371,8 @@ class _PostCardState extends State<PostCard> {
                               }
                             });
 
-                            print('After - Likes: $currentLikes, Dislikes: $currentDislikes, Opinion: $currentUserOpinion');
+                            print(
+                                'After - Likes: $currentLikes, Dislikes: $currentDislikes, Opinion: $currentUserOpinion');
 
                             // Perform database operation
                             try {
@@ -389,7 +388,8 @@ class _PostCardState extends State<PostCard> {
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to like post. Please try again.'),
+                                    content: Text(
+                                        'Failed to like post. Please try again.'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -412,8 +412,7 @@ class _PostCardState extends State<PostCard> {
                         height: SizeConfig.blockSizeHorizontal! * 10,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Colors.red,
+                              backgroundColor: Colors.red,
                               padding: EdgeInsets.all(0.0)),
                           child: Icon(
                             currentUserOpinion == "dislike"
@@ -424,7 +423,6 @@ class _PostCardState extends State<PostCard> {
                                 : Colors.black54,
                           ),
                           onPressed: () async {
-
                             // Store previous state for rollback on error
                             final prevLikes = currentLikes;
                             final prevDislikes = currentDislikes;
@@ -448,7 +446,8 @@ class _PostCardState extends State<PostCard> {
                               }
                             });
 
-                            print('After - Likes: $currentLikes, Dislikes: $currentDislikes, Opinion: $currentUserOpinion');
+                            print(
+                                'After - Likes: $currentLikes, Dislikes: $currentDislikes, Opinion: $currentUserOpinion');
 
                             // Perform database operation
                             try {
@@ -464,7 +463,8 @@ class _PostCardState extends State<PostCard> {
                                 });
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to dislike post. Please try again.'),
+                                    content: Text(
+                                        'Failed to dislike post. Please try again.'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -514,7 +514,6 @@ class _PostCardState extends State<PostCard> {
                       Text("$commentCount"),
                     ],
                   ),
-
                 ],
               ),
             ),
@@ -570,7 +569,8 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                   });
 
                   try {
-                    await Database().reportPost(widget.postId, widget.postCreator);
+                    await Database()
+                        .reportPost(widget.postId, widget.postCreator);
                     if (context.mounted) {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -587,7 +587,8 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Error reporting post: ${e.toString()}'),
+                          content:
+                              Text('Error reporting post: ${e.toString()}'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -603,12 +604,14 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                   });
 
                   try {
-                    await Database().reportAndBlockUser(widget.postId, widget.postCreator);
+                    await Database()
+                        .reportAndBlockUser(widget.postId, widget.postCreator);
                     if (context.mounted) {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('User blocked and post reported successfully'),
+                          content: Text(
+                              'User blocked and post reported successfully'),
                           backgroundColor: Colors.green,
                         ),
                       );

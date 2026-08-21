@@ -26,10 +26,8 @@ class UserProvider extends ChangeNotifier {
       print('========== USERPROVIDER DEBUG ==========');
       print('Loading user data for UID: $uid');
 
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (userDoc.exists) {
         _userData = userDoc.data();

@@ -46,7 +46,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           for (var userData in allUsers) {
             // Exclude the current user
             if (userData['uid'] != currentUserId) {
-              users.add(User(name: userData['name'] ?? 'Unknown', uid: userData['uid']));
+              users.add(User(
+                  name: userData['name'] ?? 'Unknown', uid: userData['uid']));
             }
           }
         });
@@ -304,9 +305,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                           .collection('groups')
                           .get();
 
-                      final groupName = groupNameController.text.trim().toLowerCase();
+                      final groupName =
+                          groupNameController.text.trim().toLowerCase();
                       bool nameExists = groupsSnapshot.docs.any((doc) {
-                        final existingName = (doc.data()['name'] as String? ?? '').toLowerCase();
+                        final existingName =
+                            (doc.data()['name'] as String? ?? '').toLowerCase();
                         return existingName == groupName;
                       });
 

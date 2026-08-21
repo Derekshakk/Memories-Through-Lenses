@@ -168,7 +168,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -177,14 +178,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           style: GoogleFonts.poppins(),
                           decoration: InputDecoration(
                             hintText: 'Enter your name',
-                            hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
+                            hintStyle:
+                                GoogleFonts.poppins(color: Colors.grey[400]),
                             filled: true,
                             fillColor: Theme.of(context).cardColor,
                             prefixIcon: const Icon(Icons.person_outline),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.grey[800]!
                                     : Colors.grey[300]!,
                               ),
@@ -192,14 +195,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.grey[800]!
                                     : Colors.grey[300]!,
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.blue, width: 2),
+                              borderSide: const BorderSide(
+                                  color: Colors.blue, width: 2),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -222,7 +227,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -232,17 +238,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           readOnly: true,
                           decoration: InputDecoration(
                             hintText: 'Email',
-                            hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
+                            hintStyle:
+                                GoogleFonts.poppins(color: Colors.grey[400]),
                             filled: true,
-                            fillColor: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[850]
-                                : Colors.grey[100],
+                            fillColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey[850]
+                                    : Colors.grey[100],
                             prefixIcon: const Icon(Icons.email_outlined),
-                            suffixIcon: Icon(Icons.lock_outline, color: Colors.grey[400]),
+                            suffixIcon: Icon(Icons.lock_outline,
+                                color: Colors.grey[400]),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.grey[800]!
                                     : Colors.grey[300]!,
                               ),
@@ -250,7 +260,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.grey[800]!
                                     : Colors.grey[300]!,
                               ),
@@ -266,8 +277,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                         // School Field
 
-
-
                         const SizedBox(height: 20),
 
                         // Bio Field
@@ -276,7 +285,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -287,13 +297,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           maxLength: 200,
                           decoration: InputDecoration(
                             hintText: 'Tell us about yourself...',
-                            hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
+                            hintStyle:
+                                GoogleFonts.poppins(color: Colors.grey[400]),
                             filled: true,
                             fillColor: Theme.of(context).cardColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.grey[800]!
                                     : Colors.grey[300]!,
                               ),
@@ -301,14 +313,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
                                     ? Colors.grey[800]!
                                     : Colors.grey[300]!,
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.blue, width: 2),
+                              borderSide: const BorderSide(
+                                  color: Colors.blue, width: 2),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,

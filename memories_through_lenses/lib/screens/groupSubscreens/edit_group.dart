@@ -211,7 +211,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                               if (group.groupID == value) {
                                 groupNameController.text = group.name;
                                 currentGroupName = group.name;
-                                groupDescriptionController.text = group.description;
+                                groupDescriptionController.text =
+                                    group.description;
                                 isPrivate = group.isPrivate;
                                 currentGroup = group.groupID;
                                 break;
@@ -258,7 +259,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          borderSide:
+                              const BorderSide(color: Colors.blue, width: 2),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -298,7 +300,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          borderSide:
+                              const BorderSide(color: Colors.blue, width: 2),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -340,7 +343,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
+                                      Icon(Icons.people_outline,
+                                          size: 48, color: Colors.grey[400]),
                                       const SizedBox(height: 12),
                                       Text(
                                         'No members in this group',
@@ -353,26 +357,27 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                                   ),
                                 )
                               : ListView.builder(
-                              padding: const EdgeInsets.all(8),
-                              itemCount: users.length,
-                              itemBuilder: (context, index) {
-                                return GroupFriendCard(
-                                  name: users[index].name,
-                                  uid: users[index].uid,
-                                  groupID: currentGroup!,
-                                  groupName: currentGroupName!,
-                                  mode: 'edit',
-                                  profileImage: users[index].profileImage,
-                                );
-                              },
-                            ),
+                                  padding: const EdgeInsets.all(8),
+                                  itemCount: users.length,
+                                  itemBuilder: (context, index) {
+                                    return GroupFriendCard(
+                                      name: users[index].name,
+                                      uid: users[index].uid,
+                                      groupID: currentGroup!,
+                                      groupName: currentGroupName!,
+                                      mode: 'edit',
+                                      profileImage: users[index].profileImage,
+                                    );
+                                  },
+                                ),
                     ),
 
                     const SizedBox(height: 20),
 
                     // Private Toggle
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -398,7 +403,9 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                           child: ElevatedButton(
                             onPressed: () async {
                               if (groupNameController.text.trim().isEmpty ||
-                                  groupDescriptionController.text.trim().isEmpty) {
+                                  groupDescriptionController.text
+                                      .trim()
+                                      .isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
@@ -486,7 +493,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                                     ),
                                     title: Text(
                                       'Delete Group',
-                                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                      style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600),
                                     ),
                                     content: Text(
                                       'Are you sure you want to delete this group? This will remove all posts and cannot be undone.',
@@ -499,7 +507,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                                         },
                                         child: Text(
                                           'Cancel',
-                                          style: GoogleFonts.poppins(color: Colors.grey),
+                                          style: GoogleFonts.poppins(
+                                              color: Colors.grey),
                                         ),
                                       ),
                                       TextButton(
@@ -511,7 +520,8 @@ class _EditGroupScreenState extends State<EditGroupScreen> {
                                         },
                                         child: Text(
                                           'Delete',
-                                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                          style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.w600),
                                         ),
                                       ),
                                     ],

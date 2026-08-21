@@ -67,7 +67,8 @@ class AppStreams {
   }
 
   /// Stream of friend requests for current user
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> get friendRequestsStream {
+  static Stream<DocumentSnapshot<Map<String, dynamic>>>
+      get friendRequestsStream {
     final uid = Auth().user?.uid;
     if (uid == null) {
       // Return an empty stream instead of throwing exception
@@ -77,12 +78,14 @@ class AppStreams {
   }
 
   /// Stream of specific user's data
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> getUserStream(String userId) {
+  static Stream<DocumentSnapshot<Map<String, dynamic>>> getUserStream(
+      String userId) {
     return _firestore.collection('users').doc(userId).snapshots();
   }
 
   /// Stream of specific group's data
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> getGroupStream(String groupId) {
+  static Stream<DocumentSnapshot<Map<String, dynamic>>> getGroupStream(
+      String groupId) {
     return _firestore.collection('groups').doc(groupId).snapshots();
   }
 

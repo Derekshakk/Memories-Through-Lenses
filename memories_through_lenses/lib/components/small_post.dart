@@ -150,24 +150,22 @@ class _SmallPostCardState extends State<SmallPostCard> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 SizedBox(
-                    width: SizeConfig.blockSizeHorizontal! * 40,
-                    // height: SizeConfig.blockSizeHorizontal! * 10,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Center(
+                  width: SizeConfig.blockSizeHorizontal! * 40,
+                  // height: SizeConfig.blockSizeHorizontal! * 10,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Center(
                         child: Text(
-                        widget.caption,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 3,
-
-    )
-                        ),
-                      ),
-                      // child: Text(
-                      //   widget.caption,
-                      //   textAlign: TextAlign.center,
-                      // ),
-                    ),
+                      widget.caption,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 3,
+                    )),
+                  ),
+                  // child: Text(
+                  //   widget.caption,
+                  //   textAlign: TextAlign.center,
+                  // ),
+                ),
               ],
             ),
           ),
@@ -221,7 +219,8 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                   });
 
                   try {
-                    await Database().reportPost(widget.postId, widget.postCreator);
+                    await Database()
+                        .reportPost(widget.postId, widget.postCreator);
                     if (context.mounted) {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,7 +237,8 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Error reporting post: ${e.toString()}'),
+                          content:
+                              Text('Error reporting post: ${e.toString()}'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -254,12 +254,14 @@ class _ReportPostPopupState extends State<ReportPostPopup> {
                   });
 
                   try {
-                    await Database().reportAndBlockUser(widget.postId, widget.postCreator);
+                    await Database()
+                        .reportAndBlockUser(widget.postId, widget.postCreator);
                     if (context.mounted) {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('User blocked and post reported successfully'),
+                          content: Text(
+                              'User blocked and post reported successfully'),
                           backgroundColor: Colors.green,
                         ),
                       );

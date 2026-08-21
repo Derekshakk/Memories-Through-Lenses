@@ -133,7 +133,8 @@ class _YearbookScreenState extends State<YearbookScreen> {
         ));
       }
       temp = temp
-          .where((element) => element.created_at.year.toString() == selectedYear)
+          .where(
+              (element) => element.created_at.year.toString() == selectedYear)
           .toList();
 
       if (mounted) {
@@ -242,42 +243,45 @@ class _YearbookScreenState extends State<YearbookScreen> {
               ],
             )
           : Center(
-            child: Column(
-              children: [
-                Expanded(
-                  flex: 15,
-                  child: GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 5,
-                              mainAxisSpacing: 5,
-                              childAspectRatio: 0.7),
-                      itemCount: posts.length,
-                      itemBuilder: (context, index) {
-                        return GestureDetector(
-                          onLongPress: () => _showDeleteDialog(posts[index].id),
-                          child: SmallPostCard(
-                            id: posts[index].id,
-                            creator: posts[index].creator,
-                            mediaURL: posts[index].mediaURL,
-                            mediaType: posts[index].mediaType,
-                            caption: posts[index].caption,
-                            likes: posts[index].likes,
-                            dislikes: posts[index].dislikes,
-                            created_at: posts[index].created_at,
-                          ),
-                        );
-                      }),
-                ),
-                Expanded(
-                  child: Text('Long press an image to remove it from your yearbook.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.merriweather(fontSize: 12, color: Colors.grey)),
-                ),
-              ],
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: 15,
+                    child: GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 5,
+                                mainAxisSpacing: 5,
+                                childAspectRatio: 0.7),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          return GestureDetector(
+                            onLongPress: () =>
+                                _showDeleteDialog(posts[index].id),
+                            child: SmallPostCard(
+                              id: posts[index].id,
+                              creator: posts[index].creator,
+                              mediaURL: posts[index].mediaURL,
+                              mediaType: posts[index].mediaType,
+                              caption: posts[index].caption,
+                              likes: posts[index].likes,
+                              dislikes: posts[index].dislikes,
+                              created_at: posts[index].created_at,
+                            ),
+                          );
+                        }),
+                  ),
+                  Expanded(
+                    child: Text(
+                        'Long press an image to remove it from your yearbook.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.merriweather(
+                            fontSize: 12, color: Colors.grey)),
+                  ),
+                ],
+              ),
             ),
-          ),
     );
   }
 }

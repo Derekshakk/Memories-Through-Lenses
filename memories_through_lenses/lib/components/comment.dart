@@ -29,14 +29,14 @@ class Comment extends StatefulWidget {
 class _CommentState extends State<Comment> {
   bool isLiked = false;
   late List<dynamic> currentLikes;
-  
+
   @override
   void initState() {
     super.initState();
     currentLikes = List.from(widget.likes);
     checkIfLiked();
   }
-  
+
   void checkIfLiked() {
     final currentUser = Auth().user?.uid;
     if (currentUser != null) {
@@ -45,11 +45,11 @@ class _CommentState extends State<Comment> {
       });
     }
   }
-  
+
   void toggleLike() async {
     final currentUser = Auth().user?.uid;
     if (currentUser == null) return;
-    
+
     setState(() {
       if (isLiked) {
         // Unlike

@@ -35,7 +35,8 @@ class _CommentScreenState extends State<CommentScreen> {
   void initState() {
     super.initState();
     if (widget.mediaType == "video") {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.mediaURL));
+      _controller =
+          VideoPlayerController.networkUrl(Uri.parse(widget.mediaURL));
     }
     _loadComments();
   }
@@ -152,7 +153,8 @@ class _CommentScreenState extends State<CommentScreen> {
                       : FutureBuilder(
                           future: _controller.initialize(),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.done) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.done) {
                               return VideoPlayer(_controller);
                             } else {
                               return Container(
@@ -176,7 +178,8 @@ class _CommentScreenState extends State<CommentScreen> {
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.report, color: Colors.white, size: 20),
+                        icon: const Icon(Icons.report,
+                            color: Colors.white, size: 20),
                         onPressed: () {
                           showDialog(
                             context: context,
@@ -197,7 +200,8 @@ class _CommentScreenState extends State<CommentScreen> {
 
           // Comments section header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
                 Icon(Icons.comment_outlined, color: Colors.grey[700], size: 20),
@@ -225,7 +229,8 @@ class _CommentScreenState extends State<CommentScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.comment_outlined, size: 60, color: Colors.grey[400]),
+                            Icon(Icons.comment_outlined,
+                                size: 60, color: Colors.grey[400]),
                             const SizedBox(height: 16),
                             Text(
                               'No comments yet',
@@ -248,12 +253,14 @@ class _CommentScreenState extends State<CommentScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         itemCount: comments.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
                         itemBuilder: (context, index) {
                           return Comment(
                             username: comments[index]["username"],
                             profilePic: comments[index]["profilePic"],
-                            date: _timestampToDateString(comments[index]["date"]),
+                            date:
+                                _timestampToDateString(comments[index]["date"]),
                             description: comments[index]["description"],
                             likes: comments[index]["likes"],
                             postId: widget.id,
@@ -314,7 +321,8 @@ class _CommentScreenState extends State<CommentScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                      icon:
+                          const Icon(Icons.send, color: Colors.white, size: 20),
                       onPressed: _postComment,
                     ),
                   ),

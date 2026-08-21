@@ -76,7 +76,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           errorMessage = 'New password is too weak';
           break;
         case 'requires-recent-login':
-          errorMessage = 'Please log out and log in again before changing your password';
+          errorMessage =
+              'Please log out and log in again before changing your password';
           break;
         default:
           errorMessage = e.message ?? 'An error occurred';
@@ -239,7 +240,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -306,7 +308,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -379,7 +382,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,

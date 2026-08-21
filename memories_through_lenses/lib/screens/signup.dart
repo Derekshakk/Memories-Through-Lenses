@@ -294,7 +294,8 @@ class _SignupPageState extends State<SignupPage> {
                     decoration: InputDecoration(
                       hintText: 'First Name',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.person_outline, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.person_outline, color: Colors.blue),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -307,7 +308,8 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),
@@ -320,7 +322,8 @@ class _SignupPageState extends State<SignupPage> {
                     decoration: InputDecoration(
                       hintText: 'Last Name',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.person_outline, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.person_outline, color: Colors.blue),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -333,7 +336,8 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),
@@ -347,7 +351,8 @@ class _SignupPageState extends State<SignupPage> {
                     decoration: InputDecoration(
                       hintText: 'Email',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.email_outlined, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.email_outlined, color: Colors.blue),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -360,7 +365,8 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),
@@ -374,10 +380,13 @@ class _SignupPageState extends State<SignupPage> {
                     decoration: InputDecoration(
                       hintText: 'Password',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.lock_outline, color: Colors.blue),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isPasswordObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          _isPasswordObscured
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: Colors.grey[600],
                         ),
                         onPressed: () {
@@ -398,7 +407,8 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),
@@ -412,10 +422,13 @@ class _SignupPageState extends State<SignupPage> {
                     decoration: InputDecoration(
                       hintText: 'Confirm Password',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
+                      prefixIcon:
+                          const Icon(Icons.lock_outline, color: Colors.blue),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isConfirmObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                          _isConfirmObscured
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: Colors.grey[600],
                         ),
                         onPressed: () {
@@ -436,7 +449,8 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue, width: 2.0),
+                        borderSide:
+                            const BorderSide(color: Colors.blue, width: 2.0),
                       ),
                     ),
                   ),
