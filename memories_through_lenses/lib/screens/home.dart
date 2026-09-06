@@ -124,8 +124,11 @@ class _HomePageState extends State<HomePage> {
   ContentType selected = ContentType.popular;
   late FocusNode _focusNode;
 
-  List<String> dropdownItems = [];
+  // Each Pair holds (key: group display name, value: stable Firestore groupID).
+  // The dropdown is keyed on the groupID (unique) — never the display name,
+  // since two groups can legitimately share the same name.
   List<Pair> dropdownPairs = [];
+  // Currently selected groupID (stable unique id), or null when no groups.
   String? dropdownValue;
 
   // list of posts (mediaURL, likes, dislikes)
@@ -147,25 +150,30 @@ class _HomePageState extends State<HomePage> {
 
   void _updateDropdownFromGroups(List<Map<String, dynamic>> groups) {
     String? previousValue = dropdownValue;
-    dropdownItems.clear();
     dropdownPairs.clear();
 
+    // Build the item list, de-duplicating on the stable groupID so that a
+    // duplicated Firestore doc can never produce two items with the same value.
+    // Display names are intentionally NOT de-duplicated (two groups may share
+    // a name); the groupID keeps them distinct.
+    final Set<String> seenGroupIds = {};
     for (var group in groups) {
       String name = group['name'] ?? '';
       String groupID = group['groupID'] ?? '';
-      if (name.isNotEmpty && groupID.isNotEmpty) {
-        dropdownItems.add(name);
+      if (name.isNotEmpty && groupID.isNotEmpty && seenGroupIds.add(groupID)) {
         dropdownPairs.add(Pair(name, groupID));
       }
     }
 
-    // Update selected group
-    if (dropdownItems.isNotEmpty) {
-      if (previousValue != null && dropdownItems.contains(previousValue)) {
-        dropdownValue = previousValue;
-      } else if (dropdownValue == null) {
-        dropdownValue = dropdownItems[0];
-      }
+    // Reconcile the selected value so DropdownButton always has exactly one
+    // matching item. If the previously selected group is still present, keep
+    // it; otherwise fall back to the first group, or null when there are none.
+    final bool previousStillPresent = previousValue != null &&
+        dropdownPairs.any((pair) => pair.value == previousValue);
+    if (previousStillPresent) {
+      dropdownValue = previousValue;
+    } else if (dropdownPairs.isNotEmpty) {
+      dropdownValue = dropdownPairs.first.value;
     } else {
       dropdownValue = null;
     }
@@ -294,15 +302,9 @@ class _HomePageState extends State<HomePage> {
                 if (mounted) {
                   setState(() {
                     _updateDropdownFromGroups(groups);
-                    // Auto-load posts for first group
+                    // Auto-load posts for first group (dropdownValue is a groupID)
                     if (dropdownValue != null && posts.isEmpty) {
-                      final groupPair = dropdownPairs.firstWhere(
-                        (element) => element.key == dropdownValue,
-                        orElse: () => Pair('', ''),
-                      );
-                      if (groupPair.value.isNotEmpty) {
-                        getPosts(groupPair.value, userData);
-                      }
+                      getPosts(dropdownValue!, userData);
                     }
                   });
                 }
@@ -550,21 +552,23 @@ class _HomePageState extends State<HomePage> {
                           SizedBox(
                             height: SizeConfig.blockSizeVertical! * 5,
                             width: SizeConfig.blockSizeHorizontal! * 90,
-                            child: dropdownItems.isEmpty
+                            child: dropdownPairs.isEmpty
                                 ? const Center(
                                     child: Text('No groups available',
                                         style: TextStyle(fontSize: 20)),
                                   )
                                 : DropdownButton<String>(
+                                    // value is a groupID; items are keyed by
+                                    // groupID so exactly one item always matches.
                                     value: dropdownValue,
                                     hint: const Text('Select a group',
                                         style: TextStyle(fontSize: 20)),
-                                    items: dropdownItems
+                                    items: dropdownPairs
                                         .map<DropdownMenuItem<String>>(
-                                      (String value) {
+                                      (Pair pair) {
                                         return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value,
+                                          value: pair.value,
+                                          child: Text(pair.key,
                                               style: const TextStyle(
                                                   fontSize: 20)),
                                         );
@@ -573,17 +577,10 @@ class _HomePageState extends State<HomePage> {
                                     onChanged: (String? value) {
                                       if (value == null) return;
 
-                                      final groupPair =
-                                          dropdownPairs.firstWhere(
-                                              (element) => element.key == value,
-                                              orElse: () => Pair('', ''));
-
-                                      if (groupPair.value.isEmpty) return;
-
                                       setState(() {
                                         dropdownValue = value;
                                       });
-                                      getPosts(groupPair.value, userData);
+                                      getPosts(value, userData);
                                     },
                                   ),
                           ),
@@ -624,12 +621,8 @@ class _HomePageState extends State<HomePage> {
                                 });
 
                                 if (dropdownValue != null) {
-                                  final groupPair = dropdownPairs.firstWhere(
-                                      (element) => element.key == dropdownValue,
-                                      orElse: () => Pair('', ''));
-                                  if (groupPair.value.isNotEmpty) {
-                                    getPosts(groupPair.value, userData);
-                                  }
+                                  // dropdownValue is a groupID.
+                                  getPosts(dropdownValue!, userData);
                                 }
                               },
                             ),
@@ -660,6 +653,14 @@ class _HomePageState extends State<HomePage> {
                                   itemCount: filteredPosts.length,
                                   itemBuilder: (context, index) {
                                     return PostCard(
+                                      // Stable per-post key so Flutter keeps
+                                      // each PostCard's State attached to the
+                                      // same post when the list is reordered
+                                      // (e.g. switching Popular/Recent) instead
+                                      // of recycling State by list position,
+                                      // which made like/dislike counts appear
+                                      // on the wrong posts.
+                                      key: ValueKey(filteredPosts[index].id),
                                       id: filteredPosts[index].id,
                                       creator: filteredPosts[index].creator,
                                       mediaURL: filteredPosts[index].mediaURL,

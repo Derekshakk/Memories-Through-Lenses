@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:memories_through_lenses/components/app_keyboard_behavior.dart';
 import 'package:memories_through_lenses/routes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
       theme: themeProvider.lightTheme,
       darkTheme: themeProvider.darkTheme,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      builder: AppKeyboardBehavior.builder,
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {

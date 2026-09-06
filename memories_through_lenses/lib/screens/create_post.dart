@@ -59,7 +59,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _pickImageFromGallery() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    // Ask the picker to downscale up front. This keeps preview memory low and
+    // gives the upload a smaller starting point (final compression happens in
+    // Database.createPost).
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 90,
+    );
     if (image != null) {
       setState(() {
         _postMedia = File(image.path);
@@ -70,7 +78,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _pickImageFromCamera() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 90,
+    );
     if (image != null) {
       setState(() {
         _postMedia = File(image.path);
@@ -396,26 +409,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     onPressed: (_postMedia != null &&
                             _selectedGroup != '' &&
                             !uploading)
-                        ? () {
+                        ? () async {
+                            // Guard against duplicate taps creating duplicate
+                            // posts: bail out if an upload is already running.
+                            if (uploading) return;
                             setState(() {
                               uploading = true;
                               _message = '';
                             });
-                            Database()
-                                .createPost(_selectedGroup,
-                                    _captionController.text, _postMedia!)
-                                .then((value) {
-                              if (!value) {
-                                setState(() {
-                                  uploading = false;
-                                  _message =
-                                      'Failed to process image. Please try again';
-                                });
-                              } else {
-                                Navigator.pushNamedAndRemoveUntil(
-                                    context, '/home', (route) => false);
-                              }
-                            });
+
+                            bool success = false;
+                            try {
+                              success = await Database().createPost(
+                                  _selectedGroup,
+                                  _captionController.text,
+                                  _postMedia!);
+                            } catch (e) {
+                              success = false;
+                            }
+
+                            // Widget may have been disposed while awaiting.
+                            if (!mounted) return;
+
+                            if (success) {
+                              Navigator.pushNamedAndRemoveUntil(
+                                  context, '/home', (route) => false);
+                            } else {
+                              // Always clear the spinner so the user is never
+                              // stuck on an infinite loading state.
+                              setState(() {
+                                uploading = false;
+                                _message =
+                                    'Upload failed. Check your connection and try again.';
+                              });
+                            }
                           }
                         : null,
                     style: ElevatedButton.styleFrom(

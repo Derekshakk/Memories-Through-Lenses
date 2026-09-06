@@ -58,6 +58,40 @@ class _PostCardState extends State<PostCard> {
     _fetchCommentCount();
   }
 
+  @override
+  void didUpdateWidget(PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If this State object was reused for a *different* post (its stable
+    // ValueKey should normally prevent this, but guard defensively), reset
+    // every per-post field and refetch the author + comment count so nothing
+    // from the previous post leaks through.
+    if (oldWidget.id != widget.id) {
+      currentLikes = widget.likes;
+      currentDislikes = widget.dislikes;
+      currentUserOpinion = widget.userOpinion;
+      isLoadingUserData = true;
+      userData = null;
+      commentCount = 0;
+      _fetchUserData();
+      _fetchCommentCount();
+      return;
+    }
+
+    // Same post, but the parent supplied fresh values from a new Firestore
+    // fetch (switching Popular/Recent, changing groups, refreshing). Re-sync so
+    // we always reflect authoritative counts/opinion. When the parent merely
+    // rebuilds with unchanged data (e.g. typing in the search box) these are
+    // identical, so an in-flight optimistic like/dislike is preserved.
+    if (oldWidget.likes != widget.likes ||
+        oldWidget.dislikes != widget.dislikes ||
+        oldWidget.userOpinion != widget.userOpinion) {
+      currentLikes = widget.likes;
+      currentDislikes = widget.dislikes;
+      currentUserOpinion = widget.userOpinion;
+    }
+  }
+
   Future<void> _fetchUserData() async {
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance

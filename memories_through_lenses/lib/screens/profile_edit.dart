@@ -122,8 +122,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           backgroundImage: _profileImage != null
                               ? FileImage(_profileImage!)
                               : (userData?['profile_image'] != null
-                                  ? NetworkImage(userData!['profile_image'])
-                                  : const AssetImage('assets/generic_profile.png')) as ImageProvider,
+                                      ? NetworkImage(userData!['profile_image'])
+                                      : const AssetImage(
+                                          'assets/generic_profile.png'))
+                                  as ImageProvider,
                         ),
                       ),
                       Positioned(
@@ -165,7 +167,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                                     maxWidth: 150);
                                             if (image != null) {
                                               setState(() {
-                                                _profileImage = File(image.path);
+                                                _profileImage =
+                                                    File(image.path);
                                               });
                                             }
                                             Navigator.pop(context);
@@ -190,10 +193,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                           try {
                                             final image = await ImagePicker()
                                                 .pickImage(
-                                                    source: ImageSource.gallery);
+                                                    source:
+                                                        ImageSource.gallery);
                                             if (image != null) {
                                               setState(() {
-                                                _profileImage = File(image.path);
+                                                _profileImage =
+                                                    File(image.path);
                                               });
                                             }
                                             Navigator.pop(context);
@@ -304,9 +309,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
                         borderSide: BorderSide(
-                          color: _usernameLength > 35
-                              ? Colors.red
-                              : Colors.blue,
+                          color:
+                              _usernameLength > 35 ? Colors.red : Colors.blue,
                           width: 2.0,
                         ),
                       ),
