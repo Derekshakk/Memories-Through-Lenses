@@ -110,6 +110,25 @@ void main() {
         find.widgetWithText(ElevatedButton, 'Send Reset Link'), findsOneWidget);
   });
 
+  testWidgets('unexpected sender exception restores the dialog for retry',
+      (tester) async {
+    await tester.pumpWidget(_harness(onSubmit: (_) async {
+      throw StateError('unexpected sender failure');
+    }));
+    await _openDialog(tester);
+
+    await tester.enterText(find.byType(TextField), 'user@example.com');
+    await tester.tap(_sendButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(
+        find.widgetWithText(ElevatedButton, 'Send Reset Link'), findsOneWidget);
+    expect(find.textContaining('unexpected error'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('empty email is rejected without calling the sender',
       (tester) async {
     var calls = 0;
@@ -149,6 +168,14 @@ void main() {
     expect(calls, 1);
     // Loading indicator shown, duplicate requests prevented.
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Cancel'))
+          .onPressed,
+      isNull,
+    );
 
     completer.complete(null);
     await tester.pumpAndSettle();
@@ -181,7 +208,7 @@ void main() {
     expect(find.byKey(const Key('replaced')), findsOneWidget);
   });
 
-  testWidgets('barrier/back dismissal is blocked while a request is in flight',
+  testWidgets('barrier and system back are blocked while request is in flight',
       (tester) async {
     final completer = Completer<String?>();
     await tester.pumpWidget(_harness(onSubmit: (_) async => completer.future));
@@ -195,13 +222,26 @@ void main() {
     await tester.tap(_sendButton);
     await tester.pump();
 
-    // While sending, PopScope blocks the barrier tap / system back gesture so
-    // the page underneath cannot be popped (no black screen).
+    // While sending, PopScope reports that the route cannot be popped.
     popScope = tester.widget(find.byType(PopScope));
     expect(popScope.canPop, isFalse);
 
+    // Exercise the actual dismissal paths, rather than relying only on the
+    // PopScope configuration. Neither may close the dialog or underlying page.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byKey(const Key('home_marker')), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byKey(const Key('home_marker')), findsOneWidget);
+
     completer.complete(null);
     await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
     expect(find.byKey(const Key('home_marker')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
