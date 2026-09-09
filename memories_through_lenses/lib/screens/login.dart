@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:memories_through_lenses/components/forgot_password_dialog.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 
 class LoginPage extends StatefulWidget {
@@ -86,106 +87,10 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showForgotPasswordDialog() {
-    final TextEditingController resetEmailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Reset Password',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              fontSize: 20,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Enter your email address and we\'ll send you a link to reset your password.',
-                style: GoogleFonts.poppins(fontSize: 14),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: resetEmailController,
-                decoration: InputDecoration(
-                  hintText: 'Email',
-                  hintStyle: GoogleFonts.poppins(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  prefixIcon: const Icon(Icons.email, color: Colors.blue),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Capture context-dependent objects before the async gap.
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(dialogContext);
-
-                final email = resetEmailController.text.trim();
-                if (email.isEmpty) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Please enter your email address',
-                        style: GoogleFonts.poppins(),
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                // Returns null only when Firebase accepts the request;
-                // otherwise a user-friendly error message.
-                final errorMessage = await Auth().forgotPassword(email);
-                navigator.pop();
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      errorMessage ??
-                          'Password reset email sent! Check your inbox.',
-                      style: GoogleFonts.poppins(),
-                    ),
-                    backgroundColor:
-                        errorMessage == null ? Colors.green : Colors.red,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Send Reset Link',
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    // The dialog manages its own loading state, keyboard dismissal, and—
+    // crucially—pops itself exactly once so the underlying page can never be
+    // popped off the navigator, which previously caused a black screen.
+    showForgotPasswordDialog(context);
   }
 
   @override

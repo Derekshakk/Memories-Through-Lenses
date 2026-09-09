@@ -111,7 +111,10 @@ class Auth {
         case 'invalid-email':
           return 'Please enter a valid email address.';
         case 'user-not-found':
-          return 'No account was found with that email address.';
+          // Do NOT reveal that no account exists — that enables account
+          // enumeration. Treat it as success so the caller shows the same
+          // neutral "if an account exists…" message it shows on real success.
+          return null;
         case 'too-many-requests':
           return 'Too many attempts. Please wait a moment and try again.';
         case 'operation-not-allowed':
