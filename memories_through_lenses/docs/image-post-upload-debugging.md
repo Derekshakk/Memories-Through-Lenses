@@ -186,3 +186,78 @@ References: [Firestore offline behavior](https://firebase.google.com/docs/firest
   camera/gallery/handoff UI variants, missing/deleted source files, navigation
   failure, large JPEG/PNG, rotation and invalid input.
 - No authenticated live Firebase write or native iPhone execution was performed.
+
+## Final QA review of commit 0be558e
+
+Verdict: **hold App Store release pending native iPhone / live-service validation**.
+The earlier 90-test result above describes the initial fix; this review passes
+123 tests. `dart format .` completed. `flutter analyze` still exits nonzero with
+239 existing diagnostics (0 errors, 10 warnings, 229 infos). No new production
+diagnostics remain. Test-only SDK doubles explicitly suppress SDK annotations
+that prohibit implementing sealed/immutable reference types outside tests.
+
+Additional fixes from review:
+
+- Firebase cancellation returning false was previously logged as successful
+  cleanup. It is now reported as unconfirmed cancellation. The original upload
+  task has an independent completion observer: if an abandoned upload succeeds
+  after the first deletion attempt, a second bounded deletion is attempted.
+  This closes the observable late-completion orphan race while the process is
+  alive; errors are logged as `storage_late_cleanup/cleanup_failed`.
+- A `TaskState.error` snapshot with an unresolved task Future now fails promptly
+  instead of waiting for the full upload timeout.
+- Create Post ignores malformed group rows and invalidates a removed selection
+  before a new submission. A pending write keeps its immutable original target.
+- The Firebase adapter now accepts injected dependencies to test the actual
+  upload, metadata, URL, authentication, group, document and HTTP code. Runtime
+  defaults remain the existing Firebase singleton instances.
+
+33 additional test cases cover the adapter's MIME/path and post schema,
+moderation errors and payloads, sign-out, missing/non-member groups, URL failure,
+late native success after rejected cancellation, late cleanup errors, stalled
+listener cancellation, error snapshots, the outer six-minute UI deadline,
+synchronous construction failure, in-place retry after upload/URL failure,
+stale group data, and all eight EXIF rotation/mirroring modes. Mobile widget
+cases run with both iOS and Android target variants; native channels are mocked.
+
+Compatibility review: posts still have `group_id`, `user_id`, `caption`,
+`image_url`, `likes`, `dislikes`, `comments`, and `created_at`; Firestore serializes
+the DateTime as before. Feed/group/yearbook readers use these fields. Comments
+remain a subcollection of the same post ID. Yearbook receives the same
+`photo_path`/`post_id` payload. JPEG/PNG use the existing image-rendering paths.
+This is schema/code compatibility verification, not live feed/comments/yearbook
+integration coverage. No related screen or comment-writing behavior changed.
+
+Remaining limits / release gates:
+
+- No unbounded Create Post loading wait was found after the repairs while the
+  Dart event loop is running. Every submission exits its spinner, including
+  failure, timeout, cancellation and disposed-route paths. A Firestore Future
+  can remain pending internally; each UI check remains bounded and never
+  re-dispatches it.
+- Rejected/hung native cancellation may leave transfer work running. Rapid taps
+  on a running submission are coalesced, but a retry after failed native
+  cancellation can overlap that abandoned transfer. Its old chain cannot
+  create a post, and the late-success observer attempts deletion. This does
+  not provide a guarantee of zero native overlap or zero orphans.
+- Pending Firestore tracking is in memory. Restarting/leaving and recreating a
+  submission is not durably deduplicated. Retained images are intentionally not
+  deleted while the write outcome is unknown. Guaranteed cleanup across process
+  death would require a persistent reconciliation/server cleanup design.
+- Configured moderation is now required to respond with the expected schema.
+  Verify the deployed endpoint and RTDB read permissions on the release device;
+  otherwise posting will fail cleanly but still not succeed. Optional yearbook
+  indexing can fail after the post is saved and is not durably queued.
+- Native discovery was attempted again; `flutter devices` failed because the
+  Xcode license is unaccepted. No native build/run or authenticated production
+  test post was made. Camera, library, camera handoff, real HEIC, 48 MP, PNG,
+  rotations, iCloud-only images, network interruption/recovery and backgrounding
+  still require a physical iPhone test using the stage logs.
+- Existing feed-author/avatar/image loading uses separate unbounded reads or
+  placeholders (for example PostCard._fetchUserData). These predate this patch
+  and are not the posting spinner; no app-wide no-spinner guarantee is made.
+
+The exact released-device triggering await remains unknown. The proven defect
+was unbounded preprocessing/URL/write/cancel awaits combined with non-finally UI
+cleanup; this review does not recast a simulated timeout as a device reproduction.
+No Firebase rules/configuration, bundle/signing/version/build values were changed.

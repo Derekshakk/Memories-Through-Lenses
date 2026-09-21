@@ -57,7 +57,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void setGroups(List<Map<String, dynamic>> groupData) {
     groups.clear();
     for (var group in groupData) {
-      groups.add(Pair(key: group['groupID'], value: group['name']));
+      final id = group['groupID'];
+      final name = group['name'];
+      if (id is String &&
+          id.isNotEmpty &&
+          !id.contains('/') &&
+          name is String) {
+        groups.add(Pair(key: id, value: name));
+      }
+    }
+    if (_submission == null &&
+        !groups.any((group) => group.key == _selectedGroup)) {
+      _selectedGroup = '';
     }
   }
 
@@ -127,7 +138,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _sharePost() async {
-    if (uploading || _picking || _published || _postMedia == null) return;
+    if (uploading ||
+        _picking ||
+        _published ||
+        _postMedia == null ||
+        _selectedGroup.isEmpty) {
+      return;
+    }
     setState(() {
       uploading = true;
       _message = '';

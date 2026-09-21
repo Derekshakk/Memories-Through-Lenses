@@ -16,7 +16,9 @@ class _Snapshot extends Fake implements TaskSnapshot {
 }
 
 class _Task extends Fake implements UploadTask {
-  final events = StreamController<TaskSnapshot>.broadcast();
+  _Task({FutureOr<void> Function()? onCancel})
+      : events = StreamController<TaskSnapshot>(onCancel: onCancel);
+  final StreamController<TaskSnapshot> events;
   final completion = Completer<TaskSnapshot>();
   @override
   TaskSnapshot snapshot = _Snapshot(TaskState.running);
@@ -61,6 +63,19 @@ void main() {
   test('canceled snapshot fails without waiting for completer', () async {
     final result = expectLater(wait(), throwsA(isA<FirebaseException>()));
     task.events.add(_Snapshot(TaskState.canceled));
+    await result;
+  });
+  test('error snapshot fails promptly even if the task Future is unresolved',
+      () async {
+    final result = expectLater(wait(), throwsA(isA<FirebaseException>()));
+    task.events.add(_Snapshot(TaskState.error));
+    await result;
+  });
+  test('listener cancellation cannot hold a successful upload forever',
+      () async {
+    task = _Task(onCancel: () => Completer<void>().future);
+    final result = wait();
+    task.events.add(_Snapshot(TaskState.success));
     await result;
   });
   test('no native events times out and removes listener', () async {

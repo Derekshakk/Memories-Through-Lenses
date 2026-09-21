@@ -11,14 +11,33 @@ import 'image_utils.dart';
 import 'post_creation.dart';
 
 class FirebasePostBackend implements PostBackend {
-  FirebasePostBackend(this.groupId, this.caption)
-      : uid = FirebaseAuth.instance.currentUser?.uid,
-        post = FirebaseFirestore.instance.collection('posts').doc();
+  FirebasePostBackend(
+    this.groupId,
+    this.caption, {
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
+    FirebaseDatabase? realtime,
+    http.Client Function()? clientFactory,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _storage = storage ?? FirebaseStorage.instance,
+        _realtime = realtime ?? FirebaseDatabase.instance,
+        _clientFactory = clientFactory ?? http.Client.new {
+    uid = _auth.currentUser?.uid;
+    post = _firestore.collection('posts').doc();
+  }
 
   final String groupId;
   final String caption;
-  final String? uid;
-  final DocumentReference<Map<String, dynamic>> post;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
+  final FirebaseDatabase _realtime;
+  final http.Client Function() _clientFactory;
+  late final String? uid;
+  late final DocumentReference<Map<String, dynamic>> post;
+  bool _uploadAbandoned = false;
   UploadTask? _task;
   Reference? _image;
   @override
@@ -26,12 +45,12 @@ class FirebasePostBackend implements PostBackend {
 
   @override
   Future<void> authenticate() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     if (uid == null || user == null || user.uid != uid) {
       throw FirebaseAuthException(code: 'unauthenticated');
     }
     final token = await user.getIdToken();
-    if (token == null || FirebaseAuth.instance.currentUser?.uid != uid) {
+    if (token == null || _auth.currentUser?.uid != uid) {
       throw FirebaseAuthException(code: 'unauthenticated');
     }
   }
@@ -41,7 +60,7 @@ class FirebasePostBackend implements PostBackend {
     if (groupId.isEmpty || groupId.contains('/')) {
       throw const FormatException('No valid group selected');
     }
-    final group = await FirebaseFirestore.instance
+    final group = await _firestore
         .collection('groups')
         .doc(groupId)
         .get(const GetOptions(source: Source.server));
@@ -54,10 +73,25 @@ class FirebasePostBackend implements PostBackend {
 
   @override
   Future<void> upload(PreparedImage image, PostTrace trace) async {
-    _image = FirebaseStorage.instance.ref('posts/$uid/$id');
+    _image = _storage.ref('posts/$uid/$id');
     trace.event('storage_put_data', 'start', {'bytes': image.bytes.length});
     final task = _task = _image!
         .putData(image.bytes, SettableMetadata(contentType: image.contentType));
+    // timeout() cannot cancel native work. If cancellation loses a race with
+    // completion, the first delete may see no object yet. Observe the original
+    // task independently and delete again if it succeeds after abandonment.
+    unawaited(task.then<void>((snapshot) async {
+      if (!_uploadAbandoned || snapshot.state != TaskState.success) return;
+      try {
+        await deleteUpload().timeout(const Duration(seconds: 5));
+        trace.event('storage_late_cleanup', 'success');
+      } catch (error) {
+        trace.event('storage_late_cleanup', 'cleanup_failed',
+            {'code': PostTrace.code(error)});
+      }
+    }, onError: (Object _) {
+      // Foreground completion handling reports this error.
+    }));
     await waitForStorageUpload(task, trace);
   }
 
@@ -66,7 +100,7 @@ class FirebasePostBackend implements PostBackend {
 
   @override
   Future<void> writePost(String url) {
-    if (FirebaseAuth.instance.currentUser?.uid != uid) {
+    if (_auth.currentUser?.uid != uid) {
       throw FirebaseAuthException(code: 'unauthenticated');
     }
     return post.set({
@@ -83,9 +117,15 @@ class FirebasePostBackend implements PostBackend {
 
   @override
   Future<void> cancelUpload() async {
+    _uploadAbandoned = true;
     final task = _task;
     if (task != null && task.snapshot.state != TaskState.success) {
-      await task.cancel();
+      final canceled = await task.cancel();
+      if (!canceled &&
+          task.snapshot.state != TaskState.success &&
+          task.snapshot.state != TaskState.canceled) {
+        throw StateError('Storage did not confirm cancellation');
+      }
     }
   }
 
@@ -113,10 +153,10 @@ class FirebasePostBackend implements PostBackend {
   Future<void> _sideCall(
       String name, String config, Map<String, Object?> body, PostTrace trace,
       {bool mustSucceed = false}) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       trace.event('${name}_config', 'start');
-      final value = await FirebaseDatabase.instance
+      final value = await _realtime
           .ref(config)
           .once()
           .timeout(const Duration(seconds: 15));
@@ -173,13 +213,16 @@ Future<void> waitForStorageUpload(
   void snapshot(TaskSnapshot value) {
     if (value.state == TaskState.success && !terminal.isCompleted) {
       terminal.complete();
-    } else if (value.state == TaskState.canceled && !terminal.isCompleted) {
-      terminal.completeError(
-          FirebaseException(plugin: 'firebase_storage', code: 'canceled'));
+    } else if ((value.state == TaskState.canceled ||
+            value.state == TaskState.error) &&
+        !terminal.isCompleted) {
+      terminal.completeError(FirebaseException(
+          plugin: 'firebase_storage',
+          code: value.state == TaskState.canceled ? 'canceled' : 'unknown'));
     }
   }
 
-  int lastPercent = -1;
+  int lastPercent = -10;
   final subscription = task.snapshotEvents.listen((value) {
     final percent = value.totalBytes == 0
         ? 0

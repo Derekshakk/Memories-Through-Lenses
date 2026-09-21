@@ -15,10 +15,27 @@ import 'package:provider/provider.dart';
 import 'support/post_backend.dart';
 
 class _Groups extends UserProvider {
+  List<Map<String, dynamic>> data = [
+    {'groupID': 'group', 'name': 'Photo group'}
+  ];
   @override
-  List<Map<String, dynamic>> get groups => [
-        {'groupID': 'group', 'name': 'Photo group'}
-      ];
+  List<Map<String, dynamic>> get groups => data;
+  void replace(List<Map<String, dynamic>> value) {
+    data = value;
+    notifyListeners();
+  }
+}
+
+class _UnresolvedSubmission extends PostCreation {
+  _UnresolvedSubmission() : super(FakePostBackend(), Uint8List(0));
+  bool canceled = false;
+  @override
+  Future<void> submit() => Completer<void>().future;
+  @override
+  void cancel() {
+    canceled = true;
+    super.cancel();
+  }
 }
 
 void main() {
@@ -27,8 +44,10 @@ void main() {
   late FakePostBackend backend;
   late File photo;
   late Directory directory;
+  late _Groups groups;
   setUp(() {
     backend = FakePostBackend();
+    groups = _Groups();
     directory = Directory.systemTemp.createTempSync('post-ui-');
     photo = File('${directory.path}/photo.jpg')
       ..writeAsBytesSync(img.encodeJpg(img.Image(width: 16, height: 16)));
@@ -41,7 +60,9 @@ void main() {
       {bool navigationFails = false,
       String source = 'Gallery',
       bool missingFile = false,
-      bool handoff = false}) async {
+      bool handoff = false,
+      PostCreation? overrideOperation,
+      bool factoryThrows = false}) async {
     final oldError = FlutterError.onError;
     FlutterError.onError = (details) {
       // Existing decorated group ListTile diagnostic, unrelated to upload.
@@ -61,7 +82,7 @@ void main() {
         .setMockMethodCallHandler(channel, null));
     await tester.runAsync(() async {
       await tester.pumpWidget(ChangeNotifierProvider<UserProvider>(
-        create: (_) => _Groups()..imageFile = handoff ? photo : null,
+        create: (_) => groups..imageFile = handoff ? photo : null,
         child: MaterialApp(
           onGenerateRoute: (settings) {
             if (navigationFails) throw StateError('navigation failed');
@@ -69,15 +90,18 @@ void main() {
                 builder: (_) => const Scaffold(body: Text('Home reached')));
           },
           home: CreatePostScreen(
-              createPost: (group, caption, bytes) => PostCreation(
-                    backend,
-                    bytes,
-                    prepare: (bytes) async =>
-                        PreparedImage(bytes, 'image/jpeg'),
-                    stageTimeout: const Duration(seconds: 1),
-                    uploadTimeout: const Duration(seconds: 1),
-                    cleanupTimeout: const Duration(milliseconds: 10),
-                  )),
+              createPost: (group, caption, bytes) => factoryThrows
+                  ? throw StateError('factory failure')
+                  : overrideOperation ??
+                      PostCreation(
+                        backend,
+                        bytes,
+                        prepare: (bytes) async =>
+                            PreparedImage(bytes, 'image/jpeg'),
+                        stageTimeout: const Duration(seconds: 1),
+                        uploadTimeout: const Duration(seconds: 1),
+                        cleanupTimeout: const Duration(milliseconds: 10),
+                      )),
         ),
       ));
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -134,6 +158,64 @@ void main() {
     expect(find.textContaining('timed out'), findsOneWidget);
     expect(backend.calls.where((e) => e == 'upload'), hasLength(1));
   }, variant: platforms);
+
+  testWidgets('UI safety deadline clears even an unresolved submission',
+      (tester) async {
+    final operation = _UnresolvedSubmission();
+    await open(tester, overrideOperation: operation);
+    await tester.tap(find.text('Share Post'));
+    await tester.pump();
+    await tester.pump(const Duration(minutes: 6, seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Uploading...'), findsNothing);
+    expect(find.textContaining('timed out'), findsOneWidget);
+    expect(operation.canceled, isTrue);
+  }, variant: platforms);
+
+  testWidgets('synchronous construction exception clears loading',
+      (tester) async {
+    await open(tester, factoryThrows: true);
+    await tester.tap(find.text('Share Post'));
+    await tester.pumpAndSettle();
+    expect(find.text('Uploading...'), findsNothing);
+    expect(find.textContaining('Could not finish'), findsOneWidget);
+  }, variant: platforms);
+
+  testWidgets(
+      'removed group and malformed rows cannot submit a stale selection',
+      (tester) async {
+    await open(tester);
+    groups.replace([
+      {'groupID': null, 'name': 'broken'},
+      {'name': 'missing id'}
+    ]);
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<ElevatedButton>(
+                find.widgetWithText(ElevatedButton, 'Share Post'))
+            .onPressed,
+        isNull);
+    expect(backend.calls, isEmpty);
+  }, variant: platforms);
+
+  for (final stage in ['upload', 'url']) {
+    testWidgets('$stage failure stops loading and allows successful retry',
+        (tester) async {
+      backend.actions[stage] = () async => throw FirebaseException(
+          plugin: 'firebase_storage', code: 'retry-limit-exceeded');
+      await open(tester);
+      await tester.tap(find.text('Share Post'));
+      await tester.pumpAndSettle();
+      expect(find.text('Uploading...'), findsNothing);
+      expect(find.textContaining('Could not finish'), findsOneWidget);
+      expect(find.text('Home reached'), findsNothing);
+      backend.actions.remove(stage);
+      await tester.tap(find.text('Share Post'));
+      await tester.pumpAndSettle();
+      expect(find.text('Home reached'), findsOneWidget);
+    }, variant: platforms);
+  }
 
   testWidgets('pending write stops spinner; retry waits for same post',
       (tester) async {

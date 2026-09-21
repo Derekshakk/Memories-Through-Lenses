@@ -32,15 +32,41 @@ void main() {
     expect(img.decodeJpg(result.bytes)!.width, 100);
   });
 
-  test('EXIF rotation is baked before encoding', () async {
-    final source = img.Image(width: 100, height: 80);
-    source.exif.imageIfd.orientation = 6;
-    final result = await ImageUtils.prepareBytes(
-        Uint8List.fromList(img.encodeJpg(source)));
-    final decoded = img.decodeImage(result.bytes)!;
-    expect(decoded.width, 80);
-    expect(decoded.height, 100);
-  });
+  final topLeftColors = [
+    [255, 0, 0],
+    [0, 255, 0],
+    [255, 255, 0],
+    [0, 0, 255],
+    [255, 0, 0],
+    [0, 0, 255],
+    [255, 255, 0],
+    [0, 255, 0],
+  ];
+  for (var orientation = 1; orientation <= 8; orientation++) {
+    test('EXIF orientation $orientation preserves rotation and mirroring',
+        () async {
+      final source = img.Image(width: 100, height: 80);
+      for (var y = 0; y < 80; y++) {
+        for (var x = 0; x < 100; x++) {
+          final color = y < 40
+              ? (x < 50 ? [255, 0, 0] : [0, 255, 0])
+              : (x < 50 ? [0, 0, 255] : [255, 255, 0]);
+          source.setPixelRgb(x, y, color[0], color[1], color[2]);
+        }
+      }
+      source.exif.imageIfd.orientation = orientation;
+      final result = await ImageUtils.prepareBytes(
+          Uint8List.fromList(img.encodeJpg(source)));
+      final decoded = img.decodeImage(result.bytes)!;
+      expect(decoded.width, orientation >= 5 ? 80 : 100);
+      expect(decoded.height, orientation >= 5 ? 100 : 80);
+      final pixel = decoded.getPixel(10, 10);
+      final expected = topLeftColors[orientation - 1];
+      expect(pixel.r, closeTo(expected[0], 15));
+      expect(pixel.g, closeTo(expected[1], 15));
+      expect(pixel.b, closeTo(expected[2], 15));
+    });
+  }
 
   test(
       'corrupt bytes and unconverted HEIC fail instead of silent original fallback',
