@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '13.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -34,6 +34,12 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    # Force a consistent minimum iOS deployment target across all pods.
+    # Current Firebase 11.x transitive pods (gRPC-C++, abseil, BoringSSL-GRPC,
+    # leveldb, Firestore) require iOS 15.0, so keep every target at 15.0.
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
     # Fix issues with BoringSSL-GRPC
     if target.name == 'BoringSSL-GRPC'
       target.source_build_phase.files.each do |file|
