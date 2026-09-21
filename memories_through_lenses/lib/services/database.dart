@@ -1,14 +1,12 @@
-import 'dart:async';
-import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/services/auth.dart';
-import 'package:memories_through_lenses/services/image_utils.dart';
+import 'firebase_post_backend.dart';
+import 'post_creation.dart';
 
 class Database {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -155,125 +153,9 @@ class Database {
     }
   }
 
-  /// How long a single image upload is allowed to run before we give up and
-  /// surface an error instead of leaving the user on an infinite spinner.
-  static const Duration _uploadTimeout = Duration(minutes: 3);
-
-  /// Timeout for the auxiliary HTTP round-trips (moderation / yearbook) and the
-  /// RTDB config reads. These are best-effort and must never hang the post.
-  static const Duration _sideCallTimeout = Duration(seconds: 15);
-
-  /// Creates a post: compresses the image, uploads it to Storage, writes the
-  /// Firestore document, and fires the best-effort moderation/yearbook calls.
-  ///
-  /// Returns `true` on success and `false` on any failure. It never hangs
-  /// indefinitely — every network step is bounded by a timeout, and the whole
-  /// flow is wrapped so the caller's loading state is always resolved.
-  Future<bool> createPost(String groupId, String caption, File image) async {
-    Reference? storageRef;
-    UploadTask? uploadTask;
-    try {
-      // 1. Resize/compress before upload. Large iOS photos were the main cause
-      //    of slow/stuck uploads. Falls back to the original on any failure.
-      final File uploadFile = await ImageUtils.compressImage(image);
-
-      // 2. Upload to Firebase Storage with a hard timeout. On timeout we cancel
-      //    the underlying task so it stops consuming bandwidth.
-      final int timestamp = DateTime.now().millisecondsSinceEpoch;
-      storageRef = FirebaseStorage.instance
-          .ref()
-          .child('posts/${_auth.user!.uid}/$timestamp');
-
-      uploadTask = storageRef.putFile(uploadFile);
-      try {
-        await uploadTask.timeout(_uploadTimeout);
-      } on TimeoutException {
-        await uploadTask.cancel();
-        rethrow;
-      }
-
-      final String imageUrl = await storageRef.getDownloadURL();
-
-      // 3. Best-effort content moderation. The offensive check is disabled in
-      //    code, and a slow/unreachable moderation server must not block the
-      //    post, so failures here are logged and ignored (never fatal).
-      await _runModeration(imageUrl, timestamp);
-
-      // 4. Write the post document.
-      final DocumentReference postRef =
-          await _firestore.collection('posts').add({
-        'group_id': groupId,
-        'user_id': _auth.user!.uid,
-        'caption': caption,
-        'image_url': imageUrl,
-        'likes': [],
-        'dislikes': [],
-        'comments': [],
-        'created_at': DateTime.now(),
-      });
-
-      // 5. Best-effort yearbook indexing. Non-fatal.
-      await _runYearbookIndex(imageUrl, postRef.id);
-
-      return true;
-    } catch (e) {
-      print('createPost failed: $e');
-      return false;
-    }
-  }
-
-  /// Best-effort call to the content moderation server. Never throws.
-  Future<void> _runModeration(String imageUrl, int timestamp) async {
-    try {
-      final String? url = await FirebaseDatabase.instance
-          .ref('moderation_server_url')
-          .once()
-          .timeout(_sideCallTimeout)
-          .then((value) => value.snapshot.value?.toString());
-
-      if (url == null || url.isEmpty) return;
-
-      await http
-          .post(
-            Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'url': imageUrl,
-              'user_uid': _auth.user!.uid,
-              'image_name': '$timestamp',
-            }),
-          )
-          .timeout(_sideCallTimeout);
-    } catch (e) {
-      print('Moderation step skipped (non-fatal): $e');
-    }
-  }
-
-  /// Best-effort call to the yearbook indexing server. Never throws.
-  Future<void> _runYearbookIndex(String imageUrl, String postId) async {
-    try {
-      final String? url = await FirebaseDatabase.instance
-          .ref('yearbook_server_url')
-          .once()
-          .timeout(_sideCallTimeout)
-          .then((value) => value.snapshot.value?.toString());
-
-      if (url == null || url.isEmpty) return;
-
-      await http
-          .post(
-            Uri.parse(url),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'photo_path': imageUrl,
-              'post_id': postId,
-            }),
-          )
-          .timeout(_sideCallTimeout);
-    } catch (e) {
-      print('Yearbook step skipped (non-fatal): $e');
-    }
-  }
+  /// Retain this operation when Firestore acknowledgment is pending.
+  PostCreation createPost(String groupId, String caption, Uint8List image) =>
+      PostCreation(FirebasePostBackend(groupId, caption), image);
 
   Future<void> likePost(String postId) async {
     var post = await _firestore.collection('posts').doc(postId).get();

@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,7 +8,8 @@ import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
+import 'package:memories_through_lenses/services/image_utils.dart';
+import 'package:memories_through_lenses/services/post_creation.dart';
 
 class Pair {
   final String key;
@@ -17,7 +19,10 @@ class Pair {
 }
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  const CreatePostScreen({super.key, this.createPost});
+
+  final PostCreation Function(String group, String caption, Uint8List image)?
+      createPost;
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -25,21 +30,27 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
-  File? _postMedia;
-  String mediaType = '';
+  Uint8List? _postMedia;
   String _selectedGroup = '';
   List<Pair> groups = [];
   bool uploading = false;
   String _message = '';
+  String? _selectionId;
 
-  late VideoPlayerController _controller;
+  bool _picking = false;
+  bool _published = false;
+  PostCreation? _submission;
+  bool get _locked =>
+      uploading || _picking || _published || _submission != null;
 
-  void initVideoPlayer() {
-    if (_postMedia != null) {
-      _controller = VideoPlayerController.file(_postMedia!)
-        ..initialize().then((_) {
-          setState(() {});
-        });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = Provider.of<UserProvider>(context, listen: false);
+    final file = provider.imageFile;
+    if (file != null && _postMedia == null && !_picking) {
+      provider.imageFile = null;
+      unawaited(_selectImage(ImageSource.camera, captured: XFile(file.path)));
     }
   }
 
@@ -52,42 +63,115 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   void dispose() {
+    _submission?.cancel();
     _captionController.dispose();
-    if (mediaType == 'video') _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImageFromGallery() async {
-    final ImagePicker picker = ImagePicker();
-    // Ask the picker to downscale up front. This keeps preview memory low and
-    // gives the upload a smaller starting point (final compression happens in
-    // Database.createPost).
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 90,
-    );
-    if (image != null) {
+  Future<void> _pickImageFromGallery() => _selectImage(ImageSource.gallery);
+  Future<void> _pickImageFromCamera() => _selectImage(ImageSource.camera);
+
+  Future<void> _selectImage(ImageSource source, {XFile? captured}) async {
+    if (_locked) return;
+    final trace =
+        PostTrace('selection-${DateTime.now().microsecondsSinceEpoch}');
+    var stage = captured != null ? 'camera_handoff' : 'picker_${source.name}';
+    setState(() {
+      _picking = true;
+      _message = '';
+    });
+    trace.event(stage, 'start');
+    try {
+      final image = captured ??
+          await ImagePicker()
+              .pickImage(
+                source: source,
+                maxWidth: 1920,
+                maxHeight: 1920,
+                imageQuality: 90,
+              )
+              .timeout(const Duration(minutes: 2));
+      if (image == null) {
+        trace.event(stage, 'canceled');
+        return;
+      }
+      trace.event(stage, 'success');
+      stage = 'selected_file_read';
+      trace.event(stage, 'start');
+      final length = await image.length().timeout(const Duration(seconds: 10));
+      if (length == 0 || length > ImageUtils.maxInputBytes) {
+        throw const FormatException('Empty or oversized photo');
+      }
+      final bytes =
+          await image.readAsBytes().timeout(const Duration(seconds: 15));
+      trace.event('selected_file_read', 'success', {'bytes': bytes.length});
+      if (!mounted) return;
       setState(() {
-        _postMedia = File(image.path);
-        mediaType = 'image';
+        _postMedia = bytes;
+        _selectionId = trace.id;
+        _submission = null;
       });
+    } catch (error) {
+      trace.event(stage, 'error', {'code': PostTrace.code(error)});
+      if (mounted) {
+        setState(() {
+          _message =
+              'Could not open this photo. Try again; for an iCloud photo, download it in Photos first.';
+        });
+      }
+    } finally {
+      _picking = false;
+      if (mounted) setState(() {});
+      trace.event('selection_ui', 'idle');
     }
   }
 
-  Future<void> _pickImageFromCamera() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.camera,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 90,
-    );
-    if (image != null) {
+  Future<void> _sharePost() async {
+    if (uploading || _picking || _published || _postMedia == null) return;
+    setState(() {
+      uploading = true;
+      _message = '';
+    });
+    PostTrace? trace;
+    var success = false;
+    try {
+      _submission ??= (widget.createPost ?? Database().createPost)(
+          _selectedGroup, _captionController.text, _postMedia!);
+      trace = _submission!.trace;
+      trace.event('ui', 'loading', {'selection': _selectionId});
+      await _submission!.submit().timeout(const Duration(minutes: 6));
+      success = true;
+      _published = true;
+    } catch (error) {
+      final failure = error is PostCreationFailure
+          ? error
+          : PostCreationFailure('post creation', error,
+              pending: _submission?.pending ?? false);
+      trace?.event('ui', 'failure',
+          {'code': PostTrace.code(failure.cause), 'pending': failure.pending});
+      if (!failure.pending) {
+        _submission?.cancel();
+        _submission = null;
+      }
+      _message = failure.message;
+    } finally {
+      // Clear before navigation, on every result, even if this route is gone.
+      uploading = false;
+      if (mounted) setState(() {});
+      trace?.event('ui', 'idle');
+    }
+    if (!mounted || !success) return;
+    try {
+      trace?.event('navigation', 'start');
+      // Navigator's Future completes when the new route is popped, not when
+      // it appears. Never await it as part of posting.
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      trace?.event('navigation', 'dispatched');
+    } catch (error) {
+      trace?.event('navigation', 'error', {'code': PostTrace.code(error)});
       setState(() {
-        _postMedia = File(image.path);
-        mediaType = 'image';
+        _message =
+            'Your post was saved, but Home could not open. Use Back to return home.';
       });
     }
   }
@@ -96,15 +180,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     SizeConfig().init(context);
     final provider = Provider.of<UserProvider>(context);
-
-    // Get media from provider on first build
-    if (_postMedia == null) {
-      if (provider.imageFile != null) {
-        _postMedia = provider.imageFile;
-        mediaType = 'image';
-        provider.imageFile = null;
-      }
-    }
 
     setGroups(provider.groups);
 
@@ -165,9 +240,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: _postMedia != null
-                        ? Image.file(
+                        ? Image.memory(
                             _postMedia!,
                             fit: BoxFit.cover,
+                            cacheWidth: ImageUtils.maxDimension,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Text(
+                                  'Photo preview unavailable. Select another photo.'),
+                            ),
                           )
                         : Center(
                             child: Column(
@@ -207,7 +287,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _pickImageFromGallery,
+                        onPressed: _locked ? null : _pickImageFromGallery,
                         icon: const Icon(Icons.photo_library, size: 20),
                         label: Text(
                           'Gallery',
@@ -227,7 +307,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _pickImageFromCamera,
+                        onPressed: _locked ? null : _pickImageFromCamera,
                         icon: const Icon(Icons.camera_alt, size: 20),
                         label: Text(
                           'Camera',
@@ -261,6 +341,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _captionController,
+                  enabled: !_locked,
                   style: GoogleFonts.poppins(),
                   maxLines: 3,
                   decoration: InputDecoration(
@@ -390,11 +471,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                   ? const Icon(Icons.check_circle,
                                       color: Colors.blue)
                                   : null,
-                              onTap: () {
-                                setState(() {
-                                  _selectedGroup = group.key;
-                                });
-                              },
+                              onTap: _locked
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _selectedGroup = group.key;
+                                      });
+                                    },
                             );
                           },
                         ),
@@ -407,43 +490,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: (_postMedia != null &&
-                            _selectedGroup != '' &&
-                            !uploading)
-                        ? () async {
-                            // Guard against duplicate taps creating duplicate
-                            // posts: bail out if an upload is already running.
-                            if (uploading) return;
-                            setState(() {
-                              uploading = true;
-                              _message = '';
-                            });
-
-                            bool success = false;
-                            try {
-                              success = await Database().createPost(
-                                  _selectedGroup,
-                                  _captionController.text,
-                                  _postMedia!);
-                            } catch (e) {
-                              success = false;
-                            }
-
-                            // Widget may have been disposed while awaiting.
-                            if (!mounted) return;
-
-                            if (success) {
-                              Navigator.pushNamedAndRemoveUntil(
-                                  context, '/home', (route) => false);
-                            } else {
-                              // Always clear the spinner so the user is never
-                              // stuck on an infinite loading state.
-                              setState(() {
-                                uploading = false;
-                                _message =
-                                    'Upload failed. Check your connection and try again.';
-                              });
-                            }
-                          }
+                            _selectedGroup.isNotEmpty &&
+                            !uploading &&
+                            !_picking &&
+                            !_published)
+                        ? _sharePost
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,

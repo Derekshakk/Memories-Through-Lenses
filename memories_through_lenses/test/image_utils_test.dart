@@ -1,70 +1,56 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:memories_through_lenses/services/image_utils.dart';
 
 void main() {
-  late Directory tempDir;
-
-  setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('mtl_image_utils_test');
+  test('large camera JPEG is resized and has matching metadata', () async {
+    final source = img.Image(width: 4000, height: 3000);
+    final result = await ImageUtils.prepareBytes(
+        Uint8List.fromList(img.encodeJpg(source)));
+    final decoded = img.decodeImage(result.bytes)!;
+    expect(decoded.width, 1920);
+    expect(decoded.height, 1440);
+    expect(result.contentType, 'image/jpeg');
   });
 
-  tearDown(() async {
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
+  test('highly compressible PNG cannot bypass dimension limit', () async {
+    final source = img.Image(width: 2400, height: 3000);
+    final result = await ImageUtils.prepareBytes(
+        Uint8List.fromList(img.encodePng(source)));
+    final decoded = img.decodeImage(result.bytes)!;
+    expect(decoded.height, 1920);
+    expect(decoded.width, 1536);
+    expect(result.contentType, 'image/png');
+  });
+
+  test('small JPEG remains a valid image', () async {
+    final source = img.Image(width: 100, height: 80);
+    final result = await ImageUtils.prepareBytes(
+        Uint8List.fromList(img.encodeJpg(source)));
+    expect(img.decodeJpg(result.bytes)!.width, 100);
+  });
+
+  test('EXIF rotation is baked before encoding', () async {
+    final source = img.Image(width: 100, height: 80);
+    source.exif.imageIfd.orientation = 6;
+    final result = await ImageUtils.prepareBytes(
+        Uint8List.fromList(img.encodeJpg(source)));
+    final decoded = img.decodeImage(result.bytes)!;
+    expect(decoded.width, 80);
+    expect(decoded.height, 100);
+  });
+
+  test(
+      'corrupt bytes and unconverted HEIC fail instead of silent original fallback',
+      () async {
+    for (final bytes in [
+      Uint8List.fromList([7, 7, 7]),
+      Uint8List.fromList([0, 0, 0, 24, ...'ftypheic'.codeUnits, 0, 0, 0, 0]),
+      Uint8List(0),
+    ]) {
+      await expectLater(ImageUtils.prepareBytes(bytes), throwsFormatException);
     }
-  });
-
-  File writeJpeg(img.Image image, {int quality = 100}) {
-    final file = File(
-        '${tempDir.path}/src_${DateTime.now().microsecondsSinceEpoch}.jpg');
-    file.writeAsBytesSync(img.encodeJpg(image, quality: quality));
-    return file;
-  }
-
-  test('downscales an oversized image below the max dimension', () async {
-    // A 4000x3000 image simulates a large phone photo.
-    final large = img.Image(width: 4000, height: 3000);
-    // Fill with a gradient so the JPEG is non-trivial in size.
-    for (int y = 0; y < large.height; y++) {
-      for (int x = 0; x < large.width; x++) {
-        large.setPixelRgb(x, y, x % 256, y % 256, (x + y) % 256);
-      }
-    }
-    final source = writeJpeg(large);
-
-    final result = await ImageUtils.compressImage(source);
-
-    // The returned file should decode to something within the max dimension.
-    final decoded = img.decodeImage(await result.readAsBytes())!;
-    final longestEdge =
-        decoded.width > decoded.height ? decoded.width : decoded.height;
-    expect(longestEdge, lessThanOrEqualTo(ImageUtils.maxDimension));
-
-    // And it should be smaller on disk than the original.
-    expect(await result.length(), lessThan(await source.length()));
-  });
-
-  test('returns a valid image for a small image (never throws)', () async {
-    final small = img.Image(width: 100, height: 100);
-    final source = writeJpeg(small);
-
-    final result = await ImageUtils.compressImage(source);
-
-    // Whatever it returns must still be a decodable image file.
-    final decoded = img.decodeImage(await result.readAsBytes());
-    expect(decoded, isNotNull);
-  });
-
-  test('falls back to the original file when bytes are not an image', () async {
-    final bogus = File('${tempDir.path}/not_an_image.jpg');
-    await bogus.writeAsBytes(List<int>.filled(1024, 7));
-
-    final result = await ImageUtils.compressImage(bogus);
-
-    // Must not throw and must fall back to the original file untouched.
-    expect(result.path, bogus.path);
   });
 }

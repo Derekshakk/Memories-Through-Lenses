@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/services/post_creation.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -21,6 +23,7 @@ class _CameraScreenState extends State<CameraScreen> {
   XFile? videoFile;
   VideoPlayerController? videoController;
   bool isRecording = false;
+  bool _capturing = false;
   bool isPlaying = false;
   XFile? imageFile;
   String cameraMode = "photo";
@@ -36,7 +39,8 @@ class _CameraScreenState extends State<CameraScreen> {
         _errorMessage = null;
       });
 
-      cameras = await availableCameras();
+      cameras = await availableCameras().timeout(const Duration(seconds: 20));
+      if (!mounted) return;
       if (kDebugMode) print(cameras);
 
       if (cameras.isEmpty) {
@@ -50,11 +54,14 @@ class _CameraScreenState extends State<CameraScreen> {
       }
 
       controller = CameraController(cameras[0], ResolutionPreset.high);
-      await controller!.initialize();
+      await controller!.initialize().timeout(const Duration(seconds: 20));
 
       if (!mounted) return;
 
-      await controller!.lockCaptureOrientation();
+      await controller!
+          .lockCaptureOrientation()
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
 
       setState(() {
         _isInitializing = false;
@@ -73,17 +80,32 @@ class _CameraScreenState extends State<CameraScreen> {
 
   // Method to switch between cameras.
   Future<void> _switchCamera() async {
-    if (cameras.length < 2) return;
-    _selectedCameraIndex = (_selectedCameraIndex + 1) % cameras.length;
-    if (controller != null) {
-      await controller!.dispose();
+    if (_capturing) return;
+    try {
+      if (cameras.length < 2) return;
+      _selectedCameraIndex = (_selectedCameraIndex + 1) % cameras.length;
+      if (controller != null) {
+        await controller!.dispose().timeout(const Duration(seconds: 5));
+      }
+      if (!mounted) return;
+      controller = CameraController(
+          cameras[_selectedCameraIndex], ResolutionPreset.high);
+      await controller!.initialize().timeout(const Duration(seconds: 20));
+      if (!mounted) return;
+      setState(() {});
+      await controller!
+          .lockCaptureOrientation()
+          .timeout(const Duration(seconds: 10));
+    } catch (error) {
+      PostTrace('camera')
+          .event('camera_switch', 'error', {'code': PostTrace.code(error)});
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Could not switch cameras. Please reopen the camera and try again.';
+        });
+      }
     }
-    controller =
-        CameraController(cameras[_selectedCameraIndex], ResolutionPreset.high);
-    await controller!.initialize();
-    if (!mounted) return;
-    setState(() {});
-    await controller!.lockCaptureOrientation();
   }
 
   void setupVideoplayer() {
@@ -100,6 +122,21 @@ class _CameraScreenState extends State<CameraScreen> {
     super.initState();
 
     initCamera();
+  }
+
+  @override
+  void dispose() {
+    final camera = controller;
+    if (camera != null) {
+      unawaited(camera
+          .dispose()
+          .timeout(const Duration(seconds: 5))
+          .catchError((Object error) {
+        PostTrace('camera')
+            .event('camera_dispose', 'error', {'code': PostTrace.code(error)});
+      }));
+    }
+    super.dispose();
   }
 
   @override
@@ -243,19 +280,39 @@ class _CameraScreenState extends State<CameraScreen> {
                           onPressed: () async {
                             print("pressed");
                             if (cameraMode == 'photo') {
-                              print("photo");
-                              final image = await controller!.takePicture();
-                              imageFile = image;
-                              print(image.path);
-                              final provider = Provider.of<UserProvider>(
-                                  context,
-                                  listen: false);
-                              provider.setImageFile(File(imageFile!.path));
-                              provider.setVideoFile(null);
-                              setState(() {
-                                // Navigator.pop(context);
+                              if (_capturing ||
+                                  controller?.value.isInitialized != true) {
+                                return;
+                              }
+                              _capturing = true;
+                              final trace = PostTrace(
+                                  'capture-${DateTime.now().microsecondsSinceEpoch}');
+                              trace.event('camera_capture', 'start');
+                              try {
+                                final image = await controller!
+                                    .takePicture()
+                                    .timeout(const Duration(seconds: 30));
+                                trace.event('camera_capture', 'success');
+                                if (!context.mounted) return;
+                                final provider = Provider.of<UserProvider>(
+                                    context,
+                                    listen: false);
+                                provider.setImageFile(File(image.path));
+                                provider.setVideoFile(null);
                                 Navigator.pushNamed(context, '/create');
-                              });
+                              } catch (error) {
+                                trace.event('camera_capture', 'error',
+                                    {'code': PostTrace.code(error)});
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context)
+                                      .showSnackBar(const SnackBar(
+                                    content: Text(
+                                        'Could not capture the photo. Please try again.'),
+                                  ));
+                                }
+                              } finally {
+                                _capturing = false;
+                              }
                             } else {
                               if (!controller!.value.isRecordingVideo) {
                                 isRecording = true;
