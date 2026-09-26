@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/screens/create_post.dart';
 import 'package:memories_through_lenses/services/image_utils.dart';
@@ -38,6 +39,16 @@ class _UnresolvedSubmission extends PostCreation {
   }
 }
 
+class _DelayedPhoto extends XFile {
+  _DelayedPhoto(this.bytes) : super('unused-path');
+  final Uint8List bytes;
+  final read = Completer<Uint8List>();
+  @override
+  Future<int> length() async => bytes.length;
+  @override
+  Future<Uint8List> readAsBytes() => read.future;
+}
+
 void main() {
   const platforms =
       TargetPlatformVariant({TargetPlatform.iOS, TargetPlatform.android});
@@ -62,7 +73,9 @@ void main() {
       bool missingFile = false,
       bool handoff = false,
       PostCreation? overrideOperation,
-      bool factoryThrows = false}) async {
+      bool factoryThrows = false,
+      Future<XFile?> Function(ImageSource)? pickPhoto,
+      Future<PreparedImage> Function(Uint8List)? prepare}) async {
     final oldError = FlutterError.onError;
     FlutterError.onError = (details) {
       // Existing decorated group ListTile diagnostic, unrelated to upload.
@@ -90,14 +103,15 @@ void main() {
                 builder: (_) => const Scaffold(body: Text('Home reached')));
           },
           home: CreatePostScreen(
+              pickPhoto: pickPhoto,
               createPost: (group, caption, bytes) => factoryThrows
                   ? throw StateError('factory failure')
                   : overrideOperation ??
                       PostCreation(
                         backend,
                         bytes,
-                        prepare: (bytes) async =>
-                            PreparedImage(bytes, 'image/jpeg'),
+                        prepare: prepare ??
+                            (bytes) async => PreparedImage(bytes, 'image/jpeg'),
                         stageTimeout: const Duration(seconds: 1),
                         uploadTimeout: const Duration(seconds: 1),
                         cleanupTimeout: const Duration(milliseconds: 10),
@@ -107,11 +121,15 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     });
     await tester.pumpAndSettle();
-    await tester.runAsync(() async {
-      if (!handoff) await tester.tap(find.text(source));
-      // Finish real file IO before returning to the fake widget clock.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    });
+    if (pickPhoto != null) {
+      await tester.tap(find.text(source));
+    } else {
+      await tester.runAsync(() async {
+        if (!handoff) await tester.tap(find.text(source));
+        // Finish real file IO before returning to the fake widget clock.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+    }
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Photo group'));
     await tester.tap(find.text('Photo group'));
@@ -214,6 +232,97 @@ void main() {
       await tester.tap(find.text('Share Post'));
       await tester.pumpAndSettle();
       expect(find.text('Home reached'), findsOneWidget);
+    }, variant: platforms);
+  }
+
+  for (final stage in ['auth', 'group', 'moderation', 'write']) {
+    testWidgets('$stage failure always clears loading and cannot navigate',
+        (tester) async {
+      backend.actions[stage] = () async => throw StateError('failed');
+      await open(tester);
+      await tester.tap(find.text('Share Post'));
+      await tester.pumpAndSettle();
+      expect(find.text('Uploading...'), findsNothing);
+      expect(find.text('Home reached'), findsNothing);
+      expect(
+          tester
+              .widget<ElevatedButton>(
+                  find.widgetWithText(ElevatedButton, 'Share Post'))
+              .onPressed,
+          isNotNull);
+    }, variant: platforms);
+  }
+
+  testWidgets('slow materialization before picker completion is awaited',
+      (tester) async {
+    final selection = Completer<XFile?>();
+    await open(tester, pickPhoto: (_) => selection.future);
+    await tester.pump(const Duration(seconds: 40));
+    expect(backend.calls, isEmpty);
+    final bytes = Uint8List.fromList(photo.readAsBytesSync());
+    selection.complete(XFile.fromData(bytes));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Photo group'));
+    await tester.tap(find.text('Photo group'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Share Post'));
+    await tester.tap(find.text('Share Post'));
+    await tester.pumpAndSettle();
+    expect(find.text('Home reached'), findsOneWidget);
+  }, variant: platforms);
+
+  for (final timesOut in [false, true]) {
+    testWidgets(
+        'delayed XFile read ${timesOut ? 'times out without late selection' : 'retains bytes without a usable path'}',
+        (tester) async {
+      final source = _DelayedPhoto(Uint8List.fromList(photo.readAsBytesSync()));
+      await open(tester, pickPhoto: (_) async => source);
+      await tester.pump(Duration(seconds: timesOut ? 16 : 5));
+      expect(backend.calls, isEmpty);
+      source.read.complete(source.bytes);
+      await tester.pumpAndSettle();
+      if (timesOut) {
+        expect(
+            find.textContaining('Could not open this photo'), findsOneWidget);
+        expect(
+            tester
+                .widget<ElevatedButton>(
+                    find.widgetWithText(ElevatedButton, 'Share Post'))
+                .onPressed,
+            isNull);
+      } else {
+        await tester.ensureVisible(find.text('Photo group'));
+        await tester.tap(find.text('Photo group'));
+        await tester.pump();
+        await tester.ensureVisible(find.text('Share Post'));
+        await tester.tap(find.text('Share Post'));
+        await tester.pumpAndSettle();
+        expect(find.text('Home reached'), findsOneWidget);
+      }
+    }, variant: platforms);
+  }
+
+  for (final timesOut in [false, true]) {
+    testWidgets(
+        'slow preprocessing ${timesOut ? 'clears loading and ignores late success' : 'is not mistaken for cancellation'}',
+        (tester) async {
+      final prepared = Completer<PreparedImage>();
+      await open(tester, prepare: (_) => prepared.future);
+      await tester.tap(find.text('Share Post'));
+      await tester.pump();
+      await tester.pump(Duration(milliseconds: timesOut ? 1100 : 500));
+      expect(backend.calls, isNot(contains('upload')));
+      prepared.complete(PreparedImage(
+          Uint8List.fromList(photo.readAsBytesSync()), 'image/jpeg'));
+      await tester.pumpAndSettle();
+      expect(find.text('Uploading...'), findsNothing);
+      if (timesOut) {
+        expect(find.textContaining('preparing your photo (timed out)'),
+            findsOneWidget);
+        expect(backend.calls, isNot(contains('upload')));
+      } else {
+        expect(find.text('Home reached'), findsOneWidget);
+      }
     }, variant: platforms);
   }
 

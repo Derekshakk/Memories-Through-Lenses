@@ -1,38 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 import 'image_utils.dart';
+import 'post_trace.dart';
 
-/// Temporary release diagnostics. Never log captions, paths, URLs or tokens.
-class PostTrace {
-  PostTrace(this.id);
-  final String id;
-  final Stopwatch _clock = Stopwatch()..start();
-  static const enabled =
-      bool.fromEnvironment('POST_UPLOAD_LOGS', defaultValue: true);
-
-  void event(String stage, String event,
-      [Map<String, Object?> fields = const {}]) {
-    if (!enabled) return;
-    debugPrint(jsonEncode({
-      'flow': 'post_upload',
-      'operation': id,
-      'stage': stage,
-      'event': event,
-      'elapsed_ms': _clock.elapsedMilliseconds,
-      ...fields,
-    }));
-  }
-
-  static String code(Object error) => error is FirebaseException
-      ? '${error.plugin}/${error.code}'
-      : error is TimeoutException
-          ? 'timeout'
-          : error.runtimeType.toString();
-}
+export 'post_trace.dart';
 
 class PostCreationFailure implements Exception {
   PostCreationFailure(this.stage, this.cause, {this.pending = false});
@@ -48,6 +22,14 @@ class PostCreationFailure implements Exception {
     }
     if (cause is FormatException && stage == 'image_preprocessing') {
       return 'This photo could not be processed. Select it again or try a JPEG/PNG copy.';
+    }
+    if ((stage == 'moderation' || stage.startsWith('moderation_')) &&
+        !(cause is FirebaseException &&
+            (cause as FirebaseException).plugin == 'post_moderation' &&
+            (cause as FirebaseException).code == 'rejected')) {
+      return 'The photo-checking service is unavailable'
+          '${cause is TimeoutException ? ' (timed out)' : ''}. '
+          'Your post was not published. Please try again later.';
     }
     if (cause is FirebaseException) {
       final code = (cause as FirebaseException).code;
@@ -68,7 +50,6 @@ class PostCreationFailure implements Exception {
           'storage_upload': 'uploading your photo',
           'download_url': 'retrieving the uploaded photo',
           'firestore_write': 'saving your post',
-          'moderation': 'checking your photo',
           'group_validation': 'checking your group',
           'auth_before_upload': 'checking your session',
           'auth_upload': 'checking your session',
@@ -105,7 +86,8 @@ class PostCreation {
     this.uploadTimeout = const Duration(minutes: 2),
     this.cleanupTimeout = const Duration(seconds: 5),
     this.moderationTimeout = const Duration(seconds: 35),
-  })  : prepare = prepare ?? ImageUtils.prepareBytes,
+  })  : prepare = prepare ??
+            ((bytes) => ImageUtils.prepareBytes(bytes, traceId: backend.id)),
         trace = PostTrace(backend.id);
 
   final PostBackend backend;
@@ -172,7 +154,11 @@ class PostCreation {
       trace.event(name, 'success');
       return result;
     } catch (error) {
-      trace.event(name, 'error', {'code': PostTrace.code(error)});
+      trace.event(name, error is TimeoutException ? 'timeout' : 'failure', {
+        'code':
+            PostTrace.code(error is PostCreationFailure ? error.cause : error),
+        if (error is PostCreationFailure) 'failed_stage': error.stage,
+      });
       rethrow;
     }
   }
@@ -220,7 +206,9 @@ class PostCreation {
     } catch (error) {
       final failedStage = _stage;
       if (!pending && !_committed) await _cleanUpload();
-      final failure = PostCreationFailure(failedStage, error, pending: pending);
+      final failure = error is PostCreationFailure
+          ? error
+          : PostCreationFailure(failedStage, error, pending: pending);
       if (!pending) _failure = failure;
       throw failure;
     } finally {

@@ -19,6 +19,7 @@ class FirebasePostBackend implements PostBackend {
     FirebaseStorage? storage,
     FirebaseDatabase? realtime,
     http.Client Function()? clientFactory,
+    this.serviceTimeout = const Duration(seconds: 15),
   })  : _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
         _storage = storage ?? FirebaseStorage.instance,
@@ -35,6 +36,7 @@ class FirebasePostBackend implements PostBackend {
   final FirebaseStorage _storage;
   final FirebaseDatabase _realtime;
   final http.Client Function() _clientFactory;
+  final Duration serviceTimeout;
   late final String? uid;
   late final DocumentReference<Map<String, dynamic>> post;
   bool _uploadAbandoned = false;
@@ -153,37 +155,52 @@ class FirebasePostBackend implements PostBackend {
   Future<void> _sideCall(
       String name, String config, Map<String, Object?> body, PostTrace trace,
       {bool mustSucceed = false}) async {
-    final client = _clientFactory();
+    http.Client? client;
+    var stage = '${name}_config';
     try {
-      trace.event('${name}_config', 'start');
-      final value = await _realtime
-          .ref(config)
-          .once()
-          .timeout(const Duration(seconds: 15));
-      trace.event('${name}_config', 'success');
-      final url = value.snapshot.value?.toString();
-      if (url == null || url.isEmpty) {
+      trace.event(stage, 'start');
+      final value = await _realtime.ref(config).once().timeout(serviceTimeout);
+      final configured = value.snapshot.value;
+      if (configured == null || configured == '') {
+        trace.event(stage, 'success');
         trace.event(name, 'not_configured');
         return;
       }
-      trace.event('${name}_http', 'start');
+      // Treat malformed configuration separately from a transport failure.
+      final endpoint = configured is String ? Uri.tryParse(configured) : null;
+      if (endpoint == null ||
+          !['http', 'https'].contains(endpoint.scheme) ||
+          endpoint.host.isEmpty ||
+          endpoint.userInfo.isNotEmpty) {
+        throw FirebaseException(plugin: 'post_$name', code: 'invalid-endpoint');
+      }
+      trace.event(stage, 'success');
+      stage = '${name}_http';
+      trace.event(stage, 'start');
+      client = _clientFactory();
       final response = await client
-          .post(Uri.parse(url),
+          .post(endpoint,
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode(body))
-          .timeout(const Duration(seconds: 15));
-      trace.event(
-          '${name}_http',
-          response.statusCode >= 200 && response.statusCode < 300
-              ? 'success'
-              : 'failed',
-          {'http_status': response.statusCode});
+          .timeout(serviceTimeout);
+      // Never log endpoint URLs, request/response bodies, or exception text:
+      // they can contain image URLs with download tokens or user information.
+      trace.event(stage, 'response', {'http_status': response.statusCode});
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw FirebaseException(
+            plugin: 'post_$name', code: 'http-${response.statusCode}');
+      }
+      trace.event(stage, 'success');
       if (mustSucceed) {
-        if (response.statusCode < 200 || response.statusCode >= 300) {
+        stage = '${name}_response';
+        trace.event(stage, 'start');
+        Object? result;
+        try {
+          result = jsonDecode(response.body);
+        } on FormatException {
           throw FirebaseException(
-              plugin: 'post_moderation', code: 'http-${response.statusCode}');
+              plugin: 'post_moderation', code: 'invalid-response');
         }
-        final result = jsonDecode(response.body);
         if (result is! Map || result['offensive'] is! bool) {
           throw FirebaseException(
               plugin: 'post_moderation', code: 'invalid-response');
@@ -191,13 +208,15 @@ class FirebasePostBackend implements PostBackend {
         if (result['offensive'] == true) {
           throw FirebaseException(plugin: 'post_moderation', code: 'rejected');
         }
+        trace.event(stage, 'success');
       }
     } catch (error) {
-      trace.event(name, mustSucceed ? 'failed' : 'skipped',
+      trace.event(stage, error is TimeoutException ? 'timeout' : 'failure',
           {'code': PostTrace.code(error)});
-      if (mustSucceed) rethrow;
+      if (mustSucceed) throw PostCreationFailure(stage, error);
+      trace.event(name, 'skipped');
     } finally {
-      client.close();
+      client?.close();
     }
   }
 }

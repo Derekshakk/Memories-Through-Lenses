@@ -1,263 +1,302 @@
-# Image-post upload investigation
+# Released iOS photo-post failure: investigation, 2026-09-25
 
-This is a code-path repair, not confirmation that the released iPhone incident
-has been reproduced. No production session logs or device were available.
+**2026-09-26 follow-up:** The [backend deployment audit](moderation-backend-deployment-audit.md) identifies MemoLens-Server, EC2 evidence, and an unconditional-approval route in its combined server. It supersedes the earlier unknown-backend/deployment findings below.
 
-## Original flow and indefinite waits
+## Finding and limits
 
-1. Create Post used `image_picker` for gallery/camera (1920 px, quality 90).
-   Alternatively CameraScreen called `takePicture`, put its temporary `File`
-   into UserProvider, and navigated to Create Post. Picker/capture had no
-   deadlines, error UI, or lifecycle checks on these paths.
-2. Share Post set `uploading = true` and awaited `Database.createPost`.
-3. `compressImage`: read the entire file, await `compute` to decode/resize/JPEG
-   encode, optionally write a temporary JPEG. All three waits were unbounded.
-   Any exception or unsupported decoder silently returned the original file;
-   even resizing could be discarded if the resulting JPEG was larger.
-4. Storage `putFile`, without explicit metadata, had a three-minute timeout.
-   Its timeout handler **awaited `cancel()` without a deadline**.
-5. Storage `getDownloadURL()` had **no deadline**.
-6. Moderation config RTDB `once()` and HTTP POST were sequential, each capped
-   at 15 seconds. Results were ignored; failures were best-effort.
-7. Firestore `posts.add(...)` had **no deadline**. A native offline write can
-   remain queued, awaiting server acknowledgment. Storage success did not imply
-   this step succeeded. Failure left the Storage object behind.
-8. Yearbook config RTDB `once()` and HTTP POST were sequential, each capped at
-   15 seconds, best-effort. No direct group-document writes occur in this flow.
-9. Database caught all errors and returned a bool, losing stage/error details.
-   UI reset loading only for false; success navigated without clearing loading.
-   Navigation was outside the try block. There was no `finally`.
+**Posting is not yet repaired in production.** The currently configured external
+moderation endpoint refuses TCP connections. Restoring that service (or supplying
+its verified replacement endpoint) is required. Local changes below add precise
+diagnostics and regression coverage; they do not make an unavailable service work.
 
-The proven cause of *unbounded loading* is incomplete deadlines plus incomplete
-UI cleanup. The particular unresolved await on the released phone is unknown.
-Compression, URL retrieval, Firestore acknowledgment, and cancellation are all
-concrete candidates. The comment saying every network stage was bounded was
-incorrect. This defect is not inherently iOS-specific.
+Read-only checks from this environment on 2026-09-25:
 
-The installed Storage platform interface 5.1.28 awaits a native startup Future,
-then a broadcast stream. Some stream failures/closure and canceled-state paths
-do not settle its task completer. Successful completion is normally cached, so
-there is no evidence that application code itself missed a success listener:
-the old app simply awaited the task and registered no custom listener. New code
-handles task completion, terminal snapshots, stream errors/closure, and timeout.
+- GET of the `moderation_server_url` child in the project's default Realtime
+  Database returned HTTP 200 and an HTTP endpoint on port 5001, path `/predict`.
+- A GET to that exact configured endpoint failed with OS error 61,
+  **Connection refused**, in approximately 0.04 seconds. No image, user ID,
+  download URL, token, or credential was sent. This is a transport failure,
+  before HTTP status/JSON/inference, not a slow image decode.
+- The legacy database hostname returned 404. The installed iOS Firebase SDK's
+  default `projectID-default-rtdb.firebaseio.com` fallback selects the working
+  database. Neither Dart Firebase options nor the iOS plist explicitly includes
+  a database URL, but that omission is **not** a demonstrated defect here.
+- No production phone trace, server process logs, deployment access, or
+  physical iPhone was available. A current refusal does not prove the exact
+  socket error at the time of the reported phone attempt, nor whether its cause
+  is a stopped process, incorrect listener, firewall rejection, or stale endpoint.
 
-## Current sequence and deadlines
+## Moderation architecture, configuration and deployment
 
-| Stage/log name | Behavior | Deadline |
-| --- | --- | --- |
-| `picker_gallery` / `picker_camera` | Native picker, same 1920/90 settings | 120 s |
-| `camera_capture` | Separate CameraScreen takePicture + guarded handoff | 30 s |
-| `selected_file_read` | XFile length then bytes; retain owned bytes for preview/upload | 10 s + 15 s |
-| `auth_before_upload` | Current UID and token, not Auth's cached user field | 25 s |
-| `group_validation` | Server group read, existence and membership; rules still authoritative | 25 s |
-| `image_preprocessing` | Background isolate validates dimensions, decodes, bakes rotation, resizes, encodes | 25 s |
-| `auth_upload` | Recheck UID/token after preprocessing | 25 s |
-| `storage_upload` / `storage_put_data` | putData with matching JPEG/PNG content type; task plus snapshots | 120 s |
-| `download_url` | getDownloadURL | 25 s |
-| `moderation` / `moderation_config/http` | Check configured server; it can delete Storage images, so a confirmed non-offensive result is required | 15 s per request; 35 s outer bound |
-| `auth_before_write` | Recheck UID/token; backend also checks UID at dispatch | 25 s |
-| `firestore_write` | Single preallocated document ID, one set Future; requires acknowledgment | 25 s per wait |
-| `storage_cancel`, `storage_delete` | Best-effort cleanup after definite failure/cancellation | 5 s each |
-| `storage_listener_cleanup` | Unsubscribe snapshot listener | 2 s |
-| `yearbook_config/http` | Existing optional indexing after acknowledged post | 15 s per request; 35 s outer bound |
-| `ui` then `navigation` | Always clear loading in finally, then dispatch navigation without awaiting route pop | UI submission safety cap 6 min |
+The active URL is **not defined by a source-file constant**. It is the string at:
 
-Dependencies remain ordered: the URL requires upload completion; moderation
-requires that URL; the post requires a safe moderation outcome. Yearbook indexing
-no longer adds up to 30 seconds to foreground loading. There are still no direct
-group writes.
+- Realtime Database: `memories-through-lenses-default-rtdb.firebaseio.com`
+- Child: `moderation_server_url`
+- Value observed: `http://54.176.25.36:5001/predict`
 
-A final audit of sibling `moderation_ai/app.py` found another correctness defect:
-its `/predict` endpoint can delete `posts/{user_uid}/{image_name}` and return
-`offensive: true`. The old app ignored the response despite its comment claiming
-the check was disabled. Running that service after publishing would race with
-live posts, so it remains before Firestore. A missing/empty moderation endpoint
-still means no check is configured. For a configured endpoint, rejection,
-malformed responses, HTTP failures, or an unknown result now fail the submission
-and clean up its image. Configuration read failures also fail rather than treating
-an unknown configuration as disabled. This intentionally closes the existing
-false-success/deleted-image gap. The deployed endpoint implementation is unknown;
-this is based on the server code in this repository.
+`FirebasePostBackend.moderate` in `lib/services/firebase_post_backend.dart`
+loads this value via `_sideCall`; it uses the full URI verbatim, rather than
+appending `/predict`. The released app reads it for every new photo submission
+that has successfully uploaded and obtained its download URL. Missing/empty
+configuration historically skips moderation, but **the live value is configured**,
+and the current app requires its affirmative result before writing the post.
+No configuration has been changed or removed during this investigation.
 
-Camera setup/switch initialization and orientation have 20/10-second limits;
-camera discovery has 20 seconds, disposal five seconds. Video recording is
-outside this image-post repair.
+Request: HTTP POST, `Content-Type: application/json`:
 
-Each stage timeout stops advancement to the next stage, even if its underlying
-Future completes later. The UI always leaves loading on success, exception,
-cancellation or timeout while the Dart event loop is running. This cannot
-promise timer execution while iOS suspends/kills the process or a native thread
-blocks the entire application. CPU preprocessing runs away from the UI isolate;
-a timed-out compute job may finish in the background but cannot initiate upload.
+```json
+{"url":"<Storage download URL>","user_uid":"<signed-in UID>","image_name":"<preallocated post ID>"}
+```
 
-## Retry and cleanup semantics
+Success requires HTTP 2xx and JSON containing a boolean `offensive`:
 
-Firestore timeouts cannot cancel writes. An unknown write outcome is shown as
-**not yet confirmed**, never as success. The screen retains the same submission,
-locks editing, and Share Post checks that same Future again. It does not create
-a second document or re-upload. A late acknowledgment is recognized; a late
-rejection schedules bounded Storage deletion. A confirmed failure permits a new
-attempt. A navigation error after acknowledgment states that the post was saved
-and disables reposting. Concurrent taps share one operation.
+```json
+{"offensive":false,"predictions":[{"class":"<label>","confidence":0.1}]}
+```
 
-Leaving the route cancels pre-write work. A dispatched Firestore write remains
-observed because it cannot be canceled. Its photo is retained until its outcome
-is known. Cleanup is best-effort: lost permissions, native cancellation failure,
-offline deletion, or process termination can still leave a Storage object.
-Deleting an image on an *ambiguous* Firestore timeout would risk a broken live
-post, so it is deliberately avoided. Pending submission tracking is in memory;
-after leaving/restarting, check the feed before creating the same post again.
-No persistent cross-session retry queue or server-side orphan janitor was added.
+The Flutter client uses only `offensive`. True rejects the post. Missing/non-boolean
+values, invalid JSON, HTTP errors and transport failures are not approval.
+The server may delete `posts/<user_uid>/<image_name>` when offensive is true.
+It returns `{"error":"..."}` with HTTP 400 or 500 on server failures.
 
-## Image and iOS findings
+Repository searches covered tracked and untracked source/configuration files,
+backend directories, environment/deployment filenames, and available git history.
+Generated build artifacts and dependency caches were excluded from source scans;
+the relevant installed native plugin/SDK implementation was inspected separately.
 
-The unchanged quality target is longest edge 1920 and JPEG quality 85; compact
-PNG screenshots can remain lossless when smaller. Dimension limits always
-apply, rotation is baked, corrupt/unsupported input is rejected, and source
-bytes are limited to 60 MiB / 64 million decoded pixels. Storage gets bytes and
-explicit content type, with no temporary compression file to lose or leak.
-The selected source file may disappear *after reading* without breaking upload;
-a missing file *before reading* produces a reselect message.
+Findings:
 
-The installed image_picker_ios 0.8.12+2 loads library data through PHPicker's
-item provider, uses UIImage and the native conversion utilities, and writes a
-temporary result. iCloud retrieval/native conversion happens **before** Dart's
-picker Future returns. It can therefore stall independently of Storage. Actual
-HEIC conversion must be tested on an iPhone. The Dart image codec does not decode
-raw HEIC; any unconverted HEIC is now rejected with a JPEG/PNG retry message
-instead of silently uploading an unsupported original. Tests exercise rejected
-HEIC-like bytes, not a native HEIC conversion fixture. Existing `dart:io` use in
-the wider app means this change does not establish web-platform support.
+- `moderation_ai/app.py` is the backend, with `app = Flask(__name__)` and
+  `@app.route('/predict', methods=['POST'])`. `model.pt` and `requirements.txt`
+  are present. Last modification of `app.py` in available history is January 9,
+  2025. It is a sibling of the Flutter project, not a Firebase Cloud Function.
+- No checked-in deployment manifest, Dockerfile, Procfile, service definition,
+  environment file, Cloud Functions implementation, or production runbook was
+  found. Current `firebase.json` is FlutterFire platform registration metadata,
+  not a backend deployment definition.
+- The active numeric IP does not occur in source or available git history.
+  There is **no evidence establishing that particular IP was a development host**,
+  nor any record identifying its machine owner or deployment method.
+- `moderation_ai/client.py` is a manual test client. January 9, 2025 history used
+  `https://memories-through-lenses.onrender.com/predict`; January 16 changed the
+  actual request back to a private LAN IP, keeping the unused Render variable.
+  A read-only GET to that Render `/predict` URL now returns 404. It is an older
+  deployment reference, not a verified newer production endpoint.
+- `lib/services/servers.dart` contains `http://localhost:5000` and another
+  face-recognition host. Its `Servers.checkImage` has no callers in `lib/`, uses
+  a different payload/parser, and is not the current posting implementation.
+  Its localhost constant cannot repair the deployed moderation service.
+- `facial_recognition_ai/main.py` is a local video/photo face-recognition script,
+  not the Flask moderation HTTP service or a replacement endpoint.
 
-The local ignored `lib/firebase_options.dart` has an old iOS bundle ID
-(`com.example.memoriesThroughLenses`) and a different Firebase app ID from
-`ios/Runner/GoogleService-Info.plist`. The plist and Xcode target use
-`com.derek.memolens`; project and bucket agree between both option sources.
-Installed firebase_core 3.4.0 initializes the native default app from the plist
-and only soft-checks selected Dart options. This discrepancy is not proof of the
-upload failure or proof of which generated file was used for release. No
-Firebase configuration, rules, bundle/signing settings, or version was changed.
+What the local server requires to run (inferred from its actual entry points,
+not a claim about the unknown existing deployment):
 
-## Diagnostics and device verification
+1. Work from the `moderation_ai` directory: both `model.pt` and
+   `firebase-key.json` are relative paths resolved at import time.
+2. Install `requirements.txt` in an isolated Python environment; the historical
+   server trace uses Python 3.11. Dependencies include Flask, Gunicorn,
+   Ultralytics, Torch, Pillow, Requests and Firebase Admin.
+3. Supply the Firebase Admin credential file securely. Its contents were not
+   inspected or printed; it is excluded by the repository's `.gitignore`.
+   The code selects Storage bucket `memories-through-lenses.appspot.com`.
+4. `python app.py` starts Flask's development listener on `0.0.0.0:5001`.
+   Gunicorn is included as a dependency; the WSGI target is `app:app`.
+   An operator could serve it with
+   `gunicorn --bind "0.0.0.0:${PORT:-5001}" app:app` from that directory,
+   behind their production networking/TLS setup. This is a derived entry-point
+   command, not a recovered production deployment command. Nothing was launched.
+5. Verify model loading, memory/latency, listener reachability, and a controlled
+   POST before treating the service as recovered. The archived worker timeout
+   means process startup alone is insufficient proof of reliable inference.
 
-Temporary JSON console logging is enabled by default. Filter `"flow":"post_upload"`.
-Events include operation ID, stage, elapsed milliseconds, start/success/error,
-Firebase plugin/error code, progress byte counts, sizes/type, and side-request
-HTTP status. Selection has its own ID, linked by the `ui/loading` event's
-`selection` field. Capture has a separate `capture-...` ID. No caption, user UID,
-image bytes, file path, download URL, token, or response body is logged.
+Restoration means locating the deployment for the configured IP and restoring
+its service/listener, or deploying the existing backend at a verified managed
+endpoint and then deliberately updating `moderation_server_url`. Neither action
+can be completed here without server access or an approved verified endpoint.
 
-A `start` followed by an `error` with `code: timeout` identifies the bounded
-stage. `firestore_write/acknowledged` proves the write Future completed;
-`ui/idle` precedes `navigation/start` on success. `storage_progress/success`
-without a subsequent `download_url/success` separates upload from URL failure.
-Keep diagnostics enabled for a device-validation build, then disable with
-`--dart-define=POST_UPLOAD_LOGS=false` before general release (or remove the
-PostTrace calls once resolved). Error handling and deadlines do not depend on logs.
+## Exact source of the reported message
 
-Native device discovery failed because Xcode's license has not been accepted.
-No license, signing setting or device configuration was changed. iOS-targeted
-widget tests use mocked picker channels and a fake backend; they are not native
-iPhone/Firebase integration tests.
+In released commit `296ce05`, `lib/services/post_creation.dart`,
+`PostCreationFailure.message` maps only `moderation` to `checking your photo`,
+then interpolates:
 
-On a physical iPhone, capture logs separately for camera picker, CameraScreen
-handoff, and library. Include HEIC/HEIF, rotated portraits, 48 MP photos, PNG
-screenshots, and an iCloud-only photo. Interrupt connectivity at upload, URL
-lookup and Firestore acknowledgment; restore it and retry the same submission.
-Check one matching Firestore document and Storage object, denied group/session
-failures, side-service results, and background/foreground behavior. Actual
-Firebase rules, network behavior, native upload callbacks, token refresh and
-released-build configuration remain unverified here. The configured moderation
-endpoint must also be checked for the expected `{ "offensive": false }` success
-contract; availability is now required when an endpoint is configured.
+> Could not finish checking your photo. Check your connection and try again. If the photo is unavailable, select it again.
 
-References: [Firestore offline behavior](https://firebase.google.com/docs/firestore/manage-data/enable-offline),
-[image_picker platform and temporary-file notes](https://pub.dev/packages/image_picker).
+The literal full sentence is not stored contiguously in Dart source.
+`lib/screens/create_post.dart`, `_CreatePostScreenState._sharePost`, assigns
+`failure.message` to `_message`; `build` displays it with `Text(_message)`.
 
-## Validation in this workspace
+The call chain is:
 
-- `dart format .`: completed; no unrelated source changes retained.
-- `flutter analyze`: no errors; 10 existing warnings and 229 infos (239 total),
-  down from 248 diagnostics in the original checkout. Exit is nonzero because
-  existing diagnostics remain; this is not a clean analyzer pass.
-- `flutter test`: 90 tests passed. Coverage includes every staged unresolved
-  Future, cancellation/cleanup failure, late Firestore success/rejection,
-  duplicate taps, native-task/stream completion races, moderation failure,
-  camera/gallery/handoff UI variants, missing/deleted source files, navigation
-  failure, large JPEG/PNG, rotation and invalid input.
-- No authenticated live Firebase write or native iPhone execution was performed.
+`_sharePost` → `PostCreation.submit` → `_run` →
+`_step('moderation', backend.moderate)` → `FirebasePostBackend.moderate` →
+`_sideCall(..., mustSucceed: true)`.
 
-## Final QA review of commit 0be558e
+The exact message proves that local byte acquisition, preprocessing, Storage
+upload completion, and download URL retrieval **already succeeded** for that
+submission. Firestore `writePost` has **not** been dispatched. It does not mean
+local validation, Photos/iCloud downloading, or image compression failed.
 
-Verdict: **hold App Store release pending native iPhone / live-service validation**.
-The earlier 90-test result above describes the initial fix; this review passes
-123 tests. `dart format .` completed. `flutter analyze` still exits nonzero with
-239 existing diagnostics (0 errors, 10 warnings, 229 infos). No new production
-diagnostics remain. Test-only SDK doubles explicitly suppress SDK annotations
-that prohibit implementing sealed/immutable reference types outside tests.
+## Every route through the released moderation failure handling
 
-Additional fixes from review:
+| Operation | Released behavior / message |
+| --- | --- |
+| HTTP client factory throws | Escapes into `_step('moderation')`; generic checking message; factory was outside the local try/finally |
+| RTDB `ref(...).once()` or snapshot access throws | Generic checking message, except Firebase auth/permission codes use session/group messages |
+| RTDB read exceeds 15 seconds | Checking message **with `(timed out)`**, unlike the reported exact text |
+| Config value absent/empty | Returns success with `not_configured`; no HTTP call, no checking failure |
+| Malformed configured URL, connection refused, DNS/TLS/socket/client error | Generic checking message; no timeout suffix for immediate errors |
+| HTTP POST exceeds 15 seconds | Checking message with `(timed out)`; client closed in finally |
+| HTTP status outside 200–299 | Throws `post_moderation/http-NNN`; generic checking message |
+| Successful HTTP body is malformed JSON | `FormatException`; generic checking message |
+| JSON is not a map or `offensive` is missing/not boolean | `post_moderation/invalid-response`; generic checking message |
+| Boolean `offensive: true` | **Different** message: photo not approved; service may delete the image |
+| Boolean `offensive: false` | Moderation succeeds, then session check and Firestore write |
+| Outer moderation stage exceeds 35 seconds | Checking message with `(timed out)` |
+| Explicit cancellation during moderation | `StateError('canceled')`; generic checking failure internally; disposed screen does not render it |
 
-- Firebase cancellation returning false was previously logged as successful
-  cleanup. It is now reported as unconfirmed cancellation. The original upload
-  task has an independent completion observer: if an abandoned upload succeeds
-  after the first deletion attempt, a second bounded deletion is attempted.
-  This closes the observable late-completion orphan race while the process is
-  alive; errors are logged as `storage_late_cleanup/cleanup_failed`.
-- A `TaskState.error` snapshot with an unresolved task Future now fails promptly
-  instead of waiting for the full upload timeout.
-- Create Post ignores malformed group rows and invalidates a removed selection
-  before a new submission. A pending write keeps its immutable original target.
-- The Firebase adapter now accepts injected dependencies to test the actual
-  upload, metadata, URL, authentication, group, document and HTTP code. Runtime
-  defaults remain the existing Firebase singleton instances.
+`_run` previously flattened all those causes to stage `moderation`. Error type
+was retained, but config/HTTP/response context was not propagated to the UI.
+The new implementation preserves `moderation_config`, `moderation_http`, or
+`moderation_response` with the original cause. Outer deadline/cancellation
+remains identifiable as `moderation`.
 
-33 additional test cases cover the adapter's MIME/path and post schema,
-moderation errors and payloads, sign-out, missing/non-member groups, URL failure,
-late native success after rejected cancellation, late cleanup errors, stalled
-listener cancellation, error snapshots, the outer six-minute UI deadline,
-synchronous construction failure, in-place retry after upload/URL failure,
-stale group data, and all eight EXIF rotation/mirroring modes. Mobile widget
-cases run with both iOS and Android target variants; native channels are mocked.
+On failure before Firestore dispatch, `_cleanUpload` runs bounded cancellation
+then deletion, each at most five seconds. Successful Storage tasks are not
+canceled, but their object is deleted. Cleanup errors are logged and never
+replace the original failure. `_sharePost` clears uploading in `finally`, permits
+a fresh attempt for a definite failure, and never navigates. Pending Firestore
+writes retain the same submission to avoid duplicate posts; this is unrelated to
+moderation failure, since no write exists yet.
 
-Compatibility review: posts still have `group_id`, `user_id`, `caption`,
-`image_url`, `likes`, `dislikes`, `comments`, and `created_at`; Firestore serializes
-the DateTime as before. Feed/group/yearbook readers use these fields. Comments
-remain a subcollection of the same post ID. Yearbook receives the same
-`photo_path`/`post_id` payload. JPEG/PNG use the existing image-rendering paths.
-This is schema/code compatibility verification, not live feed/comments/yearbook
-integration coverage. No related screen or comment-writing behavior changed.
+## Why this appeared after previous fixes
 
-Remaining limits / release gates:
+- `ff0c15f`: background compression and best-effort moderation; failed moderation
+  did not block posting. Original-file fallback could bypass processing limits.
+- `0be558e`: retained image bytes, strict preprocessing, separate bounded stages,
+  Firestore write tracking, and **changed moderation to `mustSucceed: true`**.
+  This introduced the current message and made service unavailability block posts.
+- `574f8cf`: group guards, late Storage cleanup, cancellation-race handling and
+  tests; it did not introduce the moderation label or required gate.
+- `296ce05`: release preparation; no photo-pipeline changes.
 
-- No unbounded Create Post loading wait was found after the repairs while the
-  Dart event loop is running. Every submission exits its spinner, including
-  failure, timeout, cancellation and disposed-route paths. A Firestore Future
-  can remain pending internally; each UI check remains bounded and never
-  re-dispatches it.
-- Rejected/hung native cancellation may leave transfer work running. Rapid taps
-  on a running submission are coalesced, but a retry after failed native
-  cancellation can overlap that abandoned transfer. Its old chain cannot
-  create a post, and the late-success observer attempts deletion. This does
-  not provide a guarantee of zero native overlap or zero orphans.
-- Pending Firestore tracking is in memory. Restarting/leaving and recreating a
-  submission is not durably deduplicated. Retained images are intentionally not
-  deleted while the write outcome is unknown. Guaranteed cleanup across process
-  death would require a persistent reconciliation/server cleanup design.
-- Configured moderation is now required to respond with the expected schema.
-  Verify the deployed endpoint and RTDB read permissions on the release device;
-  otherwise posting will fail cleanly but still not succeed. Optional yearbook
-  indexing can fail after the post is saved and is not durably queued.
-- Native discovery was attempted again; `flutter devices` failed because the
-  Xcode license is unaccepted. No native build/run or authenticated production
-  test post was made. Camera, library, camera handoff, real HEIC, 48 MP, PNG,
-  rotations, iCloud-only images, network interruption/recovery and backgrounding
-  still require a physical iPhone test using the stage logs.
-- Existing feed-author/avatar/image loading uses separate unbounded reads or
-  placeholders (for example PostCard._fetchUserData). These predate this patch
-  and are not the posting spinner; no app-wide no-spinner guarantee is made.
+The required gate exposes the service outage. Reverting to blind best-effort
+posting would not be a service repair: `moderation_ai/app.py` can delete the image,
+so ignoring its result can publish an image that the service subsequently removes.
+No moderation bypass has been added. No timeouts were increased. Cancellation
+is not an explanation for the observed immediate refusal.
 
-The exact released-device triggering await remains unknown. The proven defect
-was unbounded preprocessing/URL/write/cancel awaits combined with non-finally UI
-cleanup; this review does not recast a simulated timeout as a device reproduction.
-No Firebase rules/configuration, bundle/signing/version/build values were changed.
+The sibling server source implements the expected JSON contract. It downloads
+Storage bytes with `requests.get`, checks content type, decodes using Pillow,
+resizes to 64×64, runs YOLO, and returns boolean `offensive`. Server exceptions
+return HTTP 500. It also writes `test.jpg` and logs the incoming image URL.
+Those server logging/processing behaviors were inspected, not executed or changed.
+An archived January 2025 server log shows a Gunicorn worker timeout during YOLO
+inference; it is historical evidence only, not evidence for this incident.
+
+## Complete photo-path audit
+
+1. Gallery/camera selection: `image_picker` uses 1920×1920 maximum dimensions,
+   quality 90. The native picker future has a two-minute deadline including user
+   interaction and materialization. CameraScreen also has a separate 30-second
+   capture bound, handing a temporary File through UserProvider to Create Post.
+2. Installed `image_picker_ios 0.8.12+2`: PHPicker asynchronously calls
+   `loadDataRepresentationForTypeIdentifier(UTTypeImage)`, creates a UIImage,
+   scales it and writes its own app temporary file **before** returning XFile.
+   This path supports HEIC/HEIF and Live Photo still representations. UIKit
+   converts non-PNG/non-GIF formats to JPEG. PNG stays PNG. This is not an
+   NSItemProvider file URL used after its completion handler has deleted it.
+3. Create Post immediately calls XFile `length()` (10-second bound), then
+   `readAsBytes()` (15-second bound), storing a Uint8List for preview and upload.
+   `cross_file` on iOS implements these using File operations; XFile itself does
+   not confer permanent access or perform an additional iCloud asset download.
+   No File.exists or decodeImageFromList call exists on this posting path.
+   The metadata read is redundant for availability, but enforces a size cap
+   before allocation; it is not implicated in this message. It remains unchanged.
+4. Reading an unavailable source produces **Could not open this photo**, not the
+   reported checking message. Deleting the source after acquisition does not
+   affect submission. A separate-camera handoff can still lose its file before
+   acquisition; it fails recoverably and is tested, not claimed impossible.
+5. `ImageUtils.prepareBytes`: `compute` executes validation, decode, EXIF rotation
+   and mirroring, resizing and encoding on a worker isolate on iOS/Android.
+   Limits: 60 MiB input, 64 million pixels, 1920-pixel output edge, JPEG quality 85.
+   Compact PNGs remain PNG when smaller. High-resolution camera photos are decoded
+   there; gallery photos have already been scaled natively. The Dart image codec
+   does not decode raw HEIC: the supported iOS picker converts it first. An
+   artificially supplied unconverted HEIC is rejected at preprocessing, with a
+   **different** message. No new rejection of normal iPhone formats was introduced.
+6. Preprocessing's 25-second bound can fail a slow job. `Future.timeout` does not
+   terminate its worker; a late result cannot initiate upload. Tests cover both
+   slow success and late completion after timeout. There is no evidence that this
+   deadline produced the reported message, so it has not been changed speculatively.
+7. Auth/group validation, `putData` with matching MIME type, task completion,
+   `getDownloadURL`, required remote moderation, auth recheck, `post.set`, loading
+   cleanup and navigation follow in order. Storage has a two-minute bound;
+   URL/auth/group/write waits have 25-second bounds. The six-minute UI watchdog
+   is a separate final bound. It would produce a different failure label.
+
+Apple documents asynchronous asset loading and image_picker documents physical
+HEIC device testing: [Apple Photos selection](https://developer.apple.com/documentation/photokit/selecting-photos-and-videos-in-ios),
+[Flutter image_picker](https://pub.dev/packages/image_picker).
+Native behavior above was checked against the **installed** plugin source, not
+assumed from the current package release.
+
+## Changes and diagnostic markers
+
+- `lib/services/post_trace.dart`: shared temporary diagnostics with operation ID,
+  stage, event, elapsed time, and uppercase marker. No raw exception messages,
+  URLs, captions, image bytes, credentials or response bodies are logged.
+- `lib/services/image_utils.dart`: validation, decode and compression start,
+  success and failure markers inside the worker. Processing itself is unchanged.
+  Worker elapsed time starts at worker entry; correlate by operation ID and stage.
+- `lib/screens/create_post.dart`: PHOTO_PICKED, separate length and byte-read
+  markers, failure stage in UI diagnostics, injectable picker for deterministic
+  delayed-source tests. No UI layout changes.
+- `lib/services/firebase_post_backend.dart`: distinguish config, transport/status,
+  and response-contract errors; validate endpoint shape; close clients on all
+  request outcomes. The existing 15-second deadline is injectable for tests.
+- `lib/services/post_creation.dart`: preserve detailed remote failure stage/cause;
+  describe service unavailability instead of implying a bad photo. Rejections
+  remain explicit. No change to approval policy or cleanup/write sequencing.
+
+Expected trace: PHOTO_PICKED → PHOTO_BYTES_READ_START/SUCCESS →
+PHOTO_VALIDATION_START/SUCCESS → PHOTO_DECODE_START/SUCCESS →
+PHOTO_COMPRESSION_START/SUCCESS → STORAGE_UPLOAD_START/SUCCESS →
+DOWNLOAD_URL_START/SUCCESS → MODERATION_CONFIG_START/SUCCESS →
+MODERATION_HTTP_START → MODERATION_HTTP_FAILURE (or TIMEOUT / response status) →
+cleanup → UI_IDLE. A successful moderation response continues to
+POST_WRITE_START/SUCCESS and navigation.
+
+## Verification and remaining work
+
+Tests in `test/firebase_post_backend_test.dart` reproduce refused connections
+only after successful upload/URL retrieval, RTDB denial, config/HTTP timeouts,
+invalid endpoint values, malformed response contracts, and log redaction.
+`test/create_post_upload_test.dart` adds delayed iCloud-style materialization,
+delayed in-memory XFile reads, read deadlines/late results, slow preprocessing,
+processing deadlines/late results, and loading cleanup across backend failures.
+Existing tests cover JPEG, PNG screenshots, large images, all eight EXIF
+orientations, deleted/unavailable temporary files, Storage errors, Firestore
+errors, pending acknowledgments, cleanup and navigation failures.
+
+No Firebase rules, project settings, bundle identifier, signing, deployment
+target, app version or build number changed. No commits, pushes or deployments.
+
+To complete the production repair, restore the configured server listener and
+verify a valid moderation POST with a controlled non-private test image returns
+2xx and boolean `offensive: false`. Then verify the entire post on a physical
+released-style iPhone build, including iCloud-only HEIC, Live Photo stills, large
+camera captures, screenshots, rotation, offline failure and retry. Synthetic
+Dart tests do not reproduce Photos download scheduling, device memory pressure,
+native HEIC conversion, or the phone's specific network route. Server recovery
+and an actual device run have not been verified.
+
+Validation completed in this workspace:
+
+- `dart format .`: passed; 56 Dart files processed in the final pass.
+- `flutter test`: **151 tests passed**.
+- `flutter analyze`: exits nonzero with **239 pre-existing diagnostics**
+  (0 errors, 10 warnings, 229 infos). A separate HEAD snapshot with unchanged
+  local Firebase options/assets produces the same diagnostics; no new issues.
+- `git diff --check`: passed.

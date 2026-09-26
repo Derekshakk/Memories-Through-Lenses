@@ -1,0 +1,12 @@
+# Only these deployment inputs may enter the build context (including on Render).
+*
+!Dockerfile
+!.dockerignore
+!requirements.txt
+!app.py
+!service.py
+!runtime.py
+!firebase_runtime.py
+!moderation_worker.py
+!gunicorn.conf.py
+!model.pt

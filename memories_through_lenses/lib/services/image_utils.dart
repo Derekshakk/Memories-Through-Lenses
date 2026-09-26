@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
+import 'post_trace.dart';
+
 class PreparedImage {
   const PreparedImage(this.bytes, this.contentType);
   final Uint8List bytes;
@@ -16,18 +18,28 @@ class ImageUtils {
   static const int maxInputBytes = 60 * 1024 * 1024;
   static const int maxPixels = 64 * 1000 * 1000;
 
-  static Future<PreparedImage> prepareBytes(Uint8List bytes) =>
-      compute(_prepare, bytes);
+  static Future<PreparedImage> prepareBytes(Uint8List bytes,
+          {String? traceId}) =>
+      compute(_prepare, (bytes, traceId));
 
-  static PreparedImage _prepare(Uint8List bytes) {
+  static PreparedImage _prepare((Uint8List, String?) request) {
+    final (bytes, traceId) = request;
+    final trace = traceId == null ? null : PostTrace(traceId);
+    var stage = 'image_validation';
     try {
-      return _decode(bytes);
-    } catch (_) {
+      trace?.event(stage, 'start');
+      return _decode(bytes, (name, event, fields) {
+        stage = name;
+        trace?.event(name, event, fields);
+      });
+    } catch (error) {
+      trace?.event(stage, 'failure', {'code': PostTrace.code(error)});
       throw const FormatException('Unsupported, corrupt or oversized image');
     }
   }
 
-  static PreparedImage _decode(Uint8List bytes) {
+  static PreparedImage _decode(Uint8List bytes,
+      void Function(String, String, Map<String, Object?>) event) {
     if (bytes.isEmpty || bytes.length > maxInputBytes) {
       throw const FormatException('Empty or oversized image');
     }
@@ -37,8 +49,17 @@ class ImageUtils {
     if (info == null || info.width * info.height > maxPixels) {
       throw const FormatException('Unsupported or oversized image');
     }
+    event('image_validation', 'success', {
+      'width': info.width,
+      'height': info.height,
+      'bytes': bytes.length,
+      'decoder': decoder.runtimeType.toString(),
+    });
+    event('image_decode', 'start', {});
     final decoded = decoder!.decodeFrame(0);
     if (decoded == null) throw const FormatException('Image decode failed');
+    event('image_decode', 'success', {});
+    event('image_compression', 'start', {});
     var working = img.bakeOrientation(decoded);
     if (working.width > maxDimension || working.height > maxDimension) {
       working = working.width >= working.height
@@ -53,8 +74,14 @@ class ImageUtils {
     // resized/oriented image (never bypass dimension limits based on file size).
     if (decoder is img.PngDecoder) {
       final png = Uint8List.fromList(img.encodePng(working));
-      if (png.length < jpeg.length) return PreparedImage(png, 'image/png');
+      if (png.length < jpeg.length) {
+        event('image_compression', 'success',
+            {'bytes': png.length, 'content_type': 'image/png'});
+        return PreparedImage(png, 'image/png');
+      }
     }
+    event('image_compression', 'success',
+        {'bytes': jpeg.length, 'content_type': 'image/jpeg'});
     return PreparedImage(jpeg, 'image/jpeg');
   }
 }

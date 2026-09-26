@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+firebase-key.json
+*service-account*.json
+key.json
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]

@@ -19,7 +19,9 @@ class Pair {
 }
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key, this.createPost});
+  const CreatePostScreen({super.key, this.createPost, this.pickPhoto});
+
+  final Future<XFile?> Function(ImageSource source)? pickPhoto;
 
   final PostCreation Function(String group, String caption, Uint8List image)?
       createPost;
@@ -94,25 +96,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     trace.event(stage, 'start');
     try {
       final image = captured ??
-          await ImagePicker()
-              .pickImage(
-                source: source,
-                maxWidth: 1920,
-                maxHeight: 1920,
-                imageQuality: 90,
-              )
+          await (widget.pickPhoto?.call(source) ??
+                  ImagePicker().pickImage(
+                    source: source,
+                    maxWidth: 1920,
+                    maxHeight: 1920,
+                    imageQuality: 90,
+                  ))
               .timeout(const Duration(minutes: 2));
       if (image == null) {
         trace.event(stage, 'canceled');
         return;
       }
       trace.event(stage, 'success');
-      stage = 'selected_file_read';
+      trace.event('photo', 'picked');
+      stage = 'selected_file_length';
       trace.event(stage, 'start');
       final length = await image.length().timeout(const Duration(seconds: 10));
       if (length == 0 || length > ImageUtils.maxInputBytes) {
         throw const FormatException('Empty or oversized photo');
       }
+      trace.event(stage, 'success', {'bytes': length});
+      stage = 'selected_file_read';
+      trace.event(stage, 'start');
       final bytes =
           await image.readAsBytes().timeout(const Duration(seconds: 15));
       trace.event('selected_file_read', 'success', {'bytes': bytes.length});
@@ -123,7 +129,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         _submission = null;
       });
     } catch (error) {
-      trace.event(stage, 'error', {'code': PostTrace.code(error)});
+      trace.event(stage, error is TimeoutException ? 'timeout' : 'failure',
+          {'code': PostTrace.code(error)});
       if (mounted) {
         setState(() {
           _message =
@@ -164,8 +171,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ? error
           : PostCreationFailure('post creation', error,
               pending: _submission?.pending ?? false);
-      trace?.event('ui', 'failure',
-          {'code': PostTrace.code(failure.cause), 'pending': failure.pending});
+      trace?.event('ui', 'failure', {
+        'code': PostTrace.code(failure.cause),
+        'pending': failure.pending,
+        'failed_stage': failure.stage
+      });
       if (!failure.pending) {
         _submission?.cancel();
         _submission = null;

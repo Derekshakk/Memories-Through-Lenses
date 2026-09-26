@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:memories_through_lenses/services/firebase_post_backend.dart';
@@ -157,18 +157,22 @@ class _Event extends Fake implements DatabaseEvent {
 }
 
 class _ConfigRef extends Fake implements DatabaseReference {
-  _ConfigRef(this.value);
+  _ConfigRef(this.value, this.onRead);
+  final Future<void> Function()? onRead;
   final Object? value;
   @override
   Future<DatabaseEvent> once(
-          [DatabaseEventType eventType = DatabaseEventType.value]) async =>
-      _Event(value);
+      [DatabaseEventType eventType = DatabaseEventType.value]) async {
+    await onRead?.call();
+    return _Event(value);
+  }
 }
 
 class _Realtime extends Fake implements FirebaseDatabase {
   final config = <String, Object?>{};
+  Future<void> Function()? onRead;
   @override
-  DatabaseReference ref([String? path]) => _ConfigRef(config[path]);
+  DatabaseReference ref([String? path]) => _ConfigRef(config[path], onRead);
 }
 
 class _Client extends MockClient {
@@ -200,7 +204,8 @@ void main() {
         firestore: db,
         storage: storage,
         realtime: realtime,
-        clientFactory: () => client);
+        clientFactory: () => client,
+        serviceTimeout: const Duration(milliseconds: 30));
     trace = PostTrace(backend.id);
   });
   tearDown(() async {
@@ -290,9 +295,119 @@ void main() {
         'https://moderation.example/predict';
     client = _Client((_) async => http.Response('error', 503));
     await expectLater(
-        backend.moderate('url', trace), throwsA(isA<FirebaseException>()));
+        backend.moderate('url', trace),
+        throwsA(isA<PostCreationFailure>()
+            .having((e) => e.stage, 'stage', 'moderation_http')));
     expect(client.closed, isTrue);
   });
+  test('connection refused occurs AFTER Storage and URL, before post write',
+      () async {
+    realtime.config['moderation_server_url'] =
+        'http://moderation.example:5001/predict';
+    client =
+        _Client((_) async => throw http.ClientException('Connection refused'));
+    final result = expectLater(
+        operation().submit(),
+        throwsA(isA<PostCreationFailure>()
+            .having((e) => e.stage, 'stage', 'moderation_http')
+            .having((e) => e.cause, 'cause', isA<http.ClientException>())
+            .having((e) => e.message, 'message',
+                contains('service is unavailable'))));
+    await Future<void>.delayed(Duration.zero);
+    storage.image.task.finish();
+    await result;
+    expect(storage.image.data, bytes);
+    expect(storage.image.deletes, 1);
+    expect(db.post.written, isNull);
+    expect(client.closed, isTrue);
+  });
+
+  test('RTDB permission failure is identified as moderation_config', () async {
+    realtime.onRead = () async => throw FirebaseException(
+        plugin: 'firebase_database', code: 'permission-denied');
+    await expectLater(
+        backend.moderate('url', trace),
+        throwsA(isA<PostCreationFailure>()
+            .having((e) => e.stage, 'stage', 'moderation_config')));
+  });
+
+  for (final atConfig in [true, false]) {
+    test(
+        'moderation ${atConfig ? 'config' : 'HTTP'} timeout keeps its precise stage',
+        () async {
+      realtime.config['moderation_server_url'] =
+          'https://moderation.example/predict';
+      final delayed = Completer<void>();
+      if (atConfig) realtime.onRead = () => delayed.future;
+      client = _Client((_) async {
+        await delayed.future;
+        return http.Response('{"offensive":false}', 200);
+      });
+      await expectLater(
+          backend.moderate('url', trace),
+          throwsA(isA<PostCreationFailure>()
+              .having((e) => e.stage, 'stage',
+                  atConfig ? 'moderation_config' : 'moderation_http')
+              .having((e) => e.cause, 'cause', isA<TimeoutException>())));
+      delayed.complete();
+    });
+  }
+
+  for (final value in [123, 'bad url', 'file:///tmp/photo']) {
+    test('malformed endpoint $value fails as configuration without HTTP',
+        () async {
+      realtime.config['moderation_server_url'] = value;
+      client = _Client((_) async => fail('HTTP must not start'));
+      await expectLater(
+          backend.moderate('url', trace),
+          throwsA(isA<PostCreationFailure>()
+              .having((e) => e.stage, 'stage', 'moderation_config')));
+    });
+  }
+
+  for (final response in [
+    http.Response('{}', 200),
+    http.Response('not json', 200)
+  ]) {
+    test(
+        'invalid successful HTTP body is a response-contract failure: ${response.body}',
+        () async {
+      realtime.config['moderation_server_url'] =
+          'https://moderation.example/predict';
+      client = _Client((_) async => response);
+      await expectLater(
+          backend.moderate('url', trace),
+          throwsA(isA<PostCreationFailure>()
+              .having((e) => e.stage, 'stage', 'moderation_response')
+              .having((e) => (e.cause as FirebaseException).code, 'code',
+                  'invalid-response')));
+    });
+  }
+
+  test(
+      'diagnostics identify the HTTP failure without leaking error URLs or payloads',
+      () async {
+    final events = <Map<String, dynamic>>[];
+    final original = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) {
+        events.add(jsonDecode(message) as Map<String, dynamic>);
+      }
+    };
+    addTearDown(() => debugPrint = original);
+    realtime.config['moderation_server_url'] =
+        'https://moderation.example/predict';
+    client =
+        _Client((_) async => throw http.ClientException('secret-image-token'));
+    await expectLater(backend.moderate('private-download-url', trace),
+        throwsA(isA<PostCreationFailure>()));
+    expect(events.last['marker'], 'MODERATION_HTTP_FAILURE');
+    expect(events.last['code'], 'ClientException');
+    expect(jsonEncode(events), isNot(contains('secret-image-token')));
+    expect(jsonEncode(events), isNot(contains('private-download-url')));
+    expect(jsonEncode(events), isNot(contains('moderation.example')));
+  });
+
   test('moderation and yearbook retain endpoint payload contracts', () async {
     realtime.config.addAll({
       'moderation_server_url': 'https://server.example/mod',
