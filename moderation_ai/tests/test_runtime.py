@@ -1,96 +1,46 @@
-import json
 import sys
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-import firebase_runtime
 import pytest
 import runtime
 
 
-@pytest.fixture
-def sdk(monkeypatch):
-    certificate = Mock(return_value="credential-object")
-    initialize = Mock(return_value="firebase-app")
-    module = SimpleNamespace(
-        credentials=SimpleNamespace(Certificate=certificate), initialize_app=initialize
-    )
-    monkeypatch.setitem(sys.modules, "firebase_admin", module)
-    for name in [
-        "FIREBASE_SERVICE_ACCOUNT_JSON",
-        "GOOGLE_APPLICATION_CREDENTIALS",
-        "RENDER",
-    ]:
-        monkeypatch.delenv(name, raising=False)
-    return certificate, initialize
-
-
-def credential():
-    return {
-        "type": "service_account",
-        "project_id": "memories-through-lenses",
-        "private_key": "fake-private-value",
-    }
-
-
-def test_json_secret_initializes_without_file(sdk, monkeypatch, tmp_path):
-    monkeypatch.setenv("FIREBASE_SERVICE_ACCOUNT_JSON", json.dumps(credential()))
-    assert firebase_runtime.initialize_firebase(tmp_path) == "firebase-app"
-    sdk[0].assert_called_once_with(credential())
-    assert sdk[1].call_args.kwargs["name"] == "memolens-moderation"
-
-
-def test_secret_file_path_and_local_fallback(sdk, monkeypatch, tmp_path):
-    (tmp_path / "firebase-key.json").write_text(json.dumps(credential()))
-    monkeypatch.chdir(tmp_path.parent)
-    assert firebase_runtime.initialize_firebase(tmp_path) == "firebase-app"
+@pytest.mark.parametrize("stale_environment", [False, True])
+def test_render_starts_without_firebase_sdk_or_credentials(
+    monkeypatch, tmp_path, stale_environment
+):
+    # Fail any attempted SDK import even if the developer has it installed.
+    monkeypatch.setitem(sys.modules, "firebase_admin", None)
     monkeypatch.setenv("RENDER", "true")
-    monkeypatch.setenv(
-        "GOOGLE_APPLICATION_CREDENTIALS", str(tmp_path / "firebase-key.json")
-    )
-    assert firebase_runtime.initialize_firebase(tmp_path) == "firebase-app"
-
-
-def test_render_never_implicitly_reads_local_key(sdk, monkeypatch, tmp_path):
-    monkeypatch.setenv("RENDER", "true")
-    (tmp_path / "firebase-key.json").write_text(json.dumps(credential()))
-    with pytest.raises(RuntimeError, match="^firebase_initialization_failed$"):
-        firebase_runtime.initialize_firebase(tmp_path)
-    sdk[0].assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "content", ["private-key-bad-json", "[]", '{"project_id":"other"}']
-)
-def test_invalid_credentials_have_safe_error(sdk, monkeypatch, tmp_path, content):
-    monkeypatch.setenv("FIREBASE_SERVICE_ACCOUNT_JSON", content)
-    with pytest.raises(RuntimeError, match="^firebase_initialization_failed$"):
-        firebase_runtime.initialize_firebase(tmp_path)
-
-
-def test_ambiguous_credentials_fail(sdk, monkeypatch, tmp_path):
-    monkeypatch.setenv("FIREBASE_SERVICE_ACCOUNT_JSON", json.dumps(credential()))
-    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "elsewhere.json")
-    with pytest.raises(RuntimeError):
-        firebase_runtime.initialize_firebase(tmp_path)
-
-
-def test_startup_failure_is_unhealthy_and_never_approves():
-    loader = Mock(side_effect=ValueError("private-secret"))
-    model_loader = Mock()
-    app = runtime.build_app(firebase_loader=loader, model_loader=model_loader)
+    for name in ("FIREBASE_SERVICE_ACCOUNT_JSON", "GOOGLE_APPLICATION_CREDENTIALS"):
+        if stale_environment:
+            monkeypatch.setenv(name, "unused-invalid-value")
+        else:
+            monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(runtime, "BASE_DIR", tmp_path)
+    model = Mock()
+    loader = Mock(return_value=model)
+    app = runtime.build_app(model_loader=loader)
+    loader.assert_called_once_with(tmp_path)
+    assert app.config["MODEL"] is model
     response = app.test_client().get("/health")
-    assert response.status_code == 503
-    assert response.json == {"status": "unavailable"}
-    model_loader.assert_not_called()
+    assert response.status_code == 200
+    assert response.json == {"status": "ok"}
 
 
-def test_model_loading_failure_is_unhealthy():
+def test_model_loading_failure_is_unhealthy_and_never_approves():
+    from test_service import payload
+
     app = runtime.build_app(
-        firebase_loader=Mock(),
-        model_loader=Mock(side_effect=RuntimeError("bad checkpoint")),
+        model_loader=Mock(side_effect=RuntimeError("bad checkpoint"))
     )
-    assert app.test_client().get("/health").status_code == 503
+    client = app.test_client()
+    assert client.get("/health").status_code == 503
+    response = client.post("/predict", json=payload())
+    assert response.status_code == 503
+    assert response.json["error"] == "model_unavailable"
+    assert "offensive" not in response.json
 
 
 def test_model_path_is_independent_of_cwd(monkeypatch, tmp_path):

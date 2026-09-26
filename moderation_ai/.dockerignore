@@ -6,7 +6,6 @@
 !app.py
 !service.py
 !runtime.py
-!firebase_runtime.py
 !moderation_worker.py
 !gunicorn.conf.py
 !model.pt

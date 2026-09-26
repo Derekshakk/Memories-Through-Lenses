@@ -14,7 +14,7 @@ COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir -r requirements.txt && python -m pip check
 
 # Explicit copies and an allowlist .dockerignore keep credentials/images out.
-COPY app.py service.py runtime.py firebase_runtime.py moderation_worker.py gunicorn.conf.py model.pt ./
+COPY app.py service.py runtime.py moderation_worker.py gunicorn.conf.py model.pt ./
 RUN useradd --create-home --uid 10001 moderation
 USER moderation
 CMD ["/bin/sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 1 app:app"]

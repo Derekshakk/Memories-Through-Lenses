@@ -3,7 +3,6 @@
 import logging
 from pathlib import Path
 
-from firebase_runtime import initialize_firebase
 from service import OFFENSIVE_CLASSES, create_app, event, predictions_from_results
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -33,13 +32,9 @@ def load_model(base_dir=BASE_DIR):
     return model
 
 
-def build_app(*, firebase_loader=initialize_firebase, model_loader=load_model):
-    stage = "firebase_initialization"
+def build_app(*, model_loader=load_model):
+    stage = "model_readiness"
     try:
-        event(stage, "start")
-        firebase_loader(BASE_DIR)
-        event(stage, "success")
-        stage = "model_readiness"
         event(stage, "start")
         model = model_loader(BASE_DIR)
         event(stage, "success")

@@ -1,7 +1,6 @@
 # Web/runtime dependencies; no EC2 system packages or face-recognition stack.
 Flask==3.1.3
 gunicorn==23.0.0
-firebase-admin==6.5.0
 Pillow==11.3.0
 urllib3==2.6.3
 certifi>=2025.1.31

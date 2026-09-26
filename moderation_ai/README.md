@@ -51,23 +51,13 @@ latency/concurrency and scale instances before sending production traffic.
 
 ## Environment and credentials
 
-Set exactly **one** credential option:
-
-1. Recommended: create a Render Secret File named `firebase-key.json`, containing
-   a valid service account JSON for the existing `memories-through-lenses`
-   Firebase project. Set `GOOGLE_APPLICATION_CREDENTIALS` to
-   `/etc/secrets/firebase-key.json`. The file contents are secret; the path is not.
-2. Alternatively set `FIREBASE_SERVICE_ACCOUNT_JSON` to the complete service
-   account JSON using Render's environment secret controls. This entire value is
-   secret. Do not echo it, put it in Git, or pass it as a Docker build argument.
-
-Use a freshly provisioned credential: the separate MemoLens-Server repository
-currently tracks credential-named `firebase-key.json` and `key.json`, and its
-history includes `moderation_ai/firebase-key.json`. Their contents were not
-inspected. If these are live keys, revoke/rotate them through the project owner;
-removing a file from the latest commit does not revoke a leaked key. The local
-`moderation_ai/firebase-key.json` is ignored/untracked and is not copied into the
-image. These instructions do not rotate, remove, or expose any credentials.
+No Firebase service-account credential, Secret File, or Firebase environment
+variable is required. The backend downloads the supplied allowlisted Firebase
+Storage URL over HTTPS using its existing download token; it performs no Admin
+SDK operations. Firebase Admin and its initialization dependency have been
+removed. Do not configure `FIREBASE_SERVICE_ACCOUNT_JSON` or
+`GOOGLE_APPLICATION_CREDENTIALS` for this service. Any existing local credential
+file remains ignored and excluded from Docker; it is never read by the service.
 
 Other environment settings:
 
@@ -81,13 +71,9 @@ Other environment settings:
 
 The explicit Gunicorn configuration prevents a platform default from enabling
 preload or unredacted access logging. Do not add `--preload`: the model is loaded
-and warmed within its own worker. Credentials initialize the existing Admin SDK
-for compatibility, but this verdict-only service performs **no Admin deletions,
-Storage writes, or Firestore writes**. It needs no Firebase database URL or
-moderation endpoint environment variable. Initialization parses/validates the
-credential and project; it does not prove a key is active by making an Admin RPC.
-Local development may use the ignored `firebase-key.json` next to `app.py` when
-`RENDER` is not `true`. Production requires an explicit credential option.
+and warmed within its own worker. This verdict-only service performs **no Admin
+deletions, Storage writes, or Firestore writes**. It needs no Firebase database
+URL, service account, or moderation endpoint environment variable.
 
 ## API and safety boundaries
 
@@ -141,8 +127,7 @@ IDs, stages, fixed error codes, status, durations, and the boolean verdict only.
 No request body, signed URL/query, user identifiers, headers, bytes, or exception
 contents are logged. No access log is enabled.
 
-`GET /health` returns `{"status":"ok"}` with 200 only after credential bootstrap
-and model load/warmup succeed; otherwise 503 with `{"status":"unavailable"}`.
+`GET /health` returns `{"status":"ok"}` with 200 only after model load/warmup succeeds; otherwise 503 with `{"status":"unavailable"}`.
 It exposes no configuration or credentials and makes no network calls.
 
 ## Timing and model lifecycle
@@ -180,7 +165,7 @@ python -m pip install -r requirements-test.txt
 python -m pytest -q tests
 ```
 
-Tests mock model/Firebase behavior. Gunicorn tests start only a loopback server
+Tests mock model behavior and verify startup without Firebase Admin or credentials. Gunicorn tests start only a loopback server
 and verify that slow startup survives the request watchdog and stuck inference
 cannot return late approval. Runtime requirements also install the real ML stack.
 
@@ -190,10 +175,13 @@ On a Docker-capable machine, before deployment:
 docker build -t memolens-moderation .
 ```
 
-Then run the image locally with the service account supplied as a read-only mount
-at `/etc/secrets/firebase-key.json` and the corresponding credential-path env
-variable. Publish container port 10000 only to loopback while testing. Do not
-copy a secret into the build context or paste it into a command line.
+Then run the image locally without secrets or Firebase environment variables:
+
+```sh
+docker run --rm -p 127.0.0.1:10000:10000 memolens-moderation
+```
+
+Verify `http://127.0.0.1:10000/health` returns 200 after model warmup.
 
 After a separately authorized deployment, verify `/health` returns 200, then use
 `client.py` with environment values `MODERATION_TEST_ENDPOINT`,
@@ -214,7 +202,7 @@ The Python 3.11 suite and local real-model smoke test passed during preparation.
 Dependency resolution also succeeded for Linux x86_64/Python 3.11, including the
 CPU-only Torch and torchvision wheels.
 Docker was unavailable in the preparation environment, so the Linux image build,
-Render startup/secret mounting, live Firebase fetch, real-photo accuracy, and
+Render startup, live Firebase fetch, real-photo accuracy, and
 production capacity remain deployment acceptance checks. No deployment occurred.
 
 References: [Render Docker](https://render.com/docs/docker),
