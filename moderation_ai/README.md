@@ -104,8 +104,16 @@ rules or a server-enforced posting authorization design. No rules were changed.
 
 Only HTTPS URLs on `firebasestorage.googleapis.com`, the existing
 `memories-through-lenses.appspot.com` bucket, and an exact matching
-`posts/<user_uid>/<image_name>` object are accepted. UIDs/object names use the
-client's alphanumeric/underscore/hyphen format, maximum 128 characters. Download
+`posts/<user_uid>/<image_name>` object are accepted. The decoded object must have
+exactly these three components and match both supplied fields literally; there
+is no trimming, Unicode normalization, or repeated URL decoding. UIDs retain
+the alphanumeric/underscore/hyphen format, maximum 128 characters. Image names
+allow printable Unicode filenames up to 255 UTF-8 bytes, including historical
+names such as `2026-03-11 10:34:12.468949`. Empty names, surrounding whitespace,
+controls/non-printable characters, `/`, `\`, `%`, and the dot segments `.` and
+`..` are rejected. Malformed percent escapes and invalid UTF-8 in URL paths are
+rejected; nested encoded separators/traversal cannot become object identities.
+Download
 parameters are exactly `alt=media` and one token. Redirects, userinfo, fragments,
 other ports, arbitrary hosts/buckets/objects, local/private/link-local DNS
 addresses, and proxy environment routing are disallowed. DNS results are checked

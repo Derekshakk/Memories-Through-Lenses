@@ -27,7 +27,9 @@ MAX_IMAGE_PIXELS = 16_000_000
 REQUEST_SECONDS = 11.0
 FETCH_SECONDS = 5.0
 OFFENSIVE_CLASSES = {"adult", "racism", "substance", "violence", "weapons"}
-IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+USER_UID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+INVALID_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+MAX_FILENAME_BYTES = 255
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,1024}\Z")
 logger = logging.getLogger("memolens.moderation")
 if not logger.handlers:
@@ -52,6 +54,20 @@ def event(stage: str, outcome: str, **fields):
     logger.info(json.dumps({"stage": stage, "event": outcome, **fields}))
 
 
+def valid_image_name(name: str) -> bool:
+    # A single literal object-name component, never a filesystem path. Permit
+    # historical timestamps and ordinary Unicode filenames, but no alternate
+    # separators, controls, dot segments, or nested percent-encoding semantics.
+    return (
+        bool(name)
+        and name.isprintable()
+        and name == name.strip()
+        and name not in {".", ".."}
+        and not any(character in name for character in ("/", "\\", "%"))
+        and len(name.encode("utf-8")) <= MAX_FILENAME_BYTES
+    )
+
+
 def validate_input(data) -> str:
     if not isinstance(data, dict):
         raise Failure("invalid_request", 400)
@@ -59,9 +75,13 @@ def validate_input(data) -> str:
         if not isinstance(data.get(field), str) or not data[field]:
             raise Failure("missing_or_invalid_fields", 400)
     uid, name, url = data["user_uid"], data["image_name"], data["url"]
-    if not IDENTIFIER.fullmatch(uid) or not IDENTIFIER.fullmatch(name):
+    if not USER_UID.fullmatch(uid) or not valid_image_name(name):
         raise Failure("invalid_object_identity", 400)
-    if len(url) > 4096 or not url.isascii() or any(ord(c) <= 32 for c in url):
+    if (
+        len(url) > 4096
+        or not url.isascii()
+        or any(ord(c) <= 32 or ord(c) == 127 for c in url)
+    ):
         raise Failure("invalid_image_url", 400)
     try:
         parsed = urlsplit(url)
@@ -78,10 +98,20 @@ def validate_input(data) -> str:
         if not parsed.path.startswith(prefix):
             raise Failure("disallowed_storage_object", 400)
         encoded_object = parsed.path[len(prefix) :]
+        # Firebase's object occupies one URL path segment. Decode exactly once;
+        # unquote alone would silently preserve malformed percent escapes.
+        if "/" in encoded_object or INVALID_ESCAPE.search(encoded_object):
+            raise Failure("invalid_object_path", 400)
+        decoded_object = unquote(encoded_object, encoding="utf-8", errors="strict")
+        components = decoded_object.split("/")
         if (
-            "/" in encoded_object
-            or unquote(encoded_object, errors="strict") != f"posts/{uid}/{name}"
+            len(components) != 3
+            or components[0] != "posts"
+            or not USER_UID.fullmatch(components[1])
+            or not valid_image_name(components[2])
         ):
+            raise Failure("invalid_object_path", 400)
+        if components != ["posts", uid, name]:
             raise Failure("object_identity_mismatch", 400)
         query = parse_qs(parsed.query, strict_parsing=True, keep_blank_values=True)
         if (
@@ -96,7 +126,7 @@ def validate_input(data) -> str:
     # Build a canonical target rather than forwarding unchecked URL syntax.
     return (
         prefix
-        + quote(f"posts/{uid}/{name}", safe="")
+        + quote(decoded_object, safe="")
         + "?"
         + urlencode({"alt": "media", "token": query["token"][0]})
     )
