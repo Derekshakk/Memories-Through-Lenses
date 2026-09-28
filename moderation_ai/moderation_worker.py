@@ -1,4 +1,4 @@
-"""Allow bounded model warmup without extending the inference watchdog."""
+"""Allow bounded startup without extending the per-request watchdog."""
 
 import json
 import threading
@@ -15,7 +15,7 @@ class ModerationWorker(SyncWorker):
 
         def startup_heartbeat():
             # No requests are accepted until load_wsgi returns. Keep the master
-            # informed while importing Torch/warming YOLO, for at most 90s.
+            # informed while importing boto3/building the client, for at most 90s.
             while not stopped.is_set() and time.monotonic() < startup_deadline:
                 self.notify()
                 stopped.wait(0.25)

@@ -1,15 +1,32 @@
 # MemoLens moderation service
 
-Standalone Flask/YOLO moderation for the existing Flutter `/predict` contract.
-This directory is the service root. No Flutter changes, deployment, database
-configuration changes, or Git publication are part of this preparation.
+Standalone Flask moderation for the existing Flutter `/predict` contract, backed
+by **AWS Rekognition `DetectModerationLabels`**. This directory is the service
+root. No Flutter changes, Firebase changes, deployment, or Git publication are
+part of this preparation. This is the prepared local implementation, not a claim
+that AWS moderation has been deployed or passed real-image acceptance testing.
 
-## Render settings (recommended: Docker Web Service)
+The previous local YOLO checkpoint is **deprecated** because it produced
+high-confidence false positives on benign school photos
+([investigation](docs/model-quality-investigation.md)). Its loader lives in
+[`legacy_yolo/`](legacy_yolo/README.md). `model.pt` stays in Git for
+historical comparison only and is excluded from the Docker image.
+
+| File | Role |
+| --- | --- |
+| `service.py` | Provider-agnostic Flask app: validation, SSRF-safe fetch, decode, contract |
+| `rekognition_provider.py` | AWS client (timeouts, no retries), image payload, error mapping |
+| `moderation_policy.py` | Version-controlled AWS label → `offensive` policy |
+| `runtime.py` / `app.py` | Production startup (`app:app`) |
+| `moderation_worker.py`, `gunicorn.conf.py` | Sync worker, watchdog, redacted Gunicorn logs |
+
+Policy, failure codes, and timing: **[docs/aws-rekognition-moderation.md](docs/aws-rekognition-moderation.md)**.
+
+## Render settings (Docker Web Service)
 
 Use the repository containing **this prepared directory**, not the root
 `server.py` in MemoLens-Server: that separate root application currently returns
-an unconditional benign verdict. These local changes must be reviewed and made
-available in the selected Git repository before Render can build them.
+an unconditional benign verdict.
 
 | Render field | Value |
 | --- | --- |
@@ -21,199 +38,203 @@ available in the selected Git repository before Render can build them.
 | Docker Command | Leave blank; use the Dockerfile CMD |
 | Health Check Path | `/health` |
 | Auto-Deploy | Off until verification is complete |
-| Instance | Paid, always-on CPU instance; start with at least 2 GB RAM and benchmark |
+| Instance | An always-on instance; 0.5 CPU / 512 MB is expected to be sufficient (see below) |
 
-Render runs the Docker build automatically; there is no separate Build Command
-field for this runtime. Inside the Dockerfile the Python build command is:
-
-```sh
-python -m pip install --no-cache-dir -r requirements.txt
-```
-
-The startup command is:
+Startup command (Dockerfile CMD):
 
 ```sh
 gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 1 app:app
 ```
 
-The Dockerfile expands `$PORT` with a local default of 10000, installs OpenCV's
-Linux libraries, uses CPU-only Torch wheels on Linux, and runs as an unprivileged
-user. It deliberately copies only deployment inputs. No secret or image upload
-is baked into the image. Python is constrained to the maintained 3.11 line;
-`.python-version` pins 3.11.16 for local/native Python setup. Docker uses the
-latest patch available under the official `3.11-slim-bookworm` tag.
+The image no longer contains Torch, torchvision, Ultralytics, OpenCV, NumPy,
+their system libraries, or the checkpoint. A local worker starts in about half a
+second (YOLO warmup took about 42 seconds). Measured locally: about 55 MB RSS
+after import. The measured peak was about 235 MB while re-encoding a dense
+12-megapixel image, which is within 512 MB. These are local measurements, not a
+Render benchmark. One worker handles one request at a time. Measure concurrency
+before production traffic, and do not use a sleeping free instance.
 
-Do not use a sleeping free instance: model cold startup exceeds the Flutter
-request deadline. The 2 GB recommendation is an initial capacity estimate, not
-a measured Render memory guarantee. One instance processes one request at a
-time; concurrent queued requests can exceed the client's deadline. Measure
-latency/concurrency and scale instances before sending production traffic.
+## Environment variables
 
-## Environment and credentials
+Configure these on the Render service as environment variables. Mark the two
+credentials as secret, and never commit them.
 
-No Firebase service-account credential, Secret File, or Firebase environment
-variable is required. The backend downloads the supplied allowlisted Firebase
-Storage URL over HTTPS using its existing download token; it performs no Admin
-SDK operations. Firebase Admin and its initialization dependency have been
-removed. Do not configure `FIREBASE_SERVICE_ACCOUNT_JSON` or
-`GOOGLE_APPLICATION_CREDENTIALS` for this service. Any existing local credential
-file remains ignored and excluded from Docker; it is never read by the service.
-
-Other environment settings:
-
-| Variable | Value / source | Secret? |
+| Variable | Value | Secret? |
 | --- | --- | --- |
-| `GUNICORN_CMD_ARGS` | `--config gunicorn.conf.py` (also set in Dockerfile) | No |
-| `PORT` | Supplied by Render; do not hardcode 5001 | No |
-| `YOLO_CONFIG_DIR` | `/tmp/ultralytics` (Dockerfile default) | No |
-| `MPLCONFIGDIR` | `/tmp/matplotlib` (Dockerfile default) | No |
-| `PYTHONUNBUFFERED` | `1` (Dockerfile default) | No |
+| `AWS_ACCESS_KEY_ID` | Access key of the dedicated least-privilege IAM user | **Yes** |
+| `AWS_SECRET_ACCESS_KEY` | Its secret access key | **Yes** |
+| `AWS_REGION` | Rekognition region nearest the Render region, e.g. `us-west-2` for Oregon, `us-east-1` for Virginia, `us-east-2` for Ohio | No |
+| `AWS_EC2_METADATA_DISABLED` | `true` (already set in the Dockerfile and by `runtime.py`) | No |
+| `PORT` | Supplied by Render | No |
+| `GUNICORN_CMD_ARGS` | `--config gunicorn.conf.py` (Dockerfile default) | No |
 
-The explicit Gunicorn configuration prevents a platform default from enabling
-preload or unredacted access logging. Do not add `--preload`: the model is loaded
-and warmed within its own worker. This verdict-only service performs **no Admin
-deletions, Storage writes, or Firestore writes**. It needs no Firebase database
-URL, service account, or moderation endpoint environment variable.
+`AWS_DEFAULT_REGION` is accepted if `AWS_REGION` is absent. Do not set
+`AWS_ENDPOINT_URL*`, `AWS_PROFILE`, or proxy variables. No Firebase service
+account, `FIREBASE_SERVICE_ACCOUNT_JSON`, or `GOOGLE_APPLICATION_CREDENTIALS`
+is needed. The backend downloads the allowlisted Firebase URL using its
+download token and performs no Admin SDK operations.
+
+Minimum IAM policy for that user (no other permissions):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Effect": "Allow", "Action": "rekognition:DetectModerationLabels", "Resource": "*"}
+  ]
+}
+```
+
+Startup builds the AWS client locally and makes **no AWS request**. If the
+region or credentials are missing, the worker logs
+`aws_region_missing_or_invalid` or `aws_credentials_missing`, `/health` returns
+503, and `/predict` returns 503 `moderation_unavailable`. It never approves.
+Invalid (but present) credentials are detected on the first moderation call
+(503 `moderation_provider_auth_failed`).
 
 ## API and safety boundaries
 
-`POST /predict`, `Content-Type: application/json`, body fields:
+`POST /predict`, `Content-Type: application/json`:
 
 ```json
 {"url":"<Firebase HTTPS download URL>","user_uid":"<uploader UID>","image_name":"<Storage object name>"}
 ```
 
-A processed image returns HTTP 200 and:
+A moderated image returns HTTP 200:
 
 ```json
 {"offensive":false,"predictions":[]}
 ```
 
-An offensive result returns the same shape with `offensive: true`. The original
-five offensive classes, strictly greater than 0.7 confidence threshold, and
-64-by-64 model input are preserved. Both outcomes run the real bundled YOLO
-model. Empty detections are a valid benign result; failed/malformed inference is
-never converted into approval.
+`predictions` items are `{"class": <AWS label>, "confidence": <0-1>, "blocking": <bool>}`.
+Flutter reads only `offensive`.
 
 The client sends no authenticated identity. `user_uid` is validated and matched
 to the object path, **not trusted as proof of identity**. The backend returns a
-verdict only. As approved, the existing authenticated Flutter upload cleanup
-handles rejected/failed uploads. No caller-supplied identity can trigger a
-privileged deletion. This is not a replacement for Storage/Firestore security
-rules or a server-enforced posting authorization design. No rules were changed.
+verdict only. The existing authenticated Flutter upload cleanup handles
+rejected or failed uploads. No caller-supplied identity can trigger a
+privileged deletion. No rules were changed.
 
 Only HTTPS URLs on `firebasestorage.googleapis.com`, the existing
 `memories-through-lenses.appspot.com` bucket, and an exact matching
 `posts/<user_uid>/<image_name>` object are accepted. The decoded object must have
-exactly these three components and match both supplied fields literally; there
-is no trimming, Unicode normalization, or repeated URL decoding. UIDs retain
+exactly these three components and match both supplied fields literally. There
+is no trimming, Unicode normalization, or repeated URL decoding. UIDs keep
 the alphanumeric/underscore/hyphen format, maximum 128 characters. Image names
 allow printable Unicode filenames up to 255 UTF-8 bytes, including historical
-names such as `2026-03-11 10:34:12.468949`. Empty names, surrounding whitespace,
-controls/non-printable characters, `/`, `\`, `%`, and the dot segments `.` and
-`..` are rejected. Malformed percent escapes and invalid UTF-8 in URL paths are
-rejected; nested encoded separators/traversal cannot become object identities.
-Download
-parameters are exactly `alt=media` and one token. Redirects, userinfo, fragments,
-other ports, arbitrary hosts/buckets/objects, local/private/link-local DNS
-addresses, and proxy environment routing are disallowed. DNS results are checked
-and pinned to the TLS connection with original hostname/certificate validation.
+names such as `2026-03-11 10:34:12.468949`. The following are rejected: empty
+names, surrounding whitespace, controls and non-printable characters, `/`,
+`\`, `%`, and the dot segments `.` and `..`. Malformed percent escapes and
+invalid UTF-8 in URL paths are rejected. Download parameters are exactly
+`alt=media` and one token. The following are disallowed: redirects, userinfo,
+fragments, other ports, arbitrary hosts/buckets/objects,
+local/private/link-local DNS addresses, and proxy environment routing. DNS
+results are checked and pinned to the TLS connection with original
+hostname/certificate validation.
 
-The client currently uploads preprocessed JPEG; valid JPEG and PNG images are
-accepted, up to 12 MiB and 16 million decoded pixels. Raw HEIC is not part of this
-backend contract: the existing Flutter path converts photos before Storage
-upload. Malformed/unsupported images fail explicitly. Images stay in bounded
-memory; the old shared `test.jpg` disk write and signed-URL printing are removed.
-Native iOS needs no browser CORS headers; blanket CORS was removed. Browser
-clients would need a separately reviewed origin allowlist.
+Valid JPEG and PNG images are accepted, up to 12 MiB and 16 million decoded
+pixels, and must be at least 80 px on each side (a Rekognition minimum). The
+image is re-encoded before it is sent to AWS. Source EXIF (including GPS),
+JPEG comments, XMP, and ICC metadata are explicitly omitted from every encoding
+attempt; image pixels are unchanged except for the documented resizing/encoding. Images stay in bounded memory.
+AWS credentials exist only in the backend's runtime environment and are never
+exposed to the Flutter app.
 
-Failures return a non-2xx status with `error` (a safe machine code) and a generated
-`request_id`: 400/415 malformed input, 413 size limit, 422 invalid image,
-502 upstream fetch failure, 503 readiness/inference failure, or 504 deadline.
-Unexpected exceptions do not expose their text. Logs contain generated request
-IDs, stages, fixed error codes, status, durations, and the boolean verdict only.
-No request body, signed URL/query, user identifiers, headers, bytes, or exception
-contents are logged. No access log is enabled.
+Failures return a non-2xx status with `error` (a safe machine code) and a
+generated `request_id`. Unexpected exceptions do not expose their text. Logs
+contain request IDs, stages, fixed codes, format-validated AWS error codes, AWS
+model and policy versions, label counts, durations, and the boolean verdict
+only. No request body, URL/query, user identifiers, headers, bytes, AWS
+messages, or credentials are logged. No access log is enabled.
 
-`GET /health` returns `{"status":"ok"}` with 200 only after model load/warmup succeeds; otherwise 503 with `{"status":"unavailable"}`.
-It exposes no configuration or credentials and makes no network calls.
+`GET /health` returns `{"status":"ok"}` with 200 once the AWS client is
+configured; otherwise it returns 503 with `{"status":"unavailable"}`. It makes
+no network or AWS calls. It verifies local configuration only, not IAM permission
+or provider availability. Unknown labels, malformed hierarchy fields, and
+missing/invalid model-version fields return 503 `invalid_moderation_result`.
+A generic parent above its threshold whose returned children do not resolve
+its blocking evidence returns 503 `ambiguous_moderation_result`, never approval.
+Category decisions and confidence thresholds remain unchanged.
 
-## Timing and model lifecycle
+## Timing
 
-Network connect/read timeouts are 2 seconds, with a 5-second download wall budget
-checked while streaming. The full application soft budget is 11 seconds.
-Checks before/after decode and inference reject late results. Gunicorn's master
-terminates a stuck request worker at approximately 13 seconds (plus its polling
-interval); a worker that has been killed cannot approve later. A hard termination
-may yield a gateway error/closed socket rather than JSON; Flutter treats either
-as moderation failure. The application cannot interrupt arbitrary blocked native
-code with a Python timer; the separate master-process watchdog handles that.
+Firebase fetch: 2-second connect/read timeouts inside a 5-second wall budget.
+AWS: one attempt, 2-second connect, 3-second read, and no botocore retries. It
+is not started with less than 5.5 seconds of budget left after encoding
+(2 + 3 seconds plus 0.5 seconds for processing). Application budget: 11 seconds,
+checked before and after moderation. Socket timeouts are not a strict total
+duration bound for DNS, uploads, or slow trickles; the worker watchdog remains
+necessary. Gunicorn's master kills a stuck
+worker at about 13 seconds. A killed worker cannot approve later. Flutter waits
+about 15 seconds and treats any failure or non-2xx response as rejection.
 
-`ModerationWorker` is a synchronous Gunicorn worker with bounded startup
-heartbeats only while importing/warming the model (up to 90 seconds, then the
-normal master timeout applies). Heartbeats stop before any request is accepted.
-This separates legitimate cold model startup from an inference hang. Health
-routing must be enabled so traffic is not sent before warmup. Worker replacement
-still causes a temporary availability gap; do not promise all failure responses
-or queued traffic can finish within Flutter's approximately 15-second deadline.
-
-`model.pt` is already Git-tracked (6,154,974 bytes), loaded relative to the Python
-module rather than the working directory, and explicitly copied by Docker.
-Missing weights fail readiness; no fallback model is downloaded. Only load
-trusted repository checkpoints. Locally, the real checkpoint loaded and warmed
-in about 42 seconds on its first run; subsequent synthetic warm inference took
-about 0.05 seconds. This is not a Render or real-photo performance benchmark.
-
-## Verification before changing Firebase configuration
-
-Run the unit/transport/process tests from `moderation_ai`:
+## Tests and checks
 
 ```sh
 python -m pip install -r requirements-test.txt
 python -m pytest -q tests
+python -m flake8 --max-line-length 88 --extend-ignore E203 *.py legacy_yolo tests
 ```
 
-Tests mock model behavior and verify startup without Firebase Admin or credentials. Gunicorn tests start only a loopback server
-and verify that slow startup survives the request watchdog and stuck inference
-cannot return late approval. Runtime requirements also install the real ML stack.
+The tests never contact AWS. A fixture removes any AWS credentials, config
+files, and proxies from the environment and blocks every non-loopback socket
+connection. Provider tests run the real boto3 client against a loopback fake of
+the Rekognition endpoint. That covers signing, the no-retry configuration, read
+timeouts, throttling, authentication errors, service errors, and malformed
+bodies. Gunicorn tests start the real `app:app` with fake credentials and an
+unreachable `AWS_ENDPOINT_URL` to show that startup makes no AWS call.
 
-On a Docker-capable machine, before deployment:
+On a Docker-capable machine:
 
 ```sh
 docker build -t memolens-moderation .
+docker run --rm -p 127.0.0.1:10000:10000 memolens-moderation   # /health → 503 (no AWS config)
 ```
 
-Then run the image locally without secrets or Firebase environment variables:
+Docker was unavailable in the preparation environment, so the Linux image build
+remains a deployment acceptance check, not a failed code check.
 
-```sh
-docker run --rm -p 127.0.0.1:10000:10000 memolens-moderation
-```
+Before committing, include the currently new migration files as well as tracked
+changes. A tracked-files-only commit would omit required Docker inputs:
 
-Verify `http://127.0.0.1:10000/health` returns 200 after model warmup.
+- `rekognition_provider.py`, `moderation_policy.py`
+- `tests/conftest.py`, `tests/test_rekognition.py`,
+  `tests/test_moderation_policy.py`, `tests/test_preprocessing.py`,
+  `tests/test_legacy_yolo.py`
+- The complete `legacy_yolo/` archive (required by the archival unit tests,
+  excluded from production)
+- `docs/aws-rekognition-moderation.md`, `docs/model-quality-investigation.md`,
+  `docs/model-prediction-diagnostics.json`
 
-After a separately authorized deployment, verify `/health` returns 200, then use
-`client.py` with environment values `MODERATION_TEST_ENDPOINT`,
-`MODERATION_TEST_IMAGE_URL`, `MODERATION_TEST_USER_UID`, and
-`MODERATION_TEST_IMAGE_NAME` pointing at a consented test upload. The image URL
-contains a token and must be handled as a secret. The script prints only HTTP
-status and a verdict. Verify a known benign and known offensive example against
-the real model, malformed input (400), and unavailable image (non-2xx); confirm
-there are no automatic approvals on failure. Measure warm and concurrent latency
-on the purchased instance and inspect stage logs. Clean up test uploads through
-the authenticated client/owner, not this backend.
+Keep ignored credential files untracked; no Firebase key is needed.
 
-The eventual URL format is `https://<actual-render-service-name>.onrender.com/predict`
-or the verified custom domain's `/predict`. Use the exact assigned deployment URL
-only after verification; do not guess it or change `moderation_server_url` now.
+## Release gates before production activation
 
-The Python 3.11 suite and local real-model smoke test passed during preparation.
-Dependency resolution also succeeded for Linux x86_64/Python 3.11, including the
-CPU-only Torch and torchvision wheels.
-Docker was unavailable in the preparation environment, so the Linux image build,
-Render startup, live Firebase fetch, real-photo accuracy, and
-production capacity remain deployment acceptance checks. No deployment occurred.
+Use a separately authorized test deployment and server-side AWS credentials.
+No real AWS accuracy or latency result is implied by the mocked tests.
 
-References: [Render Docker](https://render.com/docs/docker),
-[secret files](https://render.com/docs/configure-environment-variables),
-[health checks](https://render.com/docs/health-checks), and
-[free-instance limitations](https://render.com/docs/free).
+1. Build and smoke-test the Docker image; then verify `/health` returns 200. If it returns 503, check the worker log's
+   `provider_readiness` code.
+2. Use `client.py` with `MODERATION_TEST_ENDPOINT`, `MODERATION_TEST_IMAGE_URL`,
+   `MODERATION_TEST_USER_UID`, and `MODERATION_TEST_IMAGE_NAME` pointing at a
+   consented test upload. The image URL contains a token; handle it as a secret.
+3. Check known benign school photos (including the track photo from the
+   investigation, swim, sports, and prom photos) return `offensive: false`.
+   Check known unsafe test images return `offensive: true`. Evaluate category
+   errors on representative school photos and measure end-to-end latency under
+   concurrency against Flutter's 15-second deadline.
+4. Check the logs show `"provider": "aws_rekognition"`,
+   the actual `provider_model_version` used during acceptance, and
+   `"policy_version": "memolens-school-v1"` on the `moderation` stage.
+5. Check malformed input returns 400 and an unavailable image returns non-2xx.
+   Reevaluate provider-model changes; logging a version is not an accuracy gate.
+
+The service URL format is `https://<actual-render-service-name>.onrender.com/predict`.
+Do not change `moderation_server_url` until acceptance passes.
+
+References: [DetectModerationLabels](https://docs.aws.amazon.com/rekognition/latest/APIReference/API_DetectModerationLabels.html),
+[moderation taxonomy](https://docs.aws.amazon.com/rekognition/latest/dg/moderation-api.html),
+[Rekognition limits](https://docs.aws.amazon.com/rekognition/latest/dg/limits.html),
+[Render Docker](https://render.com/docs/docker),
+[Render environment variables](https://render.com/docs/configure-environment-variables),
+[health checks](https://render.com/docs/health-checks).

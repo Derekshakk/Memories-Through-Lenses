@@ -1,23 +1,29 @@
-"""Bounded, read-only photo moderation. Never log request values or exceptions."""
+"""Bounded, read-only photo moderation. Never log request values or exceptions.
+
+This module is provider-agnostic: it validates, fetches, and decodes the image,
+then asks the configured ModerationProvider for a verdict.
+"""
 
 from __future__ import annotations
 
 import ipaddress
 import json
 import logging
-import math
 import re
 import socket
 import time
 import uuid
 import warnings
+import dataclasses
+from dataclasses import dataclass
 from io import BytesIO
+from typing import Protocol
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 import certifi
 import urllib3
 from flask import Flask, g, jsonify, request
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException
 
 STORAGE_HOST = "firebasestorage.googleapis.com"
@@ -26,11 +32,11 @@ MAX_IMAGE_BYTES = 12 * 1024 * 1024
 MAX_IMAGE_PIXELS = 16_000_000
 REQUEST_SECONDS = 11.0
 FETCH_SECONDS = 5.0
-OFFENSIVE_CLASSES = {"adult", "racism", "substance", "violence", "weapons"}
 USER_UID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 INVALID_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 MAX_FILENAME_BYTES = 255
 TOKEN = re.compile(r"[A-Za-z0-9_-]{1,1024}\Z")
+RESERVED_LOG_FIELDS = {"stage", "event", "request_id", "code", "status", "offensive"}
 logger = logging.getLogger("memolens.moderation")
 if not logger.handlers:
     handler = logging.StreamHandler()
@@ -38,15 +44,32 @@ if not logger.handlers:
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 logger.propagate = False
-# urllib3 DEBUG messages can include signed query strings. Our logs report codes.
-logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+# urllib3 DEBUG messages can include signed query strings, and botocore DEBUG
+# messages include request signatures and image payloads. Our logs report codes.
+for _noisy in ("urllib3", "botocore", "boto3"):
+    logging.getLogger(_noisy).setLevel(logging.CRITICAL)
 
 
 class Failure(Exception):
-    def __init__(self, code: str, status: int):
+    def __init__(self, code: str, status: int, **log_fields):
         self.code = code
         self.status = status
+        # Locally generated or allowlisted values only; logged, never returned.
+        self.log_fields = log_fields
         super().__init__(code)
+
+
+@dataclass(frozen=True)
+class Verdict:
+    offensive: bool
+    predictions: list[dict]
+    # Safe diagnostic values (versions, counts) for logs, never the response.
+    log_fields: dict = dataclasses.field(default_factory=dict)
+
+
+class ModerationProvider(Protocol):
+    def moderate(self, image: Image.Image, deadline: float) -> Verdict:
+        """Return a verdict or raise Failure; never approve on error."""
 
 
 def event(stage: str, outcome: str, **fields):
@@ -228,8 +251,10 @@ def decode_image(data: bytes) -> Image.Image:
                 if image.width * image.height > MAX_IMAGE_PIXELS:
                     raise Failure("image_too_large", 413)
                 image.load()
-                # Preserve the existing 64x64 model input, threshold and labels.
-                return image.convert("RGB").resize((64, 64))
+                # Preserve detail/aspect ratio; providers do their own sizing.
+                # Squashing to 64x64 caused reproducible false positives.
+                with ImageOps.exif_transpose(image) as oriented:
+                    return oriented.convert("RGB")
     except (
         UnidentifiedImageError,
         OSError,
@@ -240,33 +265,39 @@ def decode_image(data: bytes) -> Image.Image:
         raise Failure("invalid_image", 422) from None
 
 
-def predictions_from_results(results, names) -> list[dict]:
+def validate_verdict(verdict) -> tuple[bool, list[dict]]:
+    # Defense in depth: only an exact boolean verdict with well-formed
+    # predictions can reach Flutter. Anything else fails closed.
     try:
-        if len(results) != 1 or results[0].boxes is None:
+        if (
+            not isinstance(verdict, Verdict)
+            or not isinstance(verdict.offensive, bool)
+            or not isinstance(verdict.predictions, list)
+            or not isinstance(verdict.log_fields, dict)
+            or not RESERVED_LOG_FIELDS.isdisjoint(verdict.log_fields)
+        ):
             raise ValueError
         predictions = []
-        for box in results[0].boxes:
-            class_number, confidence = float(box.cls), float(box.conf)
+        for item in verdict.predictions:
+            confidence = item["confidence"]
             if (
-                not math.isfinite(class_number)
-                or class_number < 0
-                or not class_number.is_integer()
-                or not math.isfinite(confidence)
+                not isinstance(item["class"], str)
+                or isinstance(confidence, bool)
+                or not isinstance(confidence, (int, float))
                 or not 0 <= confidence <= 1
             ):
                 raise ValueError
-            label = names[int(class_number)]
-            if not isinstance(label, str) or not label:
-                raise ValueError
-            predictions.append({"class": label, "confidence": confidence})
-        return predictions
-    except (TypeError, ValueError, AttributeError, KeyError, IndexError, OverflowError):
-        raise Failure("invalid_inference_result", 503) from None
+            predictions.append(dict(item))
+        return verdict.offensive, predictions
+    except (TypeError, ValueError, KeyError, AttributeError):
+        raise Failure("invalid_moderation_result", 503) from None
 
 
-def create_app(*, model=None, fetcher=fetch_image, startup_ready=True) -> Flask:
+def create_app(*, provider=None, fetcher=fetch_image, startup_ready=True) -> Flask:
     app = Flask(__name__)
-    app.config.update(MAX_CONTENT_LENGTH=8192, MODEL=model, STARTUP_READY=startup_ready)
+    app.config.update(
+        MAX_CONTENT_LENGTH=8192, PROVIDER=provider, STARTUP_READY=startup_ready
+    )
 
     @app.before_request
     def received():
@@ -288,10 +319,11 @@ def create_app(*, model=None, fetcher=fetch_image, startup_ready=True) -> Flask:
 
     @app.get("/health")
     def health():
-        ready = app.config["STARTUP_READY"] and app.config["MODEL"] is not None
-        return jsonify(
-            {"status": "ok" if ready else "unavailable"}
-        ), 200 if ready else 503
+        # Local readiness only: never calls the moderation provider.
+        ready = app.config["STARTUP_READY"] and app.config["PROVIDER"] is not None
+        return jsonify({"status": "ok" if ready else "unavailable"}), (
+            200 if ready else 503
+        )
 
     @app.post("/predict")
     def predict():
@@ -299,10 +331,10 @@ def create_app(*, model=None, fetcher=fetch_image, startup_ready=True) -> Flask:
             stage("input_validation")
             target = validate_input(request.get_json())
             success()
-            stage("model_readiness")
-            runner = app.config["MODEL"]
-            if not app.config["STARTUP_READY"] or runner is None:
-                raise Failure("model_unavailable", 503)
+            stage("provider_readiness")
+            provider = app.config["PROVIDER"]
+            if not app.config["STARTUP_READY"] or provider is None:
+                raise Failure("moderation_unavailable", 503)
             success()
             stage("image_fetch")
             data = fetcher(target, g.started + REQUEST_SECONDS)
@@ -312,16 +344,11 @@ def create_app(*, model=None, fetcher=fetch_image, startup_ready=True) -> Flask:
             with decode_image(data) as image:
                 check_budget()
                 success()
-                stage("inference")
-                predictions = predictions_from_results(
-                    runner([image], verbose=False), runner.names
-                )
+                stage("moderation")
+                verdict = provider.moderate(image, g.started + REQUEST_SECONDS)
             check_budget()
-            success()
-            offensive = any(
-                p["class"] in OFFENSIVE_CLASSES and p["confidence"] > 0.7
-                for p in predictions
-            )
+            offensive, predictions = validate_verdict(verdict)
+            success(**verdict.log_fields)
             stage("moderation_result")
             success(offensive=offensive)
             # user_uid binds the requested image path; it is NOT proof of identity.
@@ -329,14 +356,21 @@ def create_app(*, model=None, fetcher=fetch_image, startup_ready=True) -> Flask:
             # rejected uploads. Never use caller IDs for Admin SDK deletions.
             return jsonify({"offensive": offensive, "predictions": predictions})
         except Failure as error:
-            return failure(error.code, error.status)
+            return failure(error.code, error.status, **error.log_fields)
         except HTTPException as error:
             return failure("invalid_request", error.code or 400)
         except Exception:
             return failure("processing_failed", 503)
 
-    def failure(code, status):
-        event(g.stage, "failure", request_id=g.request_id, code=code, status=status)
+    def failure(code, status, **fields):
+        event(
+            g.stage,
+            "failure",
+            request_id=g.request_id,
+            code=code,
+            status=status,
+            **fields,
+        )
         return jsonify({"error": code, "request_id": g.request_id}), status
 
     @app.errorhandler(HTTPException)

@@ -1,12 +1,11 @@
 """Regression coverage for historical MemoLens filenames and exact URL binding."""
 
-from types import SimpleNamespace
 from unittest.mock import Mock
 from urllib.parse import quote, unquote, urlsplit
 
 import pytest
 from service import create_app, validate_input
-from test_service import Model, photo
+from test_service import Provider, photo, weapon_verdict
 
 UID = "Y7fJd2xMOfXIHYniYAKOzu8ektO2"
 HISTORICAL_NAME = "2026-03-11 10:34:12.468949"
@@ -48,17 +47,20 @@ def test_reasonable_filenames_have_exact_canonical_paths(name):
 
 @pytest.mark.parametrize("offensive", [False, True])
 def test_exact_production_identity_local_predict_contract(offensive):
-    boxes = [SimpleNamespace(cls=4, conf=0.9)] if offensive else []
-    model = Model(boxes)
+    provider = Provider(weapon_verdict() if offensive else None)
     fetcher = Mock(return_value=photo())
-    app = create_app(model=model, fetcher=fetcher)
+    app = create_app(provider=provider, fetcher=fetcher)
     response = app.test_client().post("/predict", json=body())
     assert response.status_code == 200
     assert response.json == {
         "offensive": offensive,
-        "predictions": [{"class": "weapons", "confidence": 0.9}] if offensive else [],
+        "predictions": (
+            [{"class": "Weapons", "confidence": 0.93, "blocking": True}]
+            if offensive
+            else []
+        ),
     }
-    assert model.calls == 1
+    assert provider.calls == 1
     assert fetcher.call_count == 1
     assert fetcher.call_args.args[0] == validate_input(body())
 
@@ -68,12 +70,12 @@ def test_field_must_match_url_exactly(field):
     payload = body()
     payload[field] = "another-valid-value"
     fetcher = Mock()
-    app = create_app(model=Model(), fetcher=fetcher)
+    app = create_app(provider=Provider(), fetcher=fetcher)
     response = app.test_client().post("/predict", json=payload)
     assert response.status_code == 400
     assert response.json["error"] == "object_identity_mismatch"
     fetcher.assert_not_called()
-    assert app.config["MODEL"].calls == 0
+    assert app.config["PROVIDER"].calls == 0
 
 
 @pytest.mark.parametrize("field", ["user_uid", "image_name"])
@@ -118,7 +120,7 @@ def test_unsafe_identity_cannot_be_authorized_by_matching_url(field, value):
         + "?alt=media&token=test-token"
     )
     fetcher = Mock()
-    app = create_app(model=Model(), fetcher=fetcher)
+    app = create_app(provider=Provider(), fetcher=fetcher)
     response = app.test_client().post("/predict", json=payload)
     assert response.status_code == 400
     assert "offensive" not in response.json
@@ -150,7 +152,7 @@ def test_malformed_or_traversing_url_is_rejected_before_fetch(encoded):
     payload = body()
     payload["url"] = BASE + encoded + "?alt=media&token=test-token"
     fetcher = Mock()
-    app = create_app(model=Model(), fetcher=fetcher)
+    app = create_app(provider=Provider(), fetcher=fetcher)
     response = app.test_client().post("/predict", json=payload)
     assert response.status_code == 400
     fetcher.assert_not_called()
@@ -167,7 +169,7 @@ def test_historical_name_does_not_relax_host_or_bucket(old, new):
     payload = body()
     payload["url"] = payload["url"].replace(old, new)
     fetcher = Mock()
-    app = create_app(model=Model(), fetcher=fetcher)
+    app = create_app(provider=Provider(), fetcher=fetcher)
     assert app.test_client().post("/predict", json=payload).status_code == 400
     fetcher.assert_not_called()
 

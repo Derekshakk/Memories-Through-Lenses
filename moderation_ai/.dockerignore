@@ -1,4 +1,5 @@
 # Only these deployment inputs may enter the build context (including on Render).
+# model.pt / legacy_yolo are deprecated and deliberately excluded.
 *
 !Dockerfile
 !.dockerignore
@@ -6,6 +7,7 @@
 !app.py
 !service.py
 !runtime.py
+!rekognition_provider.py
+!moderation_policy.py
 !moderation_worker.py
 !gunicorn.conf.py
-!model.pt

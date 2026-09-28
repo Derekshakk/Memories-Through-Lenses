@@ -1,45 +1,40 @@
-"""Production startup; tests inject a model without importing Torch or YOLO."""
+"""Production startup: AWS Rekognition moderation, no local model or Torch.
 
-import logging
-from pathlib import Path
+Startup builds the AWS client locally and makes no AWS request. Missing or
+invalid AWS configuration leaves /health at 503 and /predict fail-closed.
+The deprecated local YOLO checkpoint lives in legacy_yolo/ and is not used here.
+"""
 
-from service import OFFENSIVE_CLASSES, create_app, event, predictions_from_results
+import os
 
-BASE_DIR = Path(__file__).resolve().parent
+from service import create_app, event
 
-
-def load_model(base_dir=BASE_DIR):
-    # Fail explicitly if the bundled checkpoint is absent; never download a model.
-    model_path = base_dir / "model.pt"
-    if not model_path.is_file():
-        raise RuntimeError("model_file_missing")
-    import torch
-    from PIL import Image
-    from ultralytics import YOLO
-    from ultralytics.utils import LOGGER
-
-    LOGGER.setLevel(logging.ERROR)
-    torch.set_num_threads(1)
-    model = YOLO(str(model_path))
-    names = (
-        set(model.names.values()) if isinstance(model.names, dict) else set(model.names)
-    )
-    if not OFFENSIVE_CLASSES.issubset(names) or model.task != "detect":
-        raise RuntimeError("unexpected_model")
-    # First-use model setup must finish before /health becomes ready.
-    with Image.new("RGB", (64, 64)) as sample:
-        predictions_from_results(model([sample], verbose=False), model.names)
-    return model
+# Render is not EC2: skip instance-metadata credential discovery, which would
+# only add network timeouts when environment credentials are absent.
+os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
+STARTUP_CODES = {"aws_region_missing_or_invalid", "aws_credentials_missing"}
 
 
-def build_app(*, model_loader=load_model):
-    stage = "model_readiness"
+def load_provider():
+    from rekognition_provider import load_provider as load_rekognition
+
+    return load_rekognition(os.environ)
+
+
+def build_app(*, provider_loader=load_provider):
+    stage = "provider_readiness"
     try:
         event(stage, "start")
-        model = model_loader(BASE_DIR)
+        provider = provider_loader()
         event(stage, "success")
-        return create_app(model=model)
-    except Exception:
-        event(stage, "failure", code="initialization_failed")
+        return create_app(provider=provider)
+    except Exception as error:
+        # Only fixed codes from this codebase are logged, never exception text.
+        code = str(error) if isinstance(error, RuntimeError) else ""
+        event(
+            stage,
+            "failure",
+            code=code if code in STARTUP_CODES else "initialization_failed",
+        )
         # Process stays inspectable; health is 503 and prediction cannot approve.
         return create_app(startup_ready=False)

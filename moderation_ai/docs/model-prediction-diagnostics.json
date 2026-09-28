@@ -1,0 +1,173 @@
+[
+  {
+    "fixture": "school_track",
+    "variant": "legacy_64_square",
+    "input_size": [
+      64,
+      64
+    ],
+    "detections": [
+      {
+        "class_id": 2,
+        "name": "substance",
+        "confidence": 0.9587165713310242,
+        "xyxy": [
+          0.0,
+          0.0,
+          64.0,
+          63.597564697265625
+        ]
+      }
+    ],
+    "offensive": true,
+    "elapsed_seconds": 0.039
+  },
+  {
+    "fixture": "school_track",
+    "variant": "corrected_native",
+    "input_size": [
+      1170,
+      646
+    ],
+    "detections": [
+      {
+        "class_id": 3,
+        "name": "violence",
+        "confidence": 0.9835975766181946,
+        "xyxy": [
+          0.0,
+          0.0,
+          1169.8133544921875,
+          646.0
+        ]
+      }
+    ],
+    "offensive": true,
+    "elapsed_seconds": 0.034
+  },
+  {
+    "fixture": "flowers",
+    "variant": "legacy_64_square",
+    "input_size": [
+      64,
+      64
+    ],
+    "detections": [
+      {
+        "class_id": 2,
+        "name": "substance",
+        "confidence": 0.9546623826026917,
+        "xyxy": [
+          0.10536499321460724,
+          0.0,
+          64.0,
+          63.82024002075195
+        ]
+      }
+    ],
+    "offensive": true,
+    "elapsed_seconds": 0.039
+  },
+  {
+    "fixture": "flowers",
+    "variant": "corrected_native",
+    "input_size": [
+      4032,
+      3024
+    ],
+    "detections": [
+      {
+        "class_id": 3,
+        "name": "violence",
+        "confidence": 0.5982146859169006,
+        "xyxy": [
+          0.0,
+          0.0,
+          4032.0,
+          3002.02978515625
+        ]
+      },
+      {
+        "class_id": 4,
+        "name": "weapons",
+        "confidence": 0.5235921740531921,
+        "xyxy": [
+          0.0,
+          0.0,
+          4032.0,
+          3021.177978515625
+        ]
+      }
+    ],
+    "offensive": false,
+    "elapsed_seconds": 0.092
+  },
+  {
+    "fixture": "synthetic_blue",
+    "variant": "legacy_64_square",
+    "input_size": [
+      64,
+      64
+    ],
+    "detections": [],
+    "offensive": false,
+    "elapsed_seconds": 0.045
+  },
+  {
+    "fixture": "synthetic_blue",
+    "variant": "corrected_native",
+    "input_size": [
+      800,
+      600
+    ],
+    "detections": [
+      {
+        "class_id": 1,
+        "name": "racism",
+        "confidence": 0.477048397064209,
+        "xyxy": [
+          11.718521118164062,
+          5.10345458984375,
+          799.205078125,
+          596.8512573242188
+        ]
+      }
+    ],
+    "offensive": false,
+    "elapsed_seconds": 0.043
+  },
+  {
+    "fixture": "synthetic_gradient",
+    "variant": "legacy_64_square",
+    "input_size": [
+      64,
+      64
+    ],
+    "detections": [],
+    "offensive": false,
+    "elapsed_seconds": 0.049
+  },
+  {
+    "fixture": "synthetic_gradient",
+    "variant": "corrected_native",
+    "input_size": [
+      1000,
+      600
+    ],
+    "detections": [
+      {
+        "class_id": 1,
+        "name": "racism",
+        "confidence": 0.28783220052719116,
+        "xyxy": [
+          0.0,
+          1.1959075927734375,
+          1000.0,
+          600.0
+        ]
+      }
+    ],
+    "offensive": false,
+    "elapsed_seconds": 0.025
+  }
+]

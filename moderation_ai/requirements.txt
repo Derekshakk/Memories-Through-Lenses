@@ -1,16 +1,8 @@
-# Web/runtime dependencies; no EC2 system packages or face-recognition stack.
+# Production runtime: Flask + AWS Rekognition. No Torch, YOLO, or OpenCV.
 Flask==3.1.3
 gunicorn==23.0.0
 Pillow==11.3.0
 urllib3==2.6.3
 certifi>=2025.1.31
-
-# Keep the trained checkpoint's inference stack; CPU wheels on Render/Linux.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.4.1+cpu; sys_platform == "linux"
-torchvision==0.19.1+cpu; sys_platform == "linux"
-torch==2.4.1; sys_platform != "linux"
-torchvision==0.19.1; sys_platform != "linux"
-ultralytics==8.3.4
-numpy==2.1.1
-opencv-python==4.10.0.84
+boto3==1.43.103
+botocore==1.43.103

@@ -1,7 +1,6 @@
 import json
 import logging
 from io import BytesIO
-from types import SimpleNamespace
 from unittest.mock import Mock
 from urllib.parse import quote
 
@@ -9,10 +8,17 @@ import pytest
 import service
 import urllib3
 from PIL import Image
-from service import Failure, create_app, decode_image, fetch_image, validate_input
+from service import (
+    Failure,
+    Verdict,
+    create_app,
+    decode_image,
+    fetch_image,
+    validate_input,
+)
 
 
-def photo(fmt="JPEG", size=(64, 48)):
+def photo(fmt="JPEG", size=(120, 90)):
     output = BytesIO()
     with Image.new("RGB", size, "blue") as image:
         image.save(output, format=fmt)
@@ -21,7 +27,10 @@ def photo(fmt="JPEG", size=(64, 48)):
 
 def payload():
     return {
-        "url": "https://firebasestorage.googleapis.com/v0/b/memories-through-lenses.appspot.com/o/"
+        "url": (
+            "https://firebasestorage.googleapis.com/v0/b/"
+            "memories-through-lenses.appspot.com/o/"
+        )
         + quote("posts/user-1/post-1", safe="")
         + "?alt=media&token=private-download-token",
         "user_uid": "user-1",
@@ -29,23 +38,36 @@ def payload():
     }
 
 
-class Model:
-    names = {0: "adult", 1: "racism", 2: "substance", 3: "violence", 4: "weapons"}
+class Provider:
+    """Fake moderation provider; production uses AWS Rekognition."""
 
-    def __init__(self, boxes=()):
-        self.boxes = boxes
+    def __init__(self, verdict=None, error=None):
+        self.verdict = verdict or Verdict(False, [])
+        self.error = error
         self.calls = 0
+        self.images = []
 
-    def __call__(self, images, verbose=False):
+    def moderate(self, image, deadline):
         self.calls += 1
-        assert images[0].size == (64, 64)
-        assert images[0].mode == "RGB"
-        return [SimpleNamespace(boxes=self.boxes)]
+        assert image.mode == "RGB"
+        assert deadline > 0
+        self.images.append(image.size)
+        if self.error is not None:
+            raise self.error
+        return self.verdict
+
+
+def weapon_verdict(offensive=True):
+    return Verdict(
+        offensive,
+        [{"class": "Weapons", "confidence": 0.93, "blocking": offensive}],
+        {"provider": "fake"},
+    )
 
 
 @pytest.fixture
 def app():
-    return create_app(model=Model(), fetcher=lambda *_: photo())
+    return create_app(provider=Provider(), fetcher=lambda *_: photo())
 
 
 def test_health(app):
@@ -63,7 +85,7 @@ def test_missing_or_invalid_fields(app, field, value):
     response = app.test_client().post("/predict", json=body)
     assert response.status_code == 400
     assert "offensive" not in response.json
-    assert app.config["MODEL"].calls == 0
+    assert app.config["PROVIDER"].calls == 0
 
 
 @pytest.mark.parametrize("body", [None, [], "text", {}, True])
@@ -116,7 +138,7 @@ def test_disallowed_urls(app, url):
     body["url"] = url
     response = app.test_client().post("/predict", json=body)
     assert response.status_code == 400
-    assert app.config["MODEL"].calls == 0
+    assert app.config["PROVIDER"].calls == 0
 
 
 @pytest.mark.parametrize(
@@ -142,35 +164,53 @@ def test_scoped_object_and_download_query(app, change):
     body = payload()
     change(body)
     assert app.test_client().post("/predict", json=body).status_code == 400
+    assert app.config["PROVIDER"].calls == 0
 
 
-def test_model_not_ready():
+def test_provider_not_ready():
     fetcher = Mock()
     app = create_app(fetcher=fetcher)
     assert app.test_client().get("/health").status_code == 503
     response = app.test_client().post("/predict", json=payload())
     assert response.status_code == 503
-    assert response.json["error"] == "model_unavailable"
+    assert response.json["error"] == "moderation_unavailable"
+    assert "offensive" not in response.json
+    fetcher.assert_not_called()
+
+
+def test_health_never_calls_provider():
+    provider = Provider(error=AssertionError("health must not moderate"))
+    fetcher = Mock()
+    app = create_app(provider=provider, fetcher=fetcher)
+    assert app.test_client().get("/health").json == {"status": "ok"}
+    assert provider.calls == 0
     fetcher.assert_not_called()
 
 
 @pytest.mark.parametrize("fmt", ["JPEG", "PNG"])
 def test_benign(fmt):
-    app = create_app(model=Model(), fetcher=lambda *_: photo(fmt))
+    provider = Provider()
+    app = create_app(provider=provider, fetcher=lambda *_: photo(fmt))
     response = app.test_client().post("/predict", json=payload())
     assert response.status_code == 200
     assert response.json == {"offensive": False, "predictions": []}
+    assert provider.images == [(120, 90)]
 
 
-@pytest.mark.parametrize("confidence,offensive", [(0.7, False), (0.71, True)])
-def test_offensive_threshold(confidence, offensive):
-    model = Model([SimpleNamespace(cls=4, conf=confidence)])
-    app = create_app(model=model, fetcher=lambda *_: photo())
+@pytest.mark.parametrize("offensive", [False, True])
+def test_verdict_is_returned_in_flutter_contract(offensive):
+    app = create_app(
+        provider=Provider(weapon_verdict(offensive)), fetcher=lambda *_: photo()
+    )
     response = app.test_client().post("/predict", json=payload())
     assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    assert set(response.json) == {"offensive", "predictions"}
     assert response.json == {
         "offensive": offensive,
-        "predictions": [{"class": "weapons", "confidence": confidence}],
+        "predictions": [
+            {"class": "Weapons", "confidence": 0.93, "blocking": offensive}
+        ],
     }
 
 
@@ -178,43 +218,66 @@ def test_offensive_threshold(confidence, offensive):
     "failure", [Failure("image_fetch_failed", 502), Failure("image_fetch_timeout", 504)]
 )
 def test_fetch_failure(failure):
-    app = create_app(model=Model(), fetcher=Mock(side_effect=failure))
+    provider = Provider()
+    app = create_app(provider=provider, fetcher=Mock(side_effect=failure))
     response = app.test_client().post("/predict", json=payload())
     assert response.status_code == failure.status
     assert "offensive" not in response.json
+    assert provider.calls == 0
 
 
-def test_inference_failure():
-    model = Mock(side_effect=RuntimeError("private-token-do-not-log"))
-    app = create_app(model=model, fetcher=lambda *_: photo())
+@pytest.mark.parametrize(
+    "error,status",
+    [
+        (Failure("moderation_provider_timeout", 504), 504),
+        (Failure("moderation_provider_throttled", 503), 503),
+        (RuntimeError("private-token-do-not-log"), 503),
+    ],
+)
+def test_provider_failure_never_approves(error, status):
+    app = create_app(provider=Provider(error=error), fetcher=lambda *_: photo())
     response = app.test_client().post("/predict", json=payload())
-    assert response.status_code == 503
-    assert "offensive" not in response.json
+    assert response.status_code == status
+    assert set(response.json) == {"error", "request_id"}
     assert b"private-token" not in response.data
 
 
 @pytest.mark.parametrize(
-    "boxes",
+    "verdict",
     [
         None,
-        [SimpleNamespace(cls=0, conf=float("nan"))],
-        [SimpleNamespace(cls=-1, conf=0.9)],
-        [SimpleNamespace(cls=99, conf=0.9)],
+        {"offensive": False, "predictions": []},
+        Verdict("false", []),
+        Verdict(0, []),
+        Verdict(None, []),
+        Verdict(False, None),
+        Verdict(False, "[]"),
+        Verdict(False, [{"class": "Weapons"}]),
+        Verdict(False, [{"class": 3, "confidence": 0.5}]),
+        Verdict(False, [{"class": "Weapons", "confidence": float("nan")}]),
+        Verdict(False, [{"class": "Weapons", "confidence": 93}]),
+        Verdict(False, [{"class": "Weapons", "confidence": True}]),
+        Verdict(False, [], {"request_id": "spoofed"}),
     ],
 )
-def test_invalid_model_output_never_approves(boxes):
-    app = create_app(model=Model(boxes), fetcher=lambda *_: photo())
-    assert app.test_client().post("/predict", json=payload()).status_code == 503
+def test_invalid_provider_output_never_approves(verdict):
+    provider = Provider()
+    provider.verdict = verdict
+    app = create_app(provider=provider, fetcher=lambda *_: photo())
+    response = app.test_client().post("/predict", json=payload())
+    assert response.status_code == 503
+    assert response.json["error"] == "invalid_moderation_result"
+    assert "offensive" not in response.json
 
 
 @pytest.mark.parametrize(
     "data", [b"bad image", b"", b"\xff\xd8truncated", photo("GIF")]
 )
 def test_malformed_or_unsupported_image(data):
-    app = create_app(model=Model(), fetcher=lambda *_: data)
+    app = create_app(provider=Provider(), fetcher=lambda *_: data)
     response = app.test_client().post("/predict", json=payload())
     assert response.status_code == 422
-    assert app.config["MODEL"].calls == 0
+    assert app.config["PROVIDER"].calls == 0
 
 
 def test_pixel_limit(monkeypatch):
@@ -224,17 +287,17 @@ def test_pixel_limit(monkeypatch):
     assert caught.value.status == 413
 
 
-def test_slow_inference_returns_timeout_not_approval(monkeypatch):
+def test_slow_provider_returns_timeout_not_approval(monkeypatch):
     now = [0.0]
     monkeypatch.setattr(service.time, "monotonic", lambda: now[0])
 
-    class Slow(Model):
-        def __call__(self, *args, **kwargs):
+    class Slow(Provider):
+        def moderate(self, image, deadline):
             now[0] = 12.0
-            return super().__call__(*args, **kwargs)
+            return Verdict(False, [])
 
     response = (
-        create_app(model=Slow(), fetcher=lambda *_: photo())
+        create_app(provider=Slow(), fetcher=lambda *_: photo())
         .test_client()
         .post("/predict", json=payload())
     )
@@ -252,8 +315,8 @@ def test_logs_are_structured_and_redacted():
     handler = Capture()
     service.logger.addHandler(handler)
     try:
-        model = Mock(side_effect=RuntimeError("secret-service-account"))
-        app = create_app(model=model, fetcher=lambda *_: photo())
+        provider = Provider(error=RuntimeError("secret-service-account"))
+        app = create_app(provider=provider, fetcher=lambda *_: photo())
         app.test_client().post(
             "/predict", json=payload(), headers={"Authorization": "secret-auth-header"}
         )
@@ -269,7 +332,7 @@ def test_logs_are_structured_and_redacted():
         "https://",
     ]:
         assert secret not in serialized
-    assert any(e["stage"] == "inference" and e["event"] == "failure" for e in messages)
+    assert any(e["stage"] == "moderation" and e["event"] == "failure" for e in messages)
 
 
 @pytest.fixture
