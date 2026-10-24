@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:memories_through_lenses/components/app_keyboard_behavior.dart';
+import 'package:memories_through_lenses/components/auth_gate.dart';
+import 'package:memories_through_lenses/providers/preferences_provider.dart';
 import 'package:memories_through_lenses/routes.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,8 +9,7 @@ import 'package:memories_through_lenses/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/providers/theme_provider.dart';
-import 'package:memories_through_lenses/screens/login.dart';
-import 'package:memories_through_lenses/screens/home.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 late final FirebaseApp app;
 late final FirebaseAuth auth;
@@ -21,11 +22,23 @@ void main() async {
   );
   auth = FirebaseAuth.instanceFor(app: app);
 
+  // Read saved display preferences before the first frame so dark mode, text
+  // size and the feed sort apply immediately (no light-theme flash).
+  final preferences = await PreferencesProvider.load();
+  bool? darkMode;
+  try {
+    darkMode = ThemeProvider.readSaved(await SharedPreferences.getInstance());
+  } catch (e) {
+    debugPrint('Error reading theme preference: $e');
+  }
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => UserProvider()),
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(
+            create: (context) => ThemeProvider(initialDarkMode: darkMode)),
+        ChangeNotifierProvider.value(value: preferences),
       ],
       child: const MyApp(),
     ),
@@ -38,6 +51,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final preferences = Provider.of<PreferencesProvider>(context);
 
     return MaterialApp(
       title: 'Memories through Lenses',
@@ -45,56 +59,12 @@ class MyApp extends StatelessWidget {
       theme: themeProvider.lightTheme,
       darkTheme: themeProvider.darkTheme,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      builder: AppKeyboardBehavior.builder,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          // Show loading while checking auth state
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-
-          // User is logged in
-          if (snapshot.hasData && snapshot.data != null) {
-            return const AuthenticatedHome();
-          }
-
-          // User is not logged in
-          return const LoginPage();
-        },
-      ),
+      builder: (context, child) => preferences.applyTextScale(
+          context, AppKeyboardBehavior.builder(context, child)),
+      // AuthGate owns the signed-in/signed-out decision; '/home' and '/login'
+      // also resolve to it (see routes.dart).
+      home: const AuthGate(),
       routes: routes,
     );
-  }
-}
-
-class AuthenticatedHome extends StatefulWidget {
-  const AuthenticatedHome({super.key});
-
-  @override
-  State<AuthenticatedHome> createState() => _AuthenticatedHomeState();
-}
-
-class _AuthenticatedHomeState extends State<AuthenticatedHome> {
-  @override
-  void initState() {
-    super.initState();
-    // Load user data once
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final provider = Provider.of<UserProvider>(context, listen: false);
-        provider.loadUserData();
-        provider.loadGroups();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return HomePage();
   }
 }

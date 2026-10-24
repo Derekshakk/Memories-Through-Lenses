@@ -4,6 +4,7 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   const JoinGroupScreen({super.key});
@@ -203,7 +204,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     SizeConfig().init(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         elevation: 0,
@@ -230,7 +231,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
+                    color: AppColors.muted(context, Colors.grey[700]!),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -244,7 +245,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                     hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
                     prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: AppColors.surface(context),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -273,13 +274,13 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: AppColors.muted(context, Colors.grey[800]!),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!),
                     boxShadow: [
@@ -349,7 +350,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        color: AppColors.muted(context, Colors.grey[800]!),
                       ),
                     ),
                     if (pendingGroups.isNotEmpty)
@@ -374,7 +375,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 const SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!),
                     boxShadow: [

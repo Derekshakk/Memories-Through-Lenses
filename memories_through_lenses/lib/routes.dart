@@ -1,7 +1,6 @@
-import 'package:memories_through_lenses/screens/login.dart';
+import 'package:memories_through_lenses/components/auth_gate.dart';
 import 'package:memories_through_lenses/screens/scan_face.dart';
 import 'package:memories_through_lenses/screens/signup.dart';
-import 'package:memories_through_lenses/screens/home.dart';
 import 'package:memories_through_lenses/screens/received_requests.dart';
 import 'package:memories_through_lenses/screens/send_requests.dart';
 import 'package:memories_through_lenses/screens/settings.dart';
@@ -16,10 +15,13 @@ import 'package:memories_through_lenses/screens/profile_edit.dart';
 import 'package:memories_through_lenses/screens/camera.dart';
 import 'package:memories_through_lenses/screens/yearbook.dart';
 
+// '/login' and '/home' resolve to the AuthGate rather than the raw pages, so
+// resetting the navigator to either route keeps the auth listener alive and
+// the gate shows whichever page matches the current session.
 var routes = {
-  "/login": (context) => LoginPage(),
+  "/login": (context) => const AuthGate(),
   "/signup": (context) => SignupPage(),
-  "/home": (context) => HomePage(),
+  "/home": (context) => const AuthGate(),
   "/received": (context) => ReceivedScreen(),
   "/send": (context) => SentScreen(),
   "/settings": (context) => SettingsScreen(),

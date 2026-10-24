@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:memories_through_lenses/services/username.dart';
 import 'package:provider/provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -20,6 +24,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  String _originalName = '';
 
   @override
   void initState() {
@@ -43,17 +48,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(Auth().user?.uid)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 15));
 
-      if (userDoc.exists && mounted) {
-        final data = userDoc.data();
-        setState(() {
-          _nameController.text = data?['name'] ?? '';
-          _emailController.text = Auth().user?.email ?? '';
-          _bioController.text = data?['bio'] ?? '';
-          _isLoading = false;
-        });
+      if (!mounted) return;
+      if (!userDoc.exists) {
+        // Previously this path never cleared the spinner.
+        setState(() => _isLoading = false);
+        return;
       }
+      final data = userDoc.data();
+      setState(() {
+        _originalName = data?['name']?.toString() ?? '';
+        _nameController.text = _originalName;
+        _emailController.text = Auth().user?.email ?? '';
+        _bioController.text = data?['bio'] ?? '';
+        _isLoading = false;
+      });
     } catch (e) {
       debugPrint('Error loading user data: $e');
       if (mounted) {
@@ -72,18 +83,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance
+      final write = FirebaseFirestore.instance
           .collection('users')
           .doc(Auth().user?.uid)
           .update({
         'name': _nameController.text.trim(),
         'bio': _bioController.text.trim(),
       });
+      // Firestore applies the change locally and syncs when online. Waiting
+      // indefinitely for the server ack left "Save" spinning on a poor
+      // connection; errors that arrive within the window still surface.
+      try {
+        await write.timeout(const Duration(seconds: 15));
+      } on TimeoutException {
+        debugPrint('Profile update queued; server acknowledgment pending');
+      }
 
       // Refresh user provider
       if (mounted) {
         final provider = Provider.of<UserProvider>(context, listen: false);
-        await provider.loadUserData();
+        unawaited(provider.loadUserData());
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,6 +194,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _nameController,
+                          inputFormatters: [
+                            LengthLimitingTextInputFormatter(
+                                Username.maxLength),
+                          ],
                           style: GoogleFonts.poppins(),
                           decoration: InputDecoration(
                             hintText: 'Enter your name',
@@ -215,7 +238,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             if (value == null || value.trim().isEmpty) {
                               return 'Name is required';
                             }
-                            return null;
+                            return Username.validate(value,
+                                previous: _originalName);
                           },
                         ),
 

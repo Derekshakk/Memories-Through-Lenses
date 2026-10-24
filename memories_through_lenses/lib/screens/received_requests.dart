@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/components/friend_card.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class ReceivedScreen extends StatefulWidget {
   const ReceivedScreen({super.key});
@@ -21,6 +22,7 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
 
     for (var key in requests.keys) {
       requestCards.add(FriendCard(
+        key: ValueKey('request_$key'),
         type: FriendCardType.request,
         name:
             (requests[key]['name'] != null) ? requests[key]['name'] : "Unknown",
@@ -38,7 +40,7 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
     print("names: $requestCards");
 
     return Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: AppColors.background(context),
         appBar: AppBar(
           backgroundColor: Colors.blue,
           elevation: 0,
@@ -161,7 +163,7 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey[700],
+                                color: AppColors.muted(context, Colors.grey[700]!),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -215,7 +217,7 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.surface(context),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
@@ -237,7 +239,7 @@ class _ReceivedScreenState extends State<ReceivedScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:memories_through_lenses/providers/preferences_provider.dart';
 import 'package:memories_through_lenses/providers/theme_provider.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/screens/change_password.dart';
@@ -23,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final preferences = Provider.of<PreferencesProvider>(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -47,6 +49,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Appearance Section
+                _buildSectionTitle(context, 'Appearance'),
+                const SizedBox(height: 12),
+                _buildSettingsCard(
+                  context,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      secondary: Icon(
+                        themeProvider.isDarkMode
+                            ? Icons.dark_mode
+                            : Icons.dark_mode_outlined,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                      title: Text(
+                        'Dark Mode',
+                        style: GoogleFonts.poppins(fontSize: 16),
+                      ),
+                      subtitle: Text(
+                        'Saved on this device',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) => themeProvider.setTheme(value),
+                    ),
+                    const Divider(height: 1),
+                    _TextSizeSetting(preferences: preferences),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
 
                 // Account Section
                 _buildSectionTitle(context, 'Account'),
@@ -336,6 +371,63 @@ class DeleteAccountPopup extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Text size picker. Applied app-wide on top of the system text size.
+class _TextSizeSetting extends StatelessWidget {
+  const _TextSizeSetting({required this.preferences});
+
+  final PreferencesProvider preferences;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = PreferencesProvider.textScaleOptions;
+    final current = preferences.textScale;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.format_size, color: Theme.of(context).iconTheme.color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Text Size',
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Semantics(
+            label: 'Text size',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final (scale, label) in options)
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: (current - scale).abs() < 0.001,
+                    onSelected: (_) => preferences.setTextScale(scale),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Preview: Memories Through Lenses',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

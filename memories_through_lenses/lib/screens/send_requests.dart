@@ -6,6 +6,7 @@ import 'package:memories_through_lenses/components/friend_card.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class SentScreen extends StatefulWidget {
   const SentScreen({super.key});
@@ -20,41 +21,70 @@ class _SentScreenState extends State<SentScreen> {
   List<Map<String, dynamic>> searchResults = [];
   List<Widget> combined = [];
 
-  Future<void> search(String query) async {
-    if (query.isEmpty) {
-      await Database().getUsers().then((value) {
-        setState(() {
-          if (value.isNotEmpty) {
-            users = value;
-            searchResults = value; // Show all users when text field is empty
-          }
-        });
-      });
-    } else {
+  bool _loadingUsers = true;
+  String? _loadError;
+
+  /// Loads the user directory once. Interactions (add/unsend/remove) only
+  /// refresh the signed-in user's document via the provider; re-downloading
+  /// and replacing the whole list after every tap also reset the list.
+  Future<void> _loadUsers() async {
+    setState(() {
+      _loadingUsers = true;
+      _loadError = null;
+    });
+    try {
+      final value =
+          await Database().getUsers().timeout(const Duration(seconds: 20));
+      if (!mounted) return;
       setState(() {
-        print("searching for $query");
-        searchResults = users
-            .where((element) =>
-                element['name'].toLowerCase().contains(query.toLowerCase()))
-            .toList();
-        print("search results: $searchResults");
+        users = value;
+        _loadingUsers = false;
+      });
+      search(_controller.text);
+    } catch (e) {
+      debugPrint('Error loading users: $e');
+      if (!mounted) return;
+      setState(() {
+        _loadingUsers = false;
+        _loadError = 'Could not load users.';
       });
     }
+  }
+
+  void search(String query) {
+    final q = query.trim().toLowerCase();
+    setState(() {
+      searchResults = q.isEmpty
+          ? users // Show all users when text field is empty
+          : users
+              .where((element) =>
+                  (element['name']?.toString() ?? '').toLowerCase().contains(q))
+              .toList();
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    search("");
+    _loadUsers();
   }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _addScroll.dispose();
+    super.dispose();
+  }
+
+  final ScrollController _addScroll = ScrollController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
           title: Text("Sent Requests",
-              style:
-                  GoogleFonts.merriweather(fontSize: 30, color: Colors.black)),
+              style: GoogleFonts.merriweather(
+                  fontSize: 30, color: AppColors.text(context))),
         ),
         body: Center(
           child: Consumer<UserProvider>(
@@ -73,12 +103,11 @@ class _SentScreenState extends State<SentScreen> {
                 outgoingRequests.add(FriendCard(
                   key: ValueKey('sent_$key'),
                   type: FriendCardType.sentRequest,
-                  name: value['name'],
+                  name: value is Map ? (value['name']?.toString() ?? '') : '',
                   uid: key,
                   onPressed: () async {
-                    // Refresh provider data and search results after action
+                    // Refresh the signed-in user's requests/friends only.
                     await provider.loadUserData();
-                    await search(_controller.text);
                   },
                 ));
               });
@@ -89,12 +118,11 @@ class _SentScreenState extends State<SentScreen> {
                 currentFriends.add(FriendCard(
                   key: ValueKey('friend_$key'),
                   type: FriendCardType.currentFriend,
-                  name: value['name'],
+                  name: value is Map ? (value['name']?.toString() ?? '') : '',
                   uid: key,
                   onPressed: () async {
-                    // Refresh provider data and search results after action
+                    // Refresh the signed-in user's requests/friends only.
                     await provider.loadUserData();
-                    await search(_controller.text);
                   },
                 ));
               });
@@ -110,11 +138,9 @@ class _SentScreenState extends State<SentScreen> {
                 }
                 var newFriend = FriendCard(
                   type: FriendCardType.addFriend,
-                  name: element['name'],
+                  name: element['name']?.toString() ?? '',
                   uid: element['uid'],
-                  onPressed: () {
-                    setState(() {});
-                  },
+                  onPressed: () {},
                 );
 
                 // check if the user is already a friend or part of outgoing requests
@@ -151,12 +177,11 @@ class _SentScreenState extends State<SentScreen> {
                 combined.add(FriendCard(
                   key: ValueKey('add_${element['uid']}'),
                   type: FriendCardType.addFriend,
-                  name: element['name'],
+                  name: element['name']?.toString() ?? '',
                   uid: element['uid'],
                   onPressed: () async {
-                    // Refresh provider data and search results after action
+                    // Refresh the signed-in user's requests/friends only.
                     await provider.loadUserData();
-                    await search(_controller.text);
                   },
                 ));
               }
@@ -193,7 +218,22 @@ class _SentScreenState extends State<SentScreen> {
                         height: SizeConfig.blockSizeVertical! * 20,
                         child: Card(
                             color: Colors.blue,
-                            child: combined.isEmpty
+                            child: _loadingUsers
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white))
+                                : _loadError != null
+                                ? Center(
+                                    child: TextButton(
+                                      onPressed: _loadUsers,
+                                      child: Text(
+                                        "$_loadError Tap to retry",
+                                        style: GoogleFonts.poppins(
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  )
+                                : combined.isEmpty
                                 ? Center(
                                     child: Text(
                                       "No users found",
@@ -204,6 +244,7 @@ class _SentScreenState extends State<SentScreen> {
                                     ),
                                   )
                                 : ListView.builder(
+                                    controller: _addScroll,
                                     itemCount: combined.length,
                                     itemBuilder: (context, index) =>
                                         combined[index]))),

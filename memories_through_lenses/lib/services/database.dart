@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:io';
 
@@ -134,22 +135,43 @@ class Database {
     var ref = FirebaseStorage.instance
         .ref()
         .child('profile_images/${_auth.user!.uid}');
-    await ref.putFile(image);
-    return await ref.getDownloadURL();
+    final task = ref.putFile(image);
+    try {
+      // Same bounded completion logic as post uploads: the native task Future
+      // can fail to resolve, which previously left "Save Changes" spinning.
+      await waitForStorageUpload(task,
+          PostTrace('profile-image-${DateTime.now().microsecondsSinceEpoch}'),
+          timeout: const Duration(minutes: 2));
+    } catch (e) {
+      try {
+        await task.cancel();
+      } catch (_) {}
+      rethrow;
+    }
+    return await ref.getDownloadURL().timeout(const Duration(seconds: 30));
   }
 
-  Future<void> updateProfile(String username, String? profileImage) async {
+  /// Updates the signed-in user's name (and photo when given).
+  ///
+  /// Firestore applies the change locally at once and syncs it when online,
+  /// so a slow/missing server acknowledgment is not treated as a failure.
+  /// Rule denials and other errors that arrive within the window still throw.
+  Future<void> updateProfile(String username, String? profileImage,
+      {Duration ackTimeout = const Duration(seconds: 15)}) async {
+    final user = _auth.user!;
+    final write = _firestore.collection('users').doc(user.uid).update({
+      'name': username,
+      if (profileImage != null) 'profile_image': profileImage,
+    });
     if (profileImage != null) {
-      _firestore.collection('users').doc(_auth.user!.uid).update({
-        'name': username,
-        'profile_image': profileImage,
-      });
-
-      _auth.user!.updatePhotoURL(profileImage);
-    } else {
-      _firestore.collection('users').doc(_auth.user!.uid).update({
-        'name': username,
-      });
+      unawaited(user.updatePhotoURL(profileImage).catchError((Object e) {
+        print('Error updating auth photo URL: $e');
+      }));
+    }
+    try {
+      await write.timeout(ackTimeout);
+    } on TimeoutException {
+      print('Profile update queued; server acknowledgment pending');
     }
   }
 
@@ -279,17 +301,23 @@ class Database {
     });
   }
 
-  Future<void> reportPost(String postId, String postCreator) async {
+  Future<void> reportPost(String postId, String postCreator,
+      {String? reason, String? details}) async {
     try {
       // Get the post to find the group_id
       final postDoc = await _firestore.collection('posts').doc(postId).get();
       final groupId = postDoc.data()?['group_id'] ?? '';
 
       await _firestore.collection('reports').add({
+        // Reports without a `type` (created before comment reports existed)
+        // are post reports; readers must keep treating them that way.
+        'type': 'post',
         'post_id': postId,
         'post_creator': postCreator,
         'group_id': groupId,
         'reporter_id': _auth.user!.uid,
+        if (reason != null) 'reason': reason,
+        if (details != null && details.isNotEmpty) 'details': details,
         'created_at': Timestamp.now(),
         'status': 'pending', // pending, approved, rejected
       });
@@ -344,6 +372,17 @@ class Database {
           report['post_data'] = postDoc.data();
         } else {
           print('Post not found for report: ${doc.id}');
+        }
+
+        // Comment reports also carry the comment itself (if still present).
+        if (report['type'] == 'comment' && report['comment_id'] is String) {
+          final commentDoc = await _firestore
+              .collection('posts')
+              .doc(report['post_id'])
+              .collection('comments')
+              .doc(report['comment_id'])
+              .get();
+          if (commentDoc.exists) report['comment_data'] = commentDoc.data();
         }
 
         // Get reporter details
@@ -404,6 +443,23 @@ class Database {
     }
   }
 
+  // Approve a comment report: delete only that comment (and its replies),
+  // never the post.
+  Future<void> approveCommentReport(
+      String reportId, String postId, String commentId) async {
+    try {
+      await _firestore.collection('reports').doc(reportId).update({
+        'status': 'approved',
+        'reviewed_at': Timestamp.now(),
+        'reviewed_by': _auth.user!.uid,
+      });
+      await deleteComment(postId, commentId);
+    } catch (e) {
+      print('Error approving comment report: $e');
+      rethrow;
+    }
+  }
+
   // Reject report and keep the post
   Future<void> rejectReport(String reportId) async {
     try {
@@ -414,7 +470,18 @@ class Database {
           await _firestore.collection('reports').doc(reportId).get();
       final reportData = reportDoc.data();
 
-      if (reportData != null) {
+      if (reportData != null && reportData['type'] == 'comment') {
+        final commentId = reportData['comment_id'];
+        final usersSnapshot = await _firestore
+            .collection('users')
+            .where('reported_comments', arrayContains: commentId)
+            .get();
+        for (var userDoc in usersSnapshot.docs) {
+          await _firestore.collection('users').doc(userDoc.id).update({
+            'reported_comments': FieldValue.arrayRemove([commentId])
+          });
+        }
+      } else if (reportData != null) {
         final postId = reportData['post_id'];
         print('Post ID: $postId');
 
@@ -546,72 +613,144 @@ class Database {
     }
   }
 
-  // create a comment on a post
-  Future<void> createComment(String postId, String comment) async {
-    // comments is a subcollection of posts
-    _firestore.collection('posts').doc(postId).collection('comments').add({
-      'uid': _auth.user!.uid,
+  /// Firestore applies writes locally at once (the comment stream shows them
+  /// immediately) and syncs later, so a missing server ack within [_ackTimeout]
+  /// is treated as queued, not failed. Errors that arrive in time still throw.
+  static const Duration _ackTimeout = Duration(seconds: 15);
+
+  Future<void> _awaitWrite(Future<void> write) async {
+    try {
+      await write.timeout(_ackTimeout);
+    } on TimeoutException {
+      print('Write queued; server acknowledgment pending');
+    }
+  }
+
+  /// Create a comment on a post. [parentId] makes it a reply to that
+  /// top-level comment. Returns the new comment id.
+  Future<String> createComment(String postId, String comment,
+      {String? username,
+      String? parentId,
+      String? replyToUid,
+      String? replyToName}) async {
+    final user = _auth.user!;
+    // Comments used to store `_userProvider?.userData?['name'] ?? ''`, but
+    // callers never passed a provider, so most comments saved an empty name.
+    var name = username ?? _userProvider?.userData?['name'];
+    if (name is! String || name.trim().isEmpty) {
+      try {
+        final doc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get()
+            .timeout(const Duration(seconds: 10));
+        name = doc.data()?['name'];
+      } catch (e) {
+        print('Could not load commenter name: $e');
+      }
+    }
+    final ref =
+        _firestore.collection('posts').doc(postId).collection('comments').doc();
+    await _awaitWrite(ref.set({
+      'uid': user.uid,
       'description': comment,
       'date': DateTime.now(),
       'likes': [],
-      'username': _userProvider?.userData?['name'] ?? '',
-      'profilePic': _auth.user!.photoURL
-    });
+      'username': name is String ? name : '',
+      'profilePic': user.photoURL,
+      if (parentId != null) 'parent_id': parentId,
+      if (replyToUid != null) 'reply_to_uid': replyToUid,
+      if (replyToName != null) 'reply_to_name': replyToName,
+    }));
+    return ref.id;
   }
 
   // like a comment by adding the user's uid to the likes array
   Future<void> likeComment(String postId, String commentId) async {
-    _firestore
+    await _awaitWrite(_firestore
         .collection('posts')
         .doc(postId)
         .collection('comments')
         .doc(commentId)
         .update({
       'likes': FieldValue.arrayUnion([_auth.user!.uid])
-    });
+    }));
   }
 
   // unlike a comment
   Future<void> removeLikeComment(String postId, String commentId) async {
-    _firestore
+    await _awaitWrite(_firestore
         .collection('posts')
         .doc(postId)
         .collection('comments')
         .doc(commentId)
         .update({
       'likes': FieldValue.arrayRemove([_auth.user!.uid])
-    });
+    }));
   }
 
-  // report a comment
-  Future<void> reportComment(String postId, String commentId) async {
-    _firestore.collection('reports').add({
-      'post_id': postId,
-      'comment_id': commentId,
-      'user_id': _auth.user!.uid,
-      'created_at': DateTime.now()
-    });
+  /// Report a comment for review by the group's owner.
+  ///
+  /// This used to write an incomplete report (no group_id/status) that the
+  /// review screen could never find, and the dialog never called it at all.
+  Future<void> reportComment(String postId, String commentId,
+      {required String reason,
+      String? details,
+      String? commentText,
+      String? commentAuthor}) async {
+    try {
+      final postDoc = await _firestore.collection('posts').doc(postId).get();
+      final groupId = postDoc.data()?['group_id'] ?? '';
+
+      await _firestore.collection('reports').add({
+        'type': 'comment',
+        'post_id': postId,
+        'post_creator': postDoc.data()?['user_id'] ?? '',
+        'comment_id': commentId,
+        if (commentText != null) 'comment_text': commentText,
+        if (commentAuthor != null) 'comment_author': commentAuthor,
+        'group_id': groupId,
+        'reporter_id': _auth.user!.uid,
+        'reason': reason,
+        if (details != null && details.isNotEmpty) 'details': details,
+        'created_at': Timestamp.now(),
+        'status': 'pending', // pending, approved, rejected
+      });
+
+      // Hide the comment from the reporter, mirroring reported_posts.
+      await _firestore.collection('users').doc(_auth.user!.uid).update({
+        'reported_comments': FieldValue.arrayUnion([commentId])
+      });
+    } catch (e) {
+      print('Error reporting comment: $e');
+      rethrow;
+    }
   }
 
-  // delete a comment
+  /// Delete a comment. Deleting a top-level comment also deletes its replies
+  /// so they aren't left orphaned.
   Future<void> deleteComment(String postId, String commentId) async {
-    _firestore
-        .collection('posts')
-        .doc(postId)
-        .collection('comments')
-        .doc(commentId)
-        .delete();
+    final comments =
+        _firestore.collection('posts').doc(postId).collection('comments');
+    final replies =
+        await comments.where('parent_id', isEqualTo: commentId).get();
+    final batch = _firestore.batch();
+    for (final reply in replies.docs) {
+      batch.delete(reply.reference);
+    }
+    batch.delete(comments.doc(commentId));
+    await _awaitWrite(batch.commit());
   }
 
   // edit a comment
   Future<void> editComment(
       String postId, String commentId, String newComment) async {
-    _firestore
+    await _awaitWrite(_firestore
         .collection('posts')
         .doc(postId)
         .collection('comments')
         .doc(commentId)
-        .update({'description': newComment});
+        .update({'description': newComment}));
   }
 
   // get all comments for a post
@@ -627,32 +766,14 @@ class Database {
     // for each comment, add the id
     for (var i = 0; i < comments_list.length; i++) {
       comments_list[i]['id'] = comments.docs[i].id;
-
-      // get the user's name and profile image
-      // print("Getting user data at ${comments_list[i]['uid']}");
-      // var user = await _firestore
-      //     .collection('users')
-      //     .doc(comments_list[i]['uid'])
-      //     .get().then((value) {
-      //       var user_data = value.data();
-      //       print("User data: ${value.data()}");
-      //     });
-
-      // comments_list[i]['username'] = user_data!['name'];
-      if (!comments_list[i].containsKey("profilePic") ||
-          comments_list[i]['profilePic'] == null ||
-          comments_list[i]['profilePic'].isEmpty) {
-        comments_list[i]['profilePic'] =
-            'https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&height=900&width=1600&fit=bounds';
+      // Missing photo → '' so the UI shows the bundled generic avatar
+      // (this previously substituted an unrelated stock photo URL).
+      if (comments_list[i]['profilePic'] is! String) {
+        comments_list[i]['profilePic'] = '';
       }
     }
 
     return comments_list;
-  }
-
-  Future<void> reportAndBlockUser(String postId, String postCreator) async {
-    reportPost(postId, postCreator);
-    blockUser(postCreator);
   }
 
   Future<List<Map<String, dynamic>>> getUsers() async {
@@ -667,10 +788,12 @@ class Database {
   }
 
   // block user function that adds the given uid to the current user's blocked list
+  // Only blocks. It never reports anything (see ReportDialog).
   Future<void> blockUser(String uid) async {
-    _firestore.collection('users').doc(_auth.user!.uid).update({
+    await _awaitWrite(
+        _firestore.collection('users').doc(_auth.user!.uid).update({
       'blocked': FieldValue.arrayUnion([uid])
-    });
+    }));
   }
 
   // Remove a post from the user's yearbook

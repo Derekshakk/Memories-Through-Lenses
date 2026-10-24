@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,8 +11,10 @@ import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/services/image_source_errors.dart';
 import 'package:memories_through_lenses/services/image_utils.dart';
 import 'package:memories_through_lenses/services/post_creation.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class Pair {
   final String key;
@@ -44,6 +49,35 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   PostCreation? _submission;
   bool get _locked =>
       uploading || _picking || _published || _submission != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // Android may destroy this activity while the system camera is open; the
+    // captured photo is then delivered on the next launch instead.
+    if (widget.pickPhoto == null && !kIsWeb && Platform.isAndroid) {
+      unawaited(_recoverLostPhoto());
+    }
+  }
+
+  Future<void> _recoverLostPhoto() async {
+    try {
+      final response = await ImagePicker().retrieveLostData();
+      if (response.isEmpty || !mounted || _postMedia != null) return;
+      final file = response.file ??
+          ((response.files?.isNotEmpty ?? false) ? response.files!.first : null);
+      if (file != null) {
+        await _selectImage(ImageSource.camera, captured: file);
+      } else if (response.exception != null) {
+        setState(() {
+          _message = imagePickErrorMessage(
+              ImageSource.camera, 'picker_camera', response.exception!);
+        });
+      }
+    } catch (error) {
+      debugPrint('Could not recover lost photo: $error');
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -95,15 +129,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
     trace.event(stage, 'start');
     try {
-      final image = captured ??
-          await (widget.pickPhoto?.call(source) ??
-                  ImagePicker().pickImage(
-                    source: source,
-                    maxWidth: 1920,
-                    maxHeight: 1920,
-                    imageQuality: 90,
-                  ))
-              .timeout(const Duration(minutes: 2));
+      Future<XFile?> open() => (widget.pickPhoto?.call(source) ??
+              ImagePicker().pickImage(
+                source: source,
+                maxWidth: 1920,
+                maxHeight: 1920,
+                imageQuality: 90,
+              ))
+          .timeout(const Duration(minutes: 2));
+      XFile? image;
+      if (captured != null) {
+        image = captured;
+      } else {
+        try {
+          image = await open();
+        } catch (error) {
+          // Switching straight from the gallery to the camera (or back) can
+          // hit the previous picker while it is still closing. Retry once.
+          if (!isPickerBusy(error) || !mounted) rethrow;
+          trace.event(stage, 'busy_retry');
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          image = await open();
+        }
+      }
       if (image == null) {
         trace.event(stage, 'canceled');
         return;
@@ -133,8 +181,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           {'code': PostTrace.code(error)});
       if (mounted) {
         setState(() {
-          _message =
-              'Could not open this photo. Try again; for an iCloud photo, download it in Photos first.';
+          // Source- and stage-specific: the iCloud hint only applies to
+          // reading a gallery photo, not to camera failures.
+          _message = imagePickErrorMessage(source, stage, error);
         });
       }
     } finally {
@@ -211,7 +260,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setGroups(provider.groups);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         elevation: 0,
@@ -245,7 +294,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
+                    color: AppColors.muted(context, Colors.grey[700]!),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -253,7 +302,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   width: double.infinity,
                   height: SizeConfig.blockSizeVertical! * 40,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!),
                     boxShadow: [
@@ -362,7 +411,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
+                    color: AppColors.muted(context, Colors.grey[700]!),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -375,7 +424,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     hintText: 'Write a caption for your photo...',
                     hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: AppColors.surface(context),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -404,13 +453,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
+                    color: AppColors.muted(context, Colors.grey[700]!),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!),
                     boxShadow: [

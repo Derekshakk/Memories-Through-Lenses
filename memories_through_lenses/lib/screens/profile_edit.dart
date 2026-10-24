@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:memories_through_lenses/size_config.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:memories_through_lenses/providers/user_provider.dart';
+import 'package:memories_through_lenses/services/username.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
+import 'package:provider/provider.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +26,65 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   int _usernameLength = 0;
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    if (_saving) return;
+    final messenger = ScaffoldMessenger.of(context);
+    void showError(String message) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message, style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    final String oldUsername = userData?['name']?.toString() ?? '';
+    final String typed = usernameController.text.trim();
+    final String newUsername = typed.isEmpty ? oldUsername : typed;
+    final validation = Username.validate(newUsername, previous: oldUsername);
+    if (validation != null) {
+      showError(validation);
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      String? imageUrl;
+      if (_profileImage != null) {
+        imageUrl = await Database().uploadProfileImage(_profileImage!);
+      }
+      await Database().updateProfile(newUsername.trim(), imageUrl);
+      if (!mounted) return;
+      // Home listens to the user document, so it refreshes by itself; this
+      // keeps screens that read the provider in sync too.
+      unawaited(
+          Provider.of<UserProvider>(context, listen: false).loadUserData());
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Profile updated', style: GoogleFonts.poppins()),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Return to where the user came from. This used to reset the whole
+      // navigator, rebuilding the app shell behind a loading dialog.
+      Navigator.of(context).pop();
+    } catch (e) {
+      debugPrint('Error saving profile: $e');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showError(e is TimeoutException
+          ? 'Saving took too long. Check your connection and try again.'
+          : 'Could not save your profile. Please try again.');
+    }
+  }
 
   @override
   void initState() {
@@ -33,7 +97,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(Auth().user!.uid)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 15));
 
       if (userDoc.exists && mounted) {
         final data = userDoc.data();
@@ -70,7 +135,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       );
     }
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         elevation: 0,
@@ -194,7 +259,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                             final image = await ImagePicker()
                                                 .pickImage(
                                                     source:
-                                                        ImageSource.gallery);
+                                                        ImageSource.gallery,
+                                                    imageQuality: 85,
+                                                    maxWidth: 512,
+                                                    maxHeight: 512);
                                             if (image != null) {
                                               setState(() {
                                                 _profileImage =
@@ -246,12 +314,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   ),
                   const SizedBox(height: 20),
                   // Current Username Display
-                  Text(
-                    userData?['name']?.toString() ?? 'No Username Set',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      Username.displayName(userData?['name'],
+                          fallback: 'No Username Set'),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -278,26 +353,34 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+                      color: AppColors.muted(context, Colors.grey[800]!),
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: usernameController,
-                    maxLength: 35,
+                    enabled: !_saving,
+                    // Not `maxLength`: that would silently cut a legacy
+                    // over-limit name the user hasn't touched. The formatter
+                    // only limits what they type; save validates the rest.
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(Username.maxLength),
+                    ],
                     style: GoogleFonts.poppins(fontSize: 16),
                     decoration: InputDecoration(
                       hintText: 'Enter your username',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
-                      counterText: '$_usernameLength/35',
+                      counterText: '$_usernameLength/${Username.maxLength}',
                       counterStyle: GoogleFonts.poppins(
-                        color: _usernameLength > 30
-                            ? Colors.orange
-                            : Colors.grey[600],
+                        color: _usernameLength > Username.maxLength
+                            ? Colors.red
+                            : _usernameLength > Username.maxLength - 5
+                                ? Colors.orange
+                                : Colors.grey[600],
                         fontWeight: FontWeight.w500,
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -309,8 +392,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
                         borderSide: BorderSide(
-                          color:
-                              _usernameLength > 35 ? Colors.red : Colors.blue,
+                          color: _usernameLength > Username.maxLength
+                              ? Colors.red
+                              : Colors.blue,
                           width: 2.0,
                         ),
                       ),
@@ -329,60 +413,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          String oldUsername = userData?['name'] ?? '';
-                          String newUsername = (usernameController.text.isEmpty)
-                              ? oldUsername
-                              : usernameController.text;
-
-                          if (newUsername.length > 35) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Username cannot exceed 35 characters',
-                                  style: GoogleFonts.poppins(),
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-
-                          // Show loading indicator
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (context) => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-
-                          if (_profileImage == null) {
-                            await Database().updateProfile(newUsername, null);
-                          } else {
-                            String imageUrl = await Database()
-                                .uploadProfileImage(_profileImage!);
-                            await Database()
-                                .updateProfile(newUsername, imageUrl);
-                          }
-
-                          Navigator.pop(context); // Close loading dialog
-                          Navigator.pushNamedAndRemoveUntil(
-                              context, '/', (route) => false);
-                        } catch (e) {
-                          Navigator.pop(context); // Close loading dialog
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Error saving profile: ${e.toString()}',
-                                style: GoogleFonts.poppins(),
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
+                      onPressed: _saving ? null : _saveProfile,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -391,13 +422,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        'Save Changes',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              'Save Changes',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                 ],

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -75,14 +77,34 @@ class Auth {
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  /// Signs in. Returns null on success, otherwise a user-facing message.
+  ///
+  /// Bounded by [timeout] so a stalled network request can never leave the
+  /// login button spinning forever.
+  Future<String?> login(String email, String password,
+      {Duration timeout = const Duration(seconds: 30)}) async {
     try {
-      var result = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
-      return result.user != null;
+      var result = await _auth
+          .signInWithEmailAndPassword(email: email, password: password)
+          .timeout(timeout);
+      return result.user != null ? null : 'Invalid email or password';
+    } on TimeoutException {
+      return 'Signing in is taking too long. Check your connection and try again.';
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Login failed [code=${e.code}]');
+      switch (e.code) {
+        case 'network-request-failed':
+          return 'Network error. Please check your connection and try again.';
+        case 'too-many-requests':
+          return 'Too many attempts. Please wait a moment and try again.';
+        case 'user-disabled':
+          return 'This account has been disabled.';
+        default:
+          return 'Invalid email or password';
+      }
     } catch (e) {
-      print(e);
-      return false;
+      debugPrint('Login failed: $e');
+      return 'Invalid email or password';
     }
   }
 

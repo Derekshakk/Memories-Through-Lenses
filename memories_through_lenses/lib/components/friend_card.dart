@@ -6,6 +6,7 @@ import 'package:memories_through_lenses/size_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/username.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -68,14 +69,14 @@ class _FriendCardState extends State<FriendCard> {
           .doc(widget.uid)
           .get();
 
-      if (userDoc.exists && mounted) {
-        final userData = userDoc.data();
-        setState(() {
-          _profileImage = userData?['profile_image'];
-          _currentName = userData?['name'] ?? widget.name;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      final userData = userDoc.data();
+      setState(() {
+        _profileImage = userData?['profile_image'];
+        final name = userData?['name'];
+        _currentName = name is String ? name : widget.name;
+        _isLoading = false;
+      });
     } catch (e) {
       print('Error fetching user data: $e');
       if (mounted) {
@@ -116,10 +117,20 @@ class _FriendCardState extends State<FriendCard> {
           ),
           SizedBox(width: SizeConfig.blockSizeHorizontal! * 2),
           Expanded(
-            child: _isLoading
-                ? const Text('Loading...', style: TextStyle(fontSize: 20))
-                : Text(_currentName ?? widget.name,
-                    style: const TextStyle(fontSize: 20)),
+            // Always one line. An account with an extremely long name used
+            // to render a card thousands of pixels tall; when it scrolled out
+            // of view the list re-estimated item offsets on every rebuild
+            // and jumped back to the top while interacting with rows below.
+            child: Text(
+              _isLoading
+                  ? 'Loading...'
+                  : Username.displayName(_currentName ?? widget.name,
+                      fallback: 'Unknown'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: const TextStyle(fontSize: 20),
+            ),
           ),
 
           if (widget.type == FriendCardType.request)

@@ -399,4 +399,45 @@ void main() {
             .onPressed,
         isNull);
   }, variant: platforms);
+
+  testWidgets(
+      'camera failure after a gallery pick shows a camera message, not the iCloud hint',
+      (tester) async {
+    final bytes = photo.readAsBytesSync();
+    await open(tester, pickPhoto: (source) async {
+      if (source == ImageSource.gallery) return XFile.fromData(bytes);
+      throw PlatformException(code: 'camera_access_denied');
+    });
+    await tester.ensureVisible(find.text('Camera'));
+    await tester.tap(find.text('Camera'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Camera access is turned off'), findsOneWidget);
+    expect(find.textContaining('iCloud'), findsNothing);
+  }, variant: platforms);
+
+  testWidgets('gallery read failure still explains the iCloud case',
+      (tester) async {
+    await open(tester,
+        pickPhoto: (source) async => throw PlatformException(code: 'invalid_image'));
+    expect(find.textContaining('iCloud'), findsOneWidget);
+  }, variant: platforms);
+
+  testWidgets('picker still closing is retried once automatically',
+      (tester) async {
+    final bytes = photo.readAsBytesSync();
+    var cameraCalls = 0;
+    await open(tester, pickPhoto: (source) async {
+      if (source == ImageSource.gallery) return XFile.fromData(bytes);
+      cameraCalls++;
+      if (cameraCalls == 1) throw PlatformException(code: 'multiple_request');
+      return XFile.fromData(bytes);
+    });
+    await tester.ensureVisible(find.text('Camera'));
+    await tester.tap(find.text('Camera'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(cameraCalls, 2);
+    expect(find.textContaining('Could not'), findsNothing);
+    expect(find.textContaining('still closing'), findsNothing);
+  }, variant: platforms);
 }

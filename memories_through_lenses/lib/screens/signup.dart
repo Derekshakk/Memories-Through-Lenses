@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/services/username.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:memories_through_lenses/components/eula_popup.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -68,8 +71,13 @@ class _SignupPageState extends State<SignupPage> {
         _confirmController.text.isNotEmpty &&
         _firstNameController.text.trim().isNotEmpty &&
         _lastNameController.text.trim().isNotEmpty &&
+        Username.validate(_fullName) == null &&
         _passwordController.text == _confirmController.text;
   }
+
+  /// The stored username is "First Last"; the limit applies to the whole.
+  String get _fullName =>
+      "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}";
 
   String _getMissingFields() {
     List<String> missingFields = [];
@@ -88,6 +96,12 @@ class _SignupPageState extends State<SignupPage> {
     }
     if (_confirmController.text.isEmpty) {
       missingFields.add("Confirm Password");
+    }
+    if (_firstNameController.text.trim().isNotEmpty &&
+        _lastNameController.text.trim().isNotEmpty &&
+        _fullName.runes.length > Username.maxLength) {
+      missingFields.add(
+          "Name too long (first + last name must be ${Username.maxLength} characters or less)");
     }
     if (_passwordController.text.isNotEmpty &&
         _confirmController.text.isNotEmpty &&
@@ -113,7 +127,7 @@ class _SignupPageState extends State<SignupPage> {
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
               ),
               content: Text(
-                'Please fill in the following fields: ${_getMissingFields()}',
+                'Please check the following: ${_getMissingFields()}',
                 style: GoogleFonts.poppins(),
               ),
               actions: [
@@ -143,7 +157,7 @@ class _SignupPageState extends State<SignupPage> {
       String? errorMessage = await Auth().signUp(
         _emailController.text.trim(),
         _passwordController.text,
-        "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}",
+        _fullName,
         "bkuv1JQ2R3HSkfs2Aotg",
       );
 
@@ -173,9 +187,19 @@ class _SignupPageState extends State<SignupPage> {
               ),
               actions: [
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.pushNamed(context, "/login");
+                  onPressed: () async {
+                    // createUserWithEmailAndPassword signs the new user in.
+                    // Sign out (the message asks them to verify, then log in)
+                    // and return to the AuthGate's login page instead of
+                    // pushing a second LoginPage over the signed-in home —
+                    // that stacked LoginPage never cleared after logging in.
+                    final navigator = Navigator.of(context);
+                    try {
+                      await Auth().logout();
+                    } catch (e) {
+                      debugPrint('Sign out after signup failed: $e');
+                    }
+                    navigator.popUntil((route) => route.isFirst);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
@@ -241,7 +265,7 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -273,7 +297,7 @@ class _SignupPageState extends State<SignupPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppColors.text(context),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -290,6 +314,9 @@ class _SignupPageState extends State<SignupPage> {
                   // First Name Field
                   TextField(
                     controller: _firstNameController,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(Username.maxLength),
+                    ],
                     style: GoogleFonts.poppins(),
                     decoration: InputDecoration(
                       hintText: 'First Name',
@@ -297,7 +324,7 @@ class _SignupPageState extends State<SignupPage> {
                       prefixIcon:
                           const Icon(Icons.person_outline, color: Colors.blue),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -318,6 +345,9 @@ class _SignupPageState extends State<SignupPage> {
                   // Last Name Field
                   TextField(
                     controller: _lastNameController,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(Username.maxLength),
+                    ],
                     style: GoogleFonts.poppins(),
                     decoration: InputDecoration(
                       hintText: 'Last Name',
@@ -325,7 +355,7 @@ class _SignupPageState extends State<SignupPage> {
                       prefixIcon:
                           const Icon(Icons.person_outline, color: Colors.blue),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -354,7 +384,7 @@ class _SignupPageState extends State<SignupPage> {
                       prefixIcon:
                           const Icon(Icons.email_outlined, color: Colors.blue),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -396,7 +426,7 @@ class _SignupPageState extends State<SignupPage> {
                         },
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -438,7 +468,7 @@ class _SignupPageState extends State<SignupPage> {
                         },
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),

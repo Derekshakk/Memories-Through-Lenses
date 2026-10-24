@@ -1,11 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:memories_through_lenses/components/post_image.dart';
+import 'package:memories_through_lenses/components/report_dialog.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:memories_through_lenses/screens/comments.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/services/username.dart';
 import 'package:memories_through_lenses/size_config.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 import 'package:video_player/video_player.dart';
 
 class PostCard extends StatefulWidget {
@@ -133,6 +137,24 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
+  void _openPost() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CommentScreen(
+          id: widget.id,
+          mediaURL: widget.mediaURL,
+          mediaType: widget.mediaType,
+          creator: widget.creator,
+          caption: widget.caption,
+        ),
+      ),
+    ).then((_) {
+      // Refresh comment count when returning
+      if (mounted) _fetchCommentCount();
+    });
+  }
+
   String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
@@ -172,7 +194,7 @@ class _PostCardState extends State<PostCard> {
             width: SizeConfig.blockSizeHorizontal! * 90,
             padding: const EdgeInsets.all(12.0),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: AppColors.subtle(context),
               borderRadius: BorderRadius.circular(10.0),
             ),
             child: Row(
@@ -222,7 +244,9 @@ class _PostCardState extends State<PostCard> {
                       Text(
                         isLoadingUserData
                             ? "Loading..."
-                            : userData?['name'] ?? 'Unknown User',
+                            : Username.displayName(userData?['name']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -246,7 +270,9 @@ class _PostCardState extends State<PostCard> {
             width: SizeConfig.blockSizeHorizontal! * 90,
             height: SizeConfig.blockSizeHorizontal! * 90,
             child: Card(
-              color: Colors.blueGrey[50],
+              color: AppColors.isDark(context)
+                  ? const Color(0xFF263238)
+                  : Colors.blueGrey[50],
               child: Stack(
                 children: [
                   ClipRRect(
@@ -255,29 +281,12 @@ class _PostCardState extends State<PostCard> {
                     // (condition) ? (if true) : (if false)
                     child: (widget.mediaType == "image")
                         ? InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CommentScreen(
-                                    id: widget.id,
-                                    mediaURL: widget.mediaURL,
-                                    mediaType: widget.mediaType,
-                                    creator: widget.creator,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: CachedNetworkImage(
-                              imageUrl: widget.mediaURL,
+                            onTap: _openPost,
+                            child: PostImage(
+                              url: widget.mediaURL,
                               width: double.infinity,
                               height: MediaQuery.of(context).size.height * 0.4,
                               fit: BoxFit.contain,
-                              placeholder: (context, url) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  const Center(child: Text("Image not found")),
                             ),
                           )
                         : FutureBuilder(
@@ -310,17 +319,11 @@ class _PostCardState extends State<PostCard> {
                             Icons.report,
                             color: Colors.white,
                           ),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return ReportPostPopup(
-                                  postId: widget.id,
-                                  postCreator: widget.creator,
-                                );
-                              },
-                            );
-                          },
+                          onPressed: () => showReportPostDialog(
+                            context,
+                            postId: widget.id,
+                            postCreator: widget.creator,
+                          ),
                         ),
                       ),
                     ),
@@ -329,7 +332,10 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
           if (widget.caption.isNotEmpty)
-            SizedBox(
+            // Short preview; tapping opens the post with the full caption.
+            GestureDetector(
+              onTap: _openPost,
+              child: SizedBox(
                 width: SizeConfig.blockSizeHorizontal! * 52,
                 height: SizeConfig.blockSizeHorizontal! * 20,
                 child: Padding(
@@ -352,6 +358,7 @@ class _PostCardState extends State<PostCard> {
                   //   textAlign: TextAlign.center,
                   // ),
                 )),
+            ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: SizedBox(
@@ -527,22 +534,7 @@ class _PostCardState extends State<PostCard> {
                             Icons.comment,
                             color: Colors.white,
                           ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CommentScreen(
-                                  id: widget.id,
-                                  mediaURL: widget.mediaURL,
-                                  mediaType: widget.mediaType,
-                                  creator: widget.creator,
-                                ),
-                              ),
-                            ).then((_) {
-                              // Refresh comment count when returning
-                              _fetchCommentCount();
-                            });
-                          },
+                          onPressed: _openPost,
                         ),
                       ),
                       Text("$commentCount"),
@@ -554,119 +546,6 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// report post popup
-class ReportPostPopup extends StatefulWidget {
-  const ReportPostPopup(
-      {super.key, required this.postId, required this.postCreator});
-
-  final String postId;
-  final String postCreator;
-
-  @override
-  State<ReportPostPopup> createState() => _ReportPostPopupState();
-}
-
-class _ReportPostPopupState extends State<ReportPostPopup> {
-  bool isReporting = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Report Post"),
-      content: isReporting
-          ? const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Submitting report..."),
-              ],
-            )
-          : const Text("Are you sure you want to report this post?"),
-      actions: isReporting
-          ? []
-          : [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () async {
-                  setState(() {
-                    isReporting = true;
-                  });
-
-                  try {
-                    await Database()
-                        .reportPost(widget.postId, widget.postCreator);
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Post reported successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      setState(() {
-                        isReporting = false;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                              Text('Error reporting post: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text("Report"),
-              ),
-              TextButton(
-                onPressed: () async {
-                  setState(() {
-                    isReporting = true;
-                  });
-
-                  try {
-                    await Database()
-                        .reportAndBlockUser(widget.postId, widget.postCreator);
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'User blocked and post reported successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      setState(() {
-                        isReporting = false;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error blocking user: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text("Block User"),
-              )
-            ],
     );
   }
 }

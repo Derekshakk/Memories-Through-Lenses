@@ -4,6 +4,7 @@ import 'package:memories_through_lenses/services/database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class ReviewReportsScreen extends StatefulWidget {
   const ReviewReportsScreen({super.key});
@@ -45,9 +46,21 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
     }
   }
 
-  Future<void> handleApprove(String reportId, String postId, int index) async {
+  static bool _isComment(Map<String, dynamic> report) =>
+      report['type'] == 'comment' && report['comment_id'] is String;
+
+  Future<void> handleApprove(Map<String, dynamic> report, int index) async {
+    final String reportId = report['id'];
+    final String postId = report['post_id'];
+    final isComment = _isComment(report);
     try {
-      await Database().approveReport(reportId, postId);
+      if (isComment) {
+        // Only the comment is removed; the post stays.
+        await Database()
+            .approveCommentReport(reportId, postId, report['comment_id']);
+      } else {
+        await Database().approveReport(reportId, postId);
+      }
       if (mounted) {
         setState(() {
           reports.removeAt(index);
@@ -55,7 +68,9 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Report approved. Post has been deleted.',
+              isComment
+                  ? 'Report approved. Comment has been deleted.'
+                  : 'Report approved. Post has been deleted.',
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: Colors.green,
@@ -77,7 +92,8 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
     }
   }
 
-  Future<void> handleReject(String reportId, int index) async {
+  Future<void> handleReject(Map<String, dynamic> report, int index) async {
+    final String reportId = report['id'];
     try {
       await Database().rejectReport(reportId);
 
@@ -94,7 +110,9 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Report dismissed. The post remains visible in the feed.',
+                _isComment(report)
+                    ? 'Report dismissed. The comment remains visible.'
+                    : 'Report dismissed. The post remains visible in the feed.',
                 style: GoogleFonts.poppins(),
               ),
               backgroundColor: Colors.green,
@@ -137,7 +155,7 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         elevation: 0,
@@ -170,7 +188,7 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: AppColors.muted(context, Colors.grey[700]!),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -192,6 +210,7 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                       itemBuilder: (context, index) {
                         final report = reports[index];
                         final postData = report['post_data'];
+                        final isComment = _isComment(report);
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 16),
@@ -230,7 +249,7 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                             style: GoogleFonts.poppins(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.grey[800],
+                                              color: AppColors.muted(context, Colors.grey[800]!),
                                             ),
                                           ),
                                           Text(
@@ -251,13 +270,79 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                 const Divider(height: 1),
                                 const SizedBox(height: 16),
 
+                                if (report['reason'] is String) ...[
+                                  Text(
+                                    'Reason: ${report['reason']}',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red[700],
+                                    ),
+                                  ),
+                                  if (report['details'] is String)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        report['details'],
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          color: AppColors.muted(
+                                              context, Colors.grey[700]!),
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                if (isComment) ...[
+                                  Text(
+                                    'Reported Comment',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.muted(
+                                          context, Colors.grey[700]!),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.subtle(context),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border(
+                                        left: BorderSide(
+                                            color: Colors.red[300]!, width: 3),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      (report['comment_data']?['description'] ??
+                                              report['comment_text'] ??
+                                              '')
+                                          .toString(),
+                                      style: GoogleFonts.poppins(fontSize: 14),
+                                    ),
+                                  ),
+                                  if (report['comment_data'] == null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'This comment has already been deleted.',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 12, color: Colors.grey),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 16),
+                                ],
+
                                 // Post Preview
                                 Text(
-                                  'Reported Post',
+                                  isComment ? 'On Post' : 'Reported Post',
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.grey[700],
+                                    color: AppColors.muted(context, Colors.grey[700]!),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -331,14 +416,14 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey[100],
+                                        color: AppColors.subtle(context),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         postData['caption'],
                                         style: GoogleFonts.poppins(
                                           fontSize: 14,
-                                          color: Colors.grey[800],
+                                          color: AppColors.muted(context, Colors.grey[800]!),
                                         ),
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
@@ -379,13 +464,17 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                                     BorderRadius.circular(16),
                                               ),
                                               title: Text(
-                                                'Delete Post?',
+                                                isComment
+                                                    ? 'Delete Comment?'
+                                                    : 'Delete Post?',
                                                 style: GoogleFonts.poppins(
                                                     fontWeight:
                                                         FontWeight.w600),
                                               ),
                                               content: Text(
-                                                'This will permanently delete the reported post. This action cannot be undone.',
+                                                isComment
+                                                    ? 'This will permanently delete the reported comment and its replies. The post stays. This action cannot be undone.'
+                                                    : 'This will permanently delete the reported post. This action cannot be undone.',
                                                 style: GoogleFonts.poppins(),
                                               ),
                                               actions: [
@@ -416,14 +505,15 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                           );
 
                                           if (confirmed == true) {
-                                            await handleApprove(report['id'],
-                                                report['post_id'], index);
+                                            await handleApprove(report, index);
                                           }
                                         },
                                         icon:
                                             const Icon(Icons.delete, size: 18),
                                         label: Text(
-                                          'Delete Post',
+                                          isComment
+                                              ? 'Delete Comment'
+                                              : 'Delete Post',
                                           style:
                                               GoogleFonts.poppins(fontSize: 14),
                                         ),
@@ -443,12 +533,13 @@ class _ReviewReportsScreenState extends State<ReviewReportsScreen> {
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: () async {
-                                          await handleReject(
-                                              report['id'], index);
+                                          await handleReject(report, index);
                                         },
                                         icon: const Icon(Icons.check, size: 18),
                                         label: Text(
-                                          'Keep Post',
+                                          isComment
+                                              ? 'Keep Comment'
+                                              : 'Keep Post',
                                           style:
                                               GoogleFonts.poppins(fontSize: 14),
                                         ),

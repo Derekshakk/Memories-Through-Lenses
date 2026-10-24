@@ -8,9 +8,19 @@ class ThemeProvider extends ChangeNotifier {
 
   bool get isDarkMode => _isDarkMode;
 
-  ThemeProvider() {
-    _loadThemePreference();
+  /// [initialDarkMode] lets main() pass the value it already read from
+  /// SharedPreferences, so a saved dark preference applies on the very first
+  /// frame instead of flashing the light theme.
+  ThemeProvider({bool? initialDarkMode}) {
+    if (initialDarkMode != null) {
+      _isDarkMode = initialDarkMode;
+    } else {
+      _loadThemePreference();
+    }
   }
+
+  static bool readSaved(SharedPreferences prefs) =>
+      prefs.getBool(_themeKey) ?? false;
 
   /// Load theme preference from SharedPreferences
   Future<void> _loadThemePreference() async {

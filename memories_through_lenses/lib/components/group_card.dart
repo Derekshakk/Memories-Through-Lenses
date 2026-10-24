@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 enum GroupCardType {
   request, // request to join group (green button to send request)
@@ -380,7 +381,7 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface(context),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
@@ -456,7 +457,7 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                     ),
                                   );
                                   Navigator.pushNamedAndRemoveUntil(
-                                      context, '/group', (route) => false);
+                                      context, '/group', (route) => route.isFirst);
                                 }
                               }
                             },
@@ -529,7 +530,7 @@ class _GroupFriendCardState extends State<GroupFriendCard> {
                                   );
                                   // Navigate back to refresh the list
                                   Navigator.pushNamedAndRemoveUntil(
-                                      context, '/group', (route) => false);
+                                      context, '/group', (route) => route.isFirst);
                                 }
                               }
                             },

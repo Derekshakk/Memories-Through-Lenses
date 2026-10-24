@@ -6,6 +6,7 @@ import 'package:memories_through_lenses/components/toggle_row.dart';
 import 'package:memories_through_lenses/services/auth.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:memories_through_lenses/size_config.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class User {
   final String name;
@@ -62,7 +63,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     SizeConfig().init(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         elevation: 0,
@@ -89,7 +90,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
+                  color: AppColors.muted(context, Colors.grey[700]!),
                 ),
               ),
               const SizedBox(height: 8),
@@ -100,7 +101,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   hintText: 'Enter group name',
                   hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.surface(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey[300]!),
@@ -128,7 +129,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
+                  color: AppColors.muted(context, Colors.grey[700]!),
                 ),
               ),
               const SizedBox(height: 8),
@@ -140,7 +141,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   hintText: 'Enter group description',
                   hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.surface(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey[300]!),
@@ -168,13 +169,13 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
+                  color: AppColors.muted(context, Colors.grey[700]!),
                 ),
               ),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface(context),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey[300]!),
                   boxShadow: [
@@ -241,7 +242,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface(context),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey[300]!),
                 ),

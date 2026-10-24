@@ -5,6 +5,7 @@ import 'package:memories_through_lenses/components/group_card.dart';
 import 'package:memories_through_lenses/providers/user_provider.dart';
 import 'package:memories_through_lenses/services/database.dart';
 import 'package:provider/provider.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key});
@@ -136,7 +137,7 @@ class _GroupScreenState extends State<GroupScreen> {
     getGroupRequests(provider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       appBar: AppBar(
         backgroundColor: Colors.blue,
         elevation: 0,
@@ -163,7 +164,7 @@ class _GroupScreenState extends State<GroupScreen> {
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: AppColors.muted(context, Colors.grey[800]!),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -219,7 +220,7 @@ class _GroupScreenState extends State<GroupScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        color: AppColors.muted(context, Colors.grey[800]!),
                       ),
                     ),
                     if (joinRequests.isNotEmpty)
@@ -245,7 +246,7 @@ class _GroupScreenState extends State<GroupScreen> {
 
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!),
                     boxShadow: [
@@ -376,7 +377,7 @@ class _GroupScreenState extends State<GroupScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        color: AppColors.muted(context, Colors.grey[800]!),
                       ),
                     ),
                     if (groups.isNotEmpty)
@@ -402,7 +403,7 @@ class _GroupScreenState extends State<GroupScreen> {
 
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface(context),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!),
                     boxShadow: [
@@ -476,7 +477,7 @@ class _GroupScreenState extends State<GroupScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface(context),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.grey[300]!),
           boxShadow: [
@@ -511,7 +512,7 @@ class _GroupScreenState extends State<GroupScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+                      color: AppColors.muted(context, Colors.grey[800]!),
                     ),
                   ),
                   const SizedBox(height: 4),

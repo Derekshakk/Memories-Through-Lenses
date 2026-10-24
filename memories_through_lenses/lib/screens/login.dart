@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:memories_through_lenses/components/forgot_password_dialog.dart';
 import 'package:memories_through_lenses/services/auth.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -45,15 +46,21 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      bool success = await Auth().login(
+      final error = await Auth().login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
       if (!mounted) return;
 
-      if (success) {
-        // Navigation handled by StreamBuilder in initialization.dart
+      if (error == null) {
+        // AuthGate swaps to the home screen. If this LoginPage was pushed on
+        // top of the gate (e.g. from the signup flow) nothing would replace
+        // it, leaving this spinner up forever — so return to the gate.
+        final route = ModalRoute.of(context);
+        if (route != null && !route.isFirst) {
+          Navigator.of(context).popUntil((r) => r.isFirst);
+        }
       } else {
         setState(() {
           _isLoading = false;
@@ -61,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Invalid email or password',
+              error,
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: Colors.red,
@@ -96,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.background(context),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -128,7 +135,7 @@ class _LoginPageState extends State<LoginPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: AppColors.text(context),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -153,7 +160,7 @@ class _LoginPageState extends State<LoginPage> {
                       prefixIcon:
                           const Icon(Icons.email_outlined, color: Colors.blue),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),
@@ -195,7 +202,7 @@ class _LoginPageState extends State<LoginPage> {
                         },
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppColors.surface(context),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: BorderSide(color: Colors.grey[300]!),

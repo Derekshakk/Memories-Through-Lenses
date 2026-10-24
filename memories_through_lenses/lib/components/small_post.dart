@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:memories_through_lenses/services/database.dart';
+import 'package:memories_through_lenses/components/post_image.dart';
+import 'package:memories_through_lenses/components/report_dialog.dart';
 import 'package:memories_through_lenses/size_config.dart';
 import 'package:video_player/video_player.dart';
 import 'package:memories_through_lenses/services/auth.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:memories_through_lenses/screens/comments.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:memories_through_lenses/theme/app_colors.dart';
 
 // ignore: must_be_immutable
 class SmallPostCard extends StatefulWidget {
@@ -55,7 +55,7 @@ class _SmallPostCardState extends State<SmallPostCard> {
             formatDate(widget.created_at),
             style: GoogleFonts.merriweather(
               fontSize: 12,
-              color: Colors.black,
+              color: AppColors.text(context),
             ),
           ),
           SizedBox(
@@ -80,20 +80,16 @@ class _SmallPostCardState extends State<SmallPostCard> {
                                     mediaURL: widget.mediaURL,
                                     mediaType: widget.mediaType,
                                     creator: widget.creator,
+                                    caption: widget.caption,
                                   ),
                                 ),
                               );
                             },
-                            child: CachedNetworkImage(
-                              imageUrl: widget.mediaURL,
+                            child: PostImage(
+                              url: widget.mediaURL,
                               width: double.infinity,
                               height: double.infinity,
                               fit: BoxFit.cover,
-                              placeholder: (context, url) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  const Center(child: Icon(Icons.error)),
                             ),
                           )
                         : FutureBuilder(
@@ -126,17 +122,11 @@ class _SmallPostCardState extends State<SmallPostCard> {
                             Icons.report,
                             color: Colors.white,
                           ),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return ReportPostPopup(
-                                  postId: widget.id,
-                                  postCreator: widget.creator,
-                                );
-                              },
-                            );
-                          },
+                          onPressed: () => showReportPostDialog(
+                            context,
+                            postId: widget.id,
+                            postCreator: widget.creator,
+                          ),
                         ),
                       ),
                     ),
@@ -171,118 +161,6 @@ class _SmallPostCardState extends State<SmallPostCard> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// report post popup
-class ReportPostPopup extends StatefulWidget {
-  const ReportPostPopup(
-      {super.key, required this.postId, required this.postCreator});
-  final String postId;
-  final String postCreator;
-
-  @override
-  State<ReportPostPopup> createState() => _ReportPostPopupState();
-}
-
-class _ReportPostPopupState extends State<ReportPostPopup> {
-  bool isReporting = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Report Post"),
-      content: isReporting
-          ? const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Processing..."),
-              ],
-            )
-          : const Text("Are you sure you want to report this post?"),
-      actions: isReporting
-          ? []
-          : [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () async {
-                  setState(() {
-                    isReporting = true;
-                  });
-
-                  try {
-                    await Database()
-                        .reportPost(widget.postId, widget.postCreator);
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Post reported successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      setState(() {
-                        isReporting = false;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content:
-                              Text('Error reporting post: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text("Report"),
-              ),
-              TextButton(
-                onPressed: () async {
-                  setState(() {
-                    isReporting = true;
-                  });
-
-                  try {
-                    await Database()
-                        .reportAndBlockUser(widget.postId, widget.postCreator);
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'User blocked and post reported successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      setState(() {
-                        isReporting = false;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error blocking user: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text("Block User"),
-              )
-            ],
     );
   }
 }
